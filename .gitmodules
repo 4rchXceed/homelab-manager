@@ -1,0 +1,3 @@
+[submodule "webdash.dev"]
+	path = webdash.dev
+	url = https://github.com/4rchXceed/webdash.dev.git

@@ -1,0 +1,4 @@
+cron.sh
+letsencrypt/
+.htpasswd
+logs/
