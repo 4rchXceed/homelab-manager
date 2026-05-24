@@ -1,4 +1,4 @@
-API_URL=you-api-url
+API_URL=your-api-url
 API_KEY=your-api
 # bounce for all type of remediation that the remediation can receive from the local API
 BOUNCING_ON_TYPE=all
@@ -33,11 +33,11 @@ CAPTCHA_EXPIRATION=3600
 ## Application Security Component Configuration
 APPSEC_URL=
 #### default ###
-APPSEC_FAILURE_ACTION=passthrough  
-APPSEC_CONNECT_TIMEOUT=100        
-APPSEC_SEND_TIMEOUT=100            
-APPSEC_PROCESS_TIMEOUT=1000        
-ALWAYS_SEND_TO_APPSEC=false        
+APPSEC_FAILURE_ACTION=passthrough
+APPSEC_CONNECT_TIMEOUT=100
+APPSEC_SEND_TIMEOUT=100
+APPSEC_PROCESS_TIMEOUT=1000
+ALWAYS_SEND_TO_APPSEC=false
 SSL_VERIFY=true
 ################
 

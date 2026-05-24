@@ -1,0 +1,11 @@
+FROM python:alpine3.23
+
+WORKDIR /app
+
+RUN python3 -m venv /venv
+
+COPY requirements.txt requirements.txt
+
+RUN source /venv/bin/activate && pip install -r requirements.txt
+
+CMD [ "/bin/sh", "-c", "source /venv/bin/activate && cd src && python3 main.py" ]

@@ -1,0 +1,34 @@
+services:
+    db:
+        image: postgres
+        restart: always
+        shm_size: 128mb
+        environment:
+            POSTGRES_PASSWORD: Passw0rd
+            PGDATA: /db-data
+        volumes:
+            - "db-data:/db-data"
+        ports:
+            - 5432:5432
+    pgadmin:
+        image: dpage/pgadmin4
+        environment:
+            PGADMIN_DEFAULT_EMAIL: lyam.zambaz@pm.me
+            PGADMIN_DEFAULT_PASSWORD: Passw0rd
+        ports:
+            - 8082:80
+    server:
+        build:
+            context: .
+            dockerfile: Dockerfile.dev
+        command: /bin/sh
+        ports:
+            - 4398:4398
+        volumes:
+            - .:/app
+        # Allow input
+        tty: true
+        stdin_open: true
+
+volumes:
+    db-data:

@@ -1,0 +1,116 @@
+{
+    "config": {
+        "servicesFolder": "../services-compose",
+        "database": {
+            "postgresHost": "db",
+            "postgresPort": "5432",
+            "postgresDbName": "homelabmanager",
+            "postgresUsername": "postgres",
+            "postgresPassword": "Passw0rd"
+        }
+    },
+    "generators": {
+        "htpasswd": {
+            "installDeps": "apt install -y apache2-utils",
+            "base": "bash",
+            "run": "htpasswd -c -b $ARG1 $ARG2 $ARG3",
+            "needsRoot": true
+        },
+        "replaceFile": {
+            "base": "bash",
+            "run": "sed -i -e \"s/$ARG1/$ARG2/g\" $ARG3"
+        }
+    },
+    "services": {
+        "crowdsec": {
+            "name": "Crowdsec",
+            "data": [
+                "./crowdsec/acquis.yaml",
+                "./crowdsec-db",
+                "./crowdsec-config"
+            ],
+            "configFiles": [
+                {
+                    "path": "test",
+                    "generators": [
+                        {
+                            "generator": "replaceFile",
+                            "generatorArgs": [
+                                "paf2.5",
+                                {
+                                    "type": "userVar",
+                                    "name": "Paf2.5 => ??",
+                                    "id": "paf2.5_replaced_by"
+                                },
+                                "test"
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        "reverse-proxy": {
+            "name": "Reverse Proxy",
+            "data": ["./letsencrypt/"],
+            "configFiles": [
+                {
+                    "path": ".htpasswd",
+                    "generators": [
+                        {
+                            "generator": "htpasswd",
+                            "generatorArgs": [
+                                ".htpasswd",
+                                {
+                                    "type": "userVar",
+                                    "name": "Username for the admin section of Nginx",
+                                    "id": "username_main"
+                                },
+                                {
+                                    "type": "userVar",
+                                    "name": "Password for the admin section Nginx",
+                                    "id": "password_main"
+                                }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "path": "crowdsec-nginx-bouncer.conf",
+                    "generators": [
+                        {
+                            "generator": "replaceFile",
+                            "generatorArgs": [
+                                "your-api-url",
+                                {
+                                    "type": "ip",
+                                    "get": "crowdsec",
+                                    "raiseNotFound": false
+                                },
+                                "crowdsec-nginx-bouncer.conf"
+                            ]
+                        },
+                        {
+                            "generator": "replaceFile",
+                            "generatorArgs": [
+                                "your-api",
+                                {
+                                    "type": "userVar",
+                                    "name": "The crowdsec nginx bouncer API key",
+                                    "id": "nginx_bouncer_api_key"
+                                },
+                                "crowdsec-nginx-bouncer.conf"
+                            ]
+                        }
+                    ]
+                }
+            ]
+        }
+    },
+    "servers": [
+        {
+            "name": "Main",
+            "description": "...",
+            "ip": "192.168.122.219"
+        }
+    ]
+}
