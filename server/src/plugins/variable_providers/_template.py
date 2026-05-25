@@ -1,10 +1,17 @@
+from typing import Callable
+
+
 class VariableProvider:
     """This is a template for a variable provider"""
 
     OPTIONS = {"has_frontend": True}
 
     @staticmethod
-    def cli_frontend(datas: dict) -> dict:
+    def cli_frontend(
+        datas: dict,
+        output_print: Callable[[str], None],
+        output_input: Callable[[str], str],
+    ) -> dict:
         """
         Runs the CLI frontend for this variable provider
         This will be called when the config needs to be updated via CLI (no webui or ran from the terminal)

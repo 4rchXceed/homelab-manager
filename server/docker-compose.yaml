@@ -24,6 +24,7 @@ services:
         command: /bin/sh
         ports:
             - 4398:4398
+            - 4399:4399
         volumes:
             - .:/app
         # Allow input

@@ -10,6 +10,7 @@ Markdown==3.10.2
 more-itertools==11.1.0
 oauthlib==3.3.1
 psycopg2-binary==2.9.12
+pyfiglet==1.0.4
 PyYAML==6.0.3
 requests==2.34.2
 requests-oauthlib==2.0.0

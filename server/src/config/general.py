@@ -24,3 +24,16 @@ class GeneralConfig:
             "password": self.dict.get("database", {}).get("postgresPassword"),
             "database": self.dict.get("database", {}).get("postgresDbName"),
         }
+        self.server_port = 4398
+        self.file_server_port = 4399
+        if self.dict.get("net") is not None:
+            self.server_port = self.dict.get("net", {}).get(
+                "serverPort", self.server_port
+            )
+            self.file_server_port = self.dict.get("net", {}).get(
+                "fileServerPort", self.file_server_port
+            )
+        self.unix_socket_path = self.dict.get(
+            "unix_socket_path",
+            "/tmp/homelabmanager.sock",
+        )

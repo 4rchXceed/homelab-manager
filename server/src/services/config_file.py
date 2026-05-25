@@ -1,5 +1,6 @@
 import os
 
+from command_context import CommandContext
 from error.exceptions import GenericConfigException, MissingConfigException
 from helpers import get_current_context
 from logger import logger
@@ -18,7 +19,7 @@ class ConfigFile:
             logger.warning("No generators found for config file at " + self.path)
         self.real_path = os.path.join(
             self.context.config_general.services_folder,
-            service.id,
+            str(service.id),
             self.path + ".sample",
         )
         if not os.path.exists(self.real_path):
@@ -26,7 +27,9 @@ class ConfigFile:
                 f"Config file not found at {self.real_path}. Service: {service.id}, path: {self.path}. Hint: A .sample file with the same base name is required, so it doesn't override the original config file. It will be renamed to {self.path} when the config is written."
             )
 
-    def handle_provider(self, provider_datas: dict) -> str:
+    def handle_provider(
+        self, provider_datas: dict, cmd_context: CommandContext | None = None
+    ) -> str:
         if provider_datas.get("type") is None:
             raise MissingConfigException(
                 f"services.$.configFiles.$.providers.$.type->configPath={self.path}"
@@ -40,7 +43,13 @@ class ConfigFile:
         has_frontend = provider.OPTIONS.get("has_frontend", False)
         if has_frontend:
             if self.context.env == "cli":
-                datas = provider.cli_frontend(provider_datas)
+                if cmd_context is None:
+                    raise Exception(
+                        f"cmd_context is required when using cli frontend for provider {provider_type}"
+                    )
+                datas = provider.cli_frontend(
+                    provider_datas, cmd_context.output_print, cmd_context.output_input
+                )
             else:
                 # TODO: Complete this when WebUI is ready
                 datas = {}
@@ -48,7 +57,7 @@ class ConfigFile:
         else:
             return provider.backend_process(provider_datas, None)
 
-    def regenerate(self) -> None:
+    def regenerate(self, cmd_context: CommandContext | None = None) -> str | None:
         for generator in self.generators_obj:
             generator_name = generator.get("generator")
             generator_arguments = generator.get("generatorArgs", [])
@@ -66,7 +75,7 @@ class ConfigFile:
             arguments = []
             for arg in generator_arguments:
                 if isinstance(arg, dict):
-                    arguments.append(self.handle_provider(arg))
+                    arguments.append(self.handle_provider(arg, cmd_context))
                 else:
                     arguments.append(arg)
             # TODO: For now all commands are run as root (since it's in a container)
@@ -75,11 +84,27 @@ class ConfigFile:
                 arguments,
             )
             # print(command[0])  # TODO: Send these to the srv
-            self.context.message_queue.put(
+            # self.context.message_queue.put(
+            #     {
+            #         "type": "gen_config",
+            #         "service": self.service.id,
+            #         "path": self.path,
+            #         "commands": [command[0]],
+            #     }
+            # )
+            message_uuid = self.context.send_from_service(
+                self.service.id,
                 {
                     "type": "gen_config",
                     "service": self.service.id,
                     "path": self.path,
                     "commands": [command[0]],
-                }
+                },
             )
+            if not message_uuid:
+                logger.error("Failed to send config regeneration request")
+                return None
+            logger.debug(
+                f"Sent config regeneration request, message UUID: {message_uuid}"
+            )
+            return message_uuid

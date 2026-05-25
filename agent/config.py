@@ -31,7 +31,10 @@ class AgentConfig:
             "host": self.server_config["host"],
             "port": self.server_config["port"],
             "api_key": self.server_config["api_key"],
+            "fsport": self.server_config.get("file_server_port", 4399),
         }
+
+        self.services_folder = self.server_config.get("services_folder", "./services")
 
         self.apprise_urls = self.report_notif["apprise_url"]
         for url in self.apprise_urls:

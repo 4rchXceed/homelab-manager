@@ -7,7 +7,12 @@
             "postgresDbName": "homelabmanager",
             "postgresUsername": "postgres",
             "postgresPassword": "Passw0rd"
-        }
+        },
+        "net": {
+            "serverPort": 4398,
+            "fileServerPort": 4399
+        },
+        "unix_socket_path": "/tmp/homelabmanager.sock"
     },
     "generators": {
         "htpasswd": {
@@ -108,6 +113,7 @@
     },
     "servers": [
         {
+            "id": "main",
             "name": "Main",
             "description": "...",
             "ip": "192.168.122.219"

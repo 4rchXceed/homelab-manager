@@ -1,3 +1,5 @@
+from typing import Callable
+
 from database.models import UserVariable
 from error.exceptions import MissingConfigException
 from helpers import get_current_context
@@ -25,11 +27,15 @@ class UserVarProvider(VariableProvider):
         return user_var
 
     @staticmethod
-    def cli_frontend(datas: dict) -> dict:
+    def cli_frontend(
+        datas: dict,
+        output_print: Callable[[str], None],
+        output_input: Callable[[str], str],
+    ) -> dict:
         user_var = UserVarProvider.frontend_init(datas)
         if user_var is None:
             var_name = datas.get("name", "No Name")
-            value = input(f"Enter the value for the variable: {var_name}: ")
+            value = output_input(f"Enter the value for the variable: {var_name}: ")
             return {"value": value}
         else:
             return {"value": user_var.value}

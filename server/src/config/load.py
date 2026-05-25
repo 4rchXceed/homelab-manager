@@ -9,6 +9,6 @@ def get_config() -> str:
     return "../conf/config.json"
 
 
-def load_config():
+def load_config() -> dict:
     with open(get_config()) as f:
         return json.load(f)

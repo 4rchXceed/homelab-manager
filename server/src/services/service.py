@@ -1,9 +1,11 @@
 import json
 from collections import Counter
 
+from command_context import CommandContext
 from database.models import Service
 from error.exceptions import MissingConfigException
 from helpers import get_current_context
+from protocol.agent import Agent
 from services.config_file import ConfigFile
 
 
@@ -35,35 +37,52 @@ class ServerService:
         else:
             self.db_element = db_element
 
-    def finish_init(self):
+    def finish_init(self, cmd_context: CommandContext | None = None) -> list[str]:
         """To avoid the position of the services in the config to matter"""
+        requests = []
         if self.db_element.last_config != json.dumps(self.config) or self.need_update:
             if self.db_element.last_config is None:
-                self.update({})
+                requests.extend(self.update({}, cmd_context))
             else:
-                self.update(json.loads(self.db_element.last_config))
+                requests.extend(
+                    self.update(json.loads(self.db_element.last_config), cmd_context)
+                )
             self.db_element.last_config = json.dumps(self.config)
             self.context.database.session.commit()
             self.need_update = False
+        return requests
 
-    def update(self, old_config: dict) -> bool:
-        changed = False
+    def update(
+        self, old_config: dict, cmd_context: CommandContext | None = None
+    ) -> list[str]:
+        requests = []
         if old_config.get("name") != self.name:
             self.db_element.name = self.name
             self.context.database.session.commit()
-            changed = True
         if Counter(old_config.get("data", [])) != Counter(self.datas):
             # TODO: Add correct handling when self.data will be implemented
             self.db_element.last_config = json.dumps(self.config)
             self.context.database.session.commit()
-            changed = True
         if json.dumps(old_config.get("configFiles", [])) != json.dumps(
             self.config_files_obj
         ):
             for config_file in self.config_files:
-                config_file.regenerate()
+                request_uuid = config_file.regenerate(cmd_context)
+                if request_uuid:
+                    requests.append(request_uuid)
+
             self.db_element.last_config = json.dumps(self.config)
             self.context.database.session.commit()
-            changed = True
 
-        return changed
+        return requests
+
+    def start_on(self, agent: Agent) -> list[str]:
+        requests = []
+        # For now, we don't have the docker compose up made, so we just return an empty list
+        # But we will assign it in the database
+        if not agent.db_server:
+            raise RuntimeError(f"Agent {agent.name} not initialized")
+        self.db_element.server = agent.db_server
+        self.context.database.session.commit()
+
+        return requests

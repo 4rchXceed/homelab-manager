@@ -1,7 +1,9 @@
 {
     "host": "192.168.122.218",
     "port": 4398,
-    "api_key": "sjsdjs2",
+    "api_key": "fde0f822-ef13-4fd4-abfc-d375369b077c",
     "this": "Server-01-Debian",
-    "this_id": "srv01-debian"
+    "this_id": "srv01-debian",
+    "services_folder": "./services",
+    "file_server_port": 4399
 }

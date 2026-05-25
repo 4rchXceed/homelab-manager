@@ -1,11 +1,13 @@
 import json
 import os
 import threading
+import uuid
 from queue import Queue
 from socket import socket
 
 from config import AgentConfig
 from config_gen.runner import run_command
+from fileclient.sync import sync
 from messaging.log import debug, info
 from messaging.report_error import log_error, report_error
 
@@ -47,27 +49,41 @@ class Client:
             raise ConnectionError(f"Failed to connect: {data}")
         self.stop = False
         info("Connected to server.")
+        info(
+            "Syncronizing services folder (this might take a while if there are many services)..."
+        )
+        self.sync_services()
         threading.Thread(target=self.queue_processor).start()
         while not self.stop:
             try:
                 data = self.client.recv(1024).decode()
                 if data:
                     debug(f"Received message: {data}... Handling...")
-                    self.message_queue.put(json.loads(data))
+                    for line in data.split("\n"):
+                        if line:
+                            self.message_queue.put(json.loads(line))
                 else:
                     self.stop = True
             except Exception as e:
                 log_error(f"Error: {str(e)}")
                 self.stop = True
 
+    def sync_services(self):
+        sync(
+            f"{self.config.server['host']}:{self.config.server['fsport']}",
+            self.config.services_folder,
+        )
+
     def queue_processor(self):
         while not self.stop:
             message = self.message_queue.get()
             if message:
-                message = self.handle_message(message)
-                if message:
-                    print(f"Sending message: {message}")
-                    self.client.sendall(json.dumps(message).encode())
+                response = self.handle_message(message)
+                if response:
+                    if not response.get("r_uuid"):
+                        response["r_uuid"] = message.get("r_uuid", uuid.uuid4())
+                    print(f"Sending message: {response}")
+                    self.client.sendall((json.dumps(response) + "\n").encode())
             self.message_queue.task_done()
 
     def handle_message(self, message: dict) -> dict | None:
@@ -92,7 +108,7 @@ class Client:
                         cp {cfg_original_path} {cfg_new_path}
                         """
                         return_code = run_command(command_copy + command, path)
-                        return_codes.append(return_code)
+                        return_codes.append(str(return_code))
                         if return_code != 0:
                             success = False
                         return {

@@ -75,3 +75,4 @@ __pypackages__/
 
 .venv
 services-compose/
+agent.log
