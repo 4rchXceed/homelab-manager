@@ -6,7 +6,7 @@ import uuid
 from queue import Queue
 
 from database.models import Server
-from error.exceptions import MissingConfigException, ProgramStateError
+from error.exceptions import MissingConfigException, ProgramStateError, TimeoutException
 from helpers import get_current_context
 from logger import logger
 
@@ -19,6 +19,10 @@ class Agent:
         self.request_queue = Queue()  # Custom queue for every agent
         self.requests = {}
         self.server = None
+        self.keepalive_thread = None
+
+    def reload(self, _):
+        self.sync_to_db()
 
     def init(self) -> None:
         connected = self.init_connection()
@@ -26,7 +30,15 @@ class Agent:
             self.sync_to_db()
             self.start_receiving()
             self.start_processing()
+            self.context.event_manager.register_event("config_reload", self.reload)
+            self.keepalive_thread = threading.Thread(target=self.keepalive)
+            self.keepalive_thread.start()
             logger.info(f"Agent initialized with connection from {self.addr}")
+        else:
+            logger.warning(f"Agent {self.addr} tried to connect with wrong api key")
+            self.context.app.agents.remove(
+                self
+            )  # Remove self from agent, because self is dirty
 
     def sync_to_db(self) -> None:
         if self.server:
@@ -105,15 +117,20 @@ class Agent:
         return False
 
     def receive(self) -> None:
-        while not self.context.kill_switch:
+        stop = False
+        while not self.context.kill_switch and not stop:
             try:
                 data = self.socket.recv(1024).decode()
                 if data:
                     try:
-                        self.handle_request(json.loads(data))
+                        for line in data.split("\n"):
+                            if line:
+                                self.handle_request(json.loads(line))
                     except json.JSONDecodeError as e:
                         logger.error(f"JSON decode error: {e}")
             except Exception as e:
+                self.handle_disconnect()
+                stop = True
                 logger.error(f"Error during receive: {e}")
 
     def handle_request(self, data: dict) -> None:
@@ -152,13 +169,91 @@ class Agent:
             data["r_uuid"] = str(request_uuid)
         self.requests[data["r_uuid"]] = data
         try:
-            self.socket.sendall(json.dumps(data).encode())
+            self.socket.sendall((json.dumps(data) + "\n").encode())
         except Exception as e:
             logger.error(f"Error during send: {e}")
+
+    def send_pingpong(self, data: dict, timeout: float = 10.0) -> dict:
+        request_id = data.get("r_uuid", str(uuid.uuid4()))
+        data["r_uuid"] = request_id
+        datas = None
+
+        def handle_request_recv(data):
+            nonlocal datas
+            if data.get("r_uuid") == request_id:
+                datas = data
+
+        self.context.event_manager.register_event("request_recv", handle_request_recv)
+
+        self.send(data)
+
+        start_time = time.time()
+        while datas is None:
+            time.sleep(0.05)
+            if time.time() - start_time > timeout:
+                break
+
+        self.context.event_manager.unregister_event("request_recv", handle_request_recv)
+
+        if datas is None:
+            raise TimeoutException(f"Request {request_id} timed out ({timeout}s)")
+
+        return datas
 
     def close(self) -> None:
         try:
             self.socket.shutdown(socket.SHUT_RDWR)
             self.socket.close()
+            self.context.agents.remove(self)
+            self.context.app.agents.remove(self)
         except Exception as e:
             logger.error(f"Error during close: {e}")
+
+    def start_service(self, service_name: str, timeout=120) -> tuple[bool, str]:
+        data = {"type": "start_service", "service": service_name}
+        datas = self.send_pingpong(data, timeout=timeout)
+        return datas.get("error", True), datas.get("message", "Generic error")
+
+    def stop_service(self, service_name: str, timeout=120) -> tuple[bool, str]:
+        data = {"type": "stop_service", "service": service_name}
+        datas = self.send_pingpong(
+            data,
+            timeout=timeout,  # A service stop can take a while
+        )
+        return datas.get("error", True), datas.get("message", "Generic error")
+
+    def restart_service(self, service_name: str) -> tuple[bool, str]:
+        data = {"type": "restart_service", "service": service_name}
+        datas = self.send_pingpong(data)
+        return datas.get("error", True), datas.get("message", "Generic error")
+
+    def list_services(self) -> list[dict]:
+        data = {"type": "list_services"}
+        datas = self.send_pingpong(data)
+        return datas.get("services", [])
+
+    def is_service_running(self, service_name: str) -> bool:
+        data = {"type": "is_service_running", "service": service_name}
+        datas = self.send_pingpong(data)
+        return datas.get("is_running", False)
+
+    def handle_disconnect(self) -> None:
+        logger.warning(f"Agent {self.name} disconnected... Cleanup")
+        self.close()
+
+    def keepalive(self) -> None:
+        stop = False
+        while not self.context.kill_switch and not stop:
+            try:
+                self.send_pingpong({"type": "keepalive"})
+                time.sleep(self.context.config_general.keepalive_interval)
+            except ConnectionResetError:
+                stop = True
+            except Exception as e:
+                logger.error(f"Error during keepalive: {e}")
+                stop = True
+        self.handle_disconnect()
+
+    def sync_files(self) -> None:
+        data = {"type": "sync_files"}
+        self.send_pingpong(data)

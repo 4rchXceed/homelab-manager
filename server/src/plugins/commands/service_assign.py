@@ -1,5 +1,3 @@
-import time
-
 from command_context import CommandContext
 from helpers import get_current_context
 from plugins.commands._template import CommandBase
@@ -22,14 +20,6 @@ class ServiceAssignCommand(CommandBase):
             cmd_context.output_print("No server ID provided")
             return False
         context = get_current_context()
-        all_requests = []
-
-        def handle_request_recv(data):
-            if data["r_uuid"] in all_requests:
-                all_requests.remove(data["r_uuid"])
-
-        context.event_manager.register_event("request_recv", handle_request_recv)
-
         agent = None
         for agent in context.agents:
             if agent.id == server_to_assign:
@@ -45,12 +35,7 @@ class ServiceAssignCommand(CommandBase):
                 cmd_context.output_print(
                     f"Service {service_id} found, assigning to server {server_to_assign}"
                 )
-                all_requests.extend(service.start_on(agent))
+                service.start_on(agent)
                 return True
-        if not all_requests:
-            cmd_context.output_print(f"Service {service_needed} not found")
-
-        while len(all_requests) > 0:
-            time.sleep(0.1)
-        context.event_manager.unregister_event("request_recv", handle_request_recv)
+        cmd_context.output_print(f"Service {service_needed} not found")
         return False

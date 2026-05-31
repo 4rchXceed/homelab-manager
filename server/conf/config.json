@@ -12,7 +12,9 @@
             "serverPort": 4398,
             "fileServerPort": 4399
         },
-        "unix_socket_path": "/tmp/homelabmanager.sock"
+        "unixSocketPath": "/tmp/homelabmanager.sock",
+        "startupTimeout": 120,
+        "keepaliveInterval": 5
     },
     "generators": {
         "htpasswd": {
@@ -34,25 +36,7 @@
                 "./crowdsec-db",
                 "./crowdsec-config"
             ],
-            "configFiles": [
-                {
-                    "path": "test",
-                    "generators": [
-                        {
-                            "generator": "replaceFile",
-                            "generatorArgs": [
-                                "paf2.5",
-                                {
-                                    "type": "userVar",
-                                    "name": "Paf2.5 => ??",
-                                    "id": "paf2.5_replaced_by"
-                                },
-                                "test"
-                            ]
-                        }
-                    ]
-                }
-            ]
+            "configFiles": []
         },
         "reverse-proxy": {
             "name": "Reverse Proxy",
@@ -114,7 +98,7 @@
     "servers": [
         {
             "id": "main",
-            "name": "Main",
+            "name": "Main Server",
             "description": "...",
             "ip": "192.168.122.219"
         }

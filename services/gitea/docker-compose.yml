@@ -1,20 +1,23 @@
-version: "2"
-
 services:
-  server:
-    image: docker.gitea.com/gitea:1.24.6-rootless
-    restart: always
-    volumes:
-      - ./data:/var/lib/gitea
-      - ./config:/etc/gitea
-      - /etc/timezone:/etc/timezone:ro
-      - /etc/localtime:/etc/localtime:ro
-    ports:
-      - "3000:3000"
-      - "2222:2222"
-    networks:
-      - gitea-net
+    server:
+        image: docker.gitea.com/gitea:1.24.6-rootless
+        restart: always
+        volumes:
+            - ./data:/var/lib/gitea
+            - ./config:/etc/gitea
+            - /etc/timezone:/etc/timezone:ro
+            - /etc/localtime:/etc/localtime:ro
+        ports:
+            - "3000:3000"
+            - "2222:2222"
+        networks:
+            - gitea-net
+        healthcheck:
+            test: ["CMD", "echo", "OK"]
+            interval: 30s
+            timeout: 5s
+            retries: 3
 
 networks:
-  gitea-net:
-    driver: bridge
+    gitea-net:
+        driver: bridge

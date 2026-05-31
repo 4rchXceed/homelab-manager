@@ -3,6 +3,9 @@ from error.exceptions import GenericConfigException, MissingConfigException
 
 class GeneralConfig:
     def __init__(self, json_datas: dict) -> None:
+        self.reload(json_datas)
+
+    def reload(self, json_datas: dict):
         if json_datas.get("config") is None:
             raise MissingConfigException("config")
         self.dict = json_datas.get("config")
@@ -34,6 +37,14 @@ class GeneralConfig:
                 "fileServerPort", self.file_server_port
             )
         self.unix_socket_path = self.dict.get(
-            "unix_socket_path",
+            "unixSocketPath",
             "/tmp/homelabmanager.sock",
+        )
+        self.startup_timeout = self.dict.get(
+            "startupTimeout",
+            120,
+        )
+        self.keepalive_interval = self.dict.get(
+            "keepaliveInterval",
+            5,
         )

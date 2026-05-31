@@ -1,6 +1,7 @@
 import json
 import os
 import threading
+import time
 import uuid
 from queue import Queue
 from socket import socket
@@ -10,6 +11,7 @@ from config_gen.runner import run_command
 from fileclient.sync import sync
 from messaging.log import debug, info
 from messaging.report_error import log_error, report_error
+from runner.service_manager import ServiceManager
 
 
 class Client:
@@ -20,6 +22,26 @@ class Client:
             raise RuntimeError("AgentConfig not initialized")
         self.config = AgentConfig.instance
         self.message_queue = Queue()
+        self.init_services()
+        self.last_keepalive = time.time()
+        self.keepalive_thread = None
+
+    def keepalive_check(self):
+        stop = False
+        while not stop:
+            time.sleep(5)
+            if (
+                time.time() - self.last_keepalive
+                > self.config.server["keepalive_interval"]
+            ):
+                stop = True
+        info("Keepalive check stopped")
+        report_error(
+            "KEEPALIVE CHECK FAILED",
+            "The manager has stopped responding. Trying restarting/exiting the agent...",
+            level=2,
+        )
+        exit(1)
 
     def connect(self):
         info(
@@ -52,15 +74,17 @@ class Client:
         info(
             "Syncronizing services folder (this might take a while if there are many services)..."
         )
+        self.keepalive_thread = threading.Thread(target=self.keepalive_check)
+        self.keepalive_thread.start()
         self.sync_services()
         threading.Thread(target=self.queue_processor).start()
         while not self.stop:
             try:
                 data = self.client.recv(1024).decode()
                 if data:
-                    debug(f"Received message: {data}... Handling...")
                     for line in data.split("\n"):
                         if line:
+                            debug(f"Received message: {line}... Handling...")
                             self.message_queue.put(json.loads(line))
                 else:
                     self.stop = True
@@ -86,9 +110,66 @@ class Client:
                     self.client.sendall((json.dumps(response) + "\n").encode())
             self.message_queue.task_done()
 
+    def init_services(self):
+        self.service_manager = ServiceManager(self.config.services_folder)
+
     def handle_message(self, message: dict) -> dict | None:
         try:
-            if message.get("type", "") == "gen_config":
+            if message.get("type") == "list_services":
+                services = self.service_manager.list_services()
+                return_datas = []
+                for service in services:
+                    return_datas.append(
+                        {
+                            "name": service.name,
+                            "is_running": service.running,
+                            "is_healthy": service.healthy,
+                            "raw_data": service.line_str,
+                        }
+                    )
+                return {"type": "list_services_report", "services": return_datas}
+            elif message.get("type") == "keepalive":
+                self.last_keepalive = time.time()
+                return {"type": "keepalive_report"}
+            elif message.get("type") == "sync_files":
+                self.sync_services()
+                return {"type": "sync_files_report"}
+            elif message.get("type") == "is_service_running":
+                service_name = message.get("service", "")
+                is_running = self.service_manager.is_running(service_name)
+                return {
+                    "type": "is_service_running_report",
+                    "service": service_name,
+                    "is_running": is_running,
+                }
+            elif message.get("type") == "start_service":
+                service_name = message.get("service", "")
+                error, msg = self.service_manager.start(service_name)
+                return {
+                    "type": "start_service_report",
+                    "service": service_name,
+                    "error": error,
+                    "message": msg,
+                }
+            elif message.get("type") == "stop_service":
+                service_name = message.get("service", "")
+                error, msg = self.service_manager.stop(service_name)
+                return {
+                    "type": "stop_service_report",
+                    "service": service_name,
+                    "error": error,
+                    "message": msg,
+                }
+            elif message.get("type") == "restart_service":
+                service_name = message.get("service", "")
+                error, msg = self.service_manager.restart(service_name)
+                return {
+                    "type": "restart_service_report",
+                    "service": service_name,
+                    "error": error,
+                    "message": msg,
+                }
+            elif message.get("type", "") == "gen_config":
                 path = os.path.join("services", message.get("service", ""))
                 commands = message.get("commands", [])
                 return_codes = []

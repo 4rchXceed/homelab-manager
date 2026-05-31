@@ -19,3 +19,9 @@ class ProgramStateError(Exception):
         super().__init__(
             f"The program is in an invalid state (shouldn't happen): {message}"
         )
+
+
+class TimeoutException(Exception):
+    def __init__(self, message: str) -> None:
+        """Raised when a timeout occurs"""
+        super().__init__(f"The agent did not respond in time: {message} (TimeoutError)")

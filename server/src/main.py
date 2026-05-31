@@ -2,6 +2,7 @@ import os
 import shlex
 import socket
 import threading
+import time
 from queue import Queue
 from typing import Callable
 
@@ -34,6 +35,48 @@ class ServerApp:
         self.agents: list[Agent] = []
         self.temp_threads = []
         self.services: dict[str, ServerService] = {}
+        self.init_thread = None
+        self.postinit_completed = False
+
+    def reload_config(self, apply_now: bool, cmd_context: CommandContext | None) -> str:
+        self.config_raw = load_config()
+        if self.config_general.dict != self.config_raw.get("config"):
+            return "!! you changed the general config (config: {...}). You MUST restart the server!"
+
+        self.config_servers.reload(self.config_raw)
+        for service_id, service in self.services.items():
+            service_data = self.config_raw.get("services", {}).get(service_id)
+            if service_data:
+                service.update(service_data)
+                if apply_now:
+                    if service.db_element.server:
+                        service.finish_init(cmd_context)
+            else:
+                pass  # TODO: Handle service deletion
+
+        self.context.event_manager.trigger_event("config_reload", self.config_raw)
+
+        return "Reload DONE"
+
+    def wait_init_complete(self) -> None:
+        number_agents = len(self.context.config_servers.servers)
+        timeout = self.config_general.startup_timeout
+        logger.info(f"Waiting for {number_agents} agents to initialize...")
+        start_time = time.time()
+        while len(self.agents) < number_agents:
+            time.sleep(0.1)
+            if time.time() - start_time > timeout:
+                logger.error(f"Startup timeout: {timeout}s")
+                raise TimeoutError(
+                    "Startup timeout"
+                )  # TimeoutException is reserved for transport timeouts
+        self.sync_services(
+            can_do_actions=False,
+            debug=True,
+        )  # Prevent automated actions during init. Debug is enable by default so the owner can see what's happening in case of issues
+        logger.info("Post-init sync complete")
+        self.postinit_completed = True
+        self.init_thread = None
 
     def init(self) -> None:
         logger.info("Booting...")
@@ -49,6 +92,8 @@ class ServerApp:
             self,
         )
         set_current_context(self.context)
+        self.init_thread = threading.Thread(target=self.wait_init_complete)
+        self.init_thread.start()
         self.init_services()
         self.init_file_server()
         self.init_communication_socket()
@@ -63,9 +108,23 @@ class ServerApp:
             try:
                 conn, addr = self.server_socket_comm.accept()
                 agent = Agent(conn, addr)
+
+                def init_wrapper():
+                    agent.init()
+                    # If post-initialization is completed, start the sync thread, because else the agent would not be synced
+                    # This happens only due to a disconnect from an agent.
+
+                    if self.postinit_completed:
+                        sync_thread = threading.Thread(
+                            target=self.temp_thread_wrapper, args=(self.sync_services,)
+                        )
+                        sync_thread.start()
+                        self.temp_threads.append(sync_thread)
+
                 init_thread = threading.Thread(
-                    target=self.temp_thread_wrapper, args=(agent.init,)
+                    target=self.temp_thread_wrapper, args=(init_wrapper,)
                 )
+
                 init_thread.start()
                 self.temp_threads.append(init_thread)
                 self.agents.append(agent)
@@ -105,6 +164,133 @@ class ServerApp:
         for service, service_config in services_obj.items():
             self.services[service] = ServerService(service, service_config)
         logger.debug("Services initialized!")
+
+    def sync_services(
+        self, can_do_actions: bool = False, custom_logger=None, debug: bool = False
+    ) -> int:
+        def base_log(message):
+            if custom_logger:
+                custom_logger(message)
+            else:
+                logger.info(message)
+
+        def log_error(message):
+            base_log("ERROR: " + message)
+
+        def log_warning(message):
+            base_log("WARNING: " + message)
+
+        base_log(
+            "Syncing services... (this will take a while if there are errors / desync, progress will be logged below)"
+        )
+        errors = 0
+        # Agent side
+        i = 0
+        for agent in self.agents:
+            i += 1
+            if debug:
+                base_log(
+                    f"Syncing services from agent {i}/{len(self.agents)}... Phase 1/2"
+                )
+            if can_do_actions:
+                agent.sync_files()
+            services = agent.list_services()
+            for service in services:
+                name = service["name"]
+                if service.get("is_running"):
+                    if name not in self.services.keys():
+                        log_warning(
+                            f"Service {name} not found in local services (badly removed from config?), skipping..."
+                        )
+                        if can_do_actions:
+                            log_warning(
+                                f"Service {name} can be destroyed! Destroying... This will take a while..."
+                            )
+                            is_error, error_message = agent.stop_service(
+                                name, timeout=120
+                            )
+                            if is_error:
+                                log_error(
+                                    f"Failed to stop service {name}: {error_message}"
+                                )
+                                errors += 1
+                        else:
+                            log_error(
+                                "Could not resolve this issue due to the flag can_do_actions"
+                            )
+                            errors += 1
+                    else:
+                        if agent.db_server:
+                            server_service = self.services[name]
+                            if not server_service.db_element.server:
+                                log_warning(
+                                    f"Service {name} is not supposed to be running. (Did you start it manually? If so, please use the manager... syncing)"
+                                )
+                                server_service.db_element.server = agent.db_server
+                                self.context.database.session.commit()
+                            else:
+                                if server_service.db_element.id != agent.db_server.id:
+                                    log_warning(
+                                        f"Service {name} is supposed to be running on server {agent.db_server.name}, but is running on server {server_service.db_element.server.name}. (Did you start it manually? If so, please use the manager...)"
+                                        + "Generating report of the issue..."
+                                    )
+                                    real_agent = server_service.get_agent()
+
+                                    if real_agent:
+                                        is_running = real_agent.is_service_running(name)
+                                        if is_running:
+                                            log_error(
+                                                "Two instances of the server daemon are running on the same server! PANIC! IDK WHAT TO DO!!!! "
+                                                + "Try running: agent:stop agent_id service_id"
+                                            )
+                                            errors += 1
+                                        else:
+                                            log_warning(
+                                                f"Service {name} is not running on agent {real_agent.name}... Syncing the database..."
+                                            )
+                                            server_service.db_element.server = (
+                                                real_agent.db_server
+                                            )
+                                            self.context.database.session.commit()
+                                    else:
+                                        log_error(
+                                            f"Could not find agent for server {server_service.db_element.server.name}"
+                                        )
+                                        errors += 1
+
+        # Database side
+        i = 0
+        for service_id, service in self.services.items():
+            i += 1
+            if debug:
+                base_log(f"Syncing service {i}/{len(self.services)}... Phase 2/2")
+            if service.db_element.server:
+                agent = service.get_agent()
+                if agent is None:
+                    log_error(
+                        f"Could not find agent for server {service.db_element.server.name}. Absolutely not supposed to happen!"
+                    )
+                    errors += 1
+                else:
+                    response = agent.list_services()
+                    for service_status in response:
+                        if service_id == service_status.get("name", ""):
+                            if not service_status.get("is_running"):
+                                if can_do_actions:
+                                    logger.warning(
+                                        f"Service {service_id} is not running. Starting..."
+                                    )
+                                    is_error, error_message = service.start_on(agent)
+                                    if is_error:
+                                        log_error(
+                                            f"Failed to start service {service_id}: {error_message}"
+                                        )
+                                        errors += 1
+                                else:
+                                    log_error(f"Service {service_id} is not running")
+                                    errors += 1
+                            break
+        return errors
 
     def unix_socket_server(self) -> None:
         socket_path = self.config_general.unix_socket_path
@@ -158,6 +344,12 @@ class ServerApp:
         action = parts[0]
         command_handler = None
         if action == "help":
+            if len(parts) == 1:
+                commands = []
+                for cmd in COMMANDS:
+                    commands.append(cmd.NAME)
+                socket.sendall(f"help, shutdown, {', '.join(commands)}".encode())
+                return True
             for cmd in COMMANDS:
                 if cmd.NAME == parts[1]:
                     command_handler = cmd

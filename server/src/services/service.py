@@ -12,6 +12,9 @@ from services.config_file import ConfigFile
 class ServerService:
     def __init__(self, id: str, config: dict) -> None:
         self.id = id
+        self.reload(config)
+
+    def reload(self, config: dict):
         self.context = get_current_context()
 
         self.config = config
@@ -27,10 +30,12 @@ class ServerService:
 
         # Database
         db_element = (
-            self.context.database.session.query(Service).filter_by(id_str=id).first()
+            self.context.database.session.query(Service)
+            .filter_by(id_str=self.id)
+            .first()
         )
         if db_element is None:
-            self.db_element = Service(id_str=id, name=self.name, last_config="{}")
+            self.db_element = Service(id_str=self.id, name=self.name, last_config="{}")
             self.context.database.session.add(self.db_element)
             self.context.database.session.commit()
             self.need_update = True
@@ -76,13 +81,29 @@ class ServerService:
 
         return requests
 
-    def start_on(self, agent: Agent) -> list[str]:
-        requests = []
+    def start_on(self, agent: Agent) -> tuple[bool, str]:
         # For now, we don't have the docker compose up made, so we just return an empty list
         # But we will assign it in the database
         if not agent.db_server:
             raise RuntimeError(f"Agent {agent.name} not initialized")
+        is_error, error_message = agent.start_service(self.id)
         self.db_element.server = agent.db_server
         self.context.database.session.commit()
+        return is_error, error_message
 
-        return requests
+    def unassign(self) -> None:
+        self.db_element.server = None
+        self.context.database.session.commit()
+        agent = self.get_agent()
+        if agent:
+            agent.stop_service(self.id)
+
+    def get_agent(self) -> Agent | None:
+        for agent in self.context.app.agents:
+            if (
+                agent.db_server
+                and self.db_element.server
+                and agent.db_server.id == self.db_element.server.id
+            ):
+                return agent
+        return None

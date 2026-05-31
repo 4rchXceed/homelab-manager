@@ -14,6 +14,11 @@ print(f.renderText("Homelab Manager CLI"))
 print("exit to exit")
 while not stop:
     message = input("admin@hlabmgr: ")
+    if message.strip() == "":
+        continue
+    if message.strip() == "exit":
+        stop = True
+        continue
     client.sendall(message.encode())
     command_ended = False
     while not command_ended:

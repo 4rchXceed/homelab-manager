@@ -1,9 +1,10 @@
 {
-    "host": "192.168.122.218",
+    "host": "192.168.1.249",
     "port": 4398,
-    "api_key": "fde0f822-ef13-4fd4-abfc-d375369b077c",
+    "api_key": "57e4012d-b819-49e7-be2e-acf9789ed3f2",
     "this": "Server-01-Debian",
     "this_id": "srv01-debian",
     "services_folder": "./services",
-    "file_server_port": 4399
+    "file_server_port": 4399,
+    "keepalive_interval": 10
 }

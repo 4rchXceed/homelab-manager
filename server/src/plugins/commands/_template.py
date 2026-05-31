@@ -1,5 +1,3 @@
-from typing import Callable
-
 from command_context import CommandContext
 
 
