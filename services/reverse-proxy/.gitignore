@@ -1,5 +1,0 @@
-cron.sh
-letsencrypt/
-.htpasswd
-logs/
-crowdsec-nginx-bouncer.conf

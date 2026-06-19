@@ -1,5 +1,0 @@
-.env
-./crowdsec/acquis.yaml
-./logs
-./crowdsec-db/
-./crowdsec-config/
