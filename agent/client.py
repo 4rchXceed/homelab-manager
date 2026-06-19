@@ -2,6 +2,7 @@ import json
 import os
 import threading
 import time
+import traceback
 import uuid
 from queue import Queue
 from socket import socket
@@ -9,6 +10,7 @@ from socket import socket
 from config import AgentConfig
 from config_gen.runner import run_command
 from fileclient.sync import sync
+from localdb.database import Database
 from messaging.log import debug, info
 from messaging.report_error import log_error, report_error
 from runner.service_manager import ServiceManager
@@ -25,6 +27,8 @@ class Client:
         self.init_services()
         self.last_keepalive = time.time()
         self.keepalive_thread = None
+        self.thread_pool = []
+        self.database = Database(self.config.server["db_path"])
 
     def keepalive_check(self):
         stop = False
@@ -77,6 +81,8 @@ class Client:
         self.keepalive_thread = threading.Thread(target=self.keepalive_check)
         self.keepalive_thread.start()
         self.sync_services()
+        for service in self.service_manager.list_services():
+            self.database.ensure_service(service.name)
         threading.Thread(target=self.queue_processor).start()
         while not self.stop:
             try:
@@ -102,13 +108,25 @@ class Client:
         while not self.stop:
             message = self.message_queue.get()
             if message:
-                response = self.handle_message(message)
-                if response:
-                    if not response.get("r_uuid"):
-                        response["r_uuid"] = message.get("r_uuid", uuid.uuid4())
-                    print(f"Sending message: {response}")
-                    self.client.sendall((json.dumps(response) + "\n").encode())
-            self.message_queue.task_done()
+
+                def handle_response(uuid):
+                    response = self.handle_message(message)
+                    if response:
+                        if not response.get("r_uuid"):
+                            response["r_uuid"] = uuid
+                            print(f"Sending message: {response}")
+                            self.client.sendall((json.dumps(response) + "\n").encode())
+                    self.thread_pool.remove(threading.current_thread())
+
+                self.thread_pool.append(
+                    threading.Thread(
+                        target=handle_response,
+                        args=(message.get("r_uuid", uuid.uuid4()),),
+                    )
+                )
+                self.thread_pool[-1].start()
+
+                self.message_queue.task_done()
 
     def init_services(self):
         self.service_manager = ServiceManager(self.config.services_folder)
@@ -144,6 +162,20 @@ class Client:
                 }
             elif message.get("type") == "start_service":
                 service_name = message.get("service", "")
+                if self.database.check_folder_change(
+                    self.config.services_folder,
+                    service_name,
+                    message.get("data_folders", []),
+                ):
+                    error, msg = self.service_manager.build(service_name)
+                    print(error, msg)
+                    if error:
+                        return {
+                            "type": "build_service_report",
+                            "service": service_name,
+                            "error": error,
+                            "message": msg,
+                        }
                 error, msg = self.service_manager.start(service_name)
                 return {
                     "type": "start_service_report",
@@ -198,6 +230,8 @@ class Client:
                             "return_codes": return_codes,
                             "success": success,
                         }
-        except Exception as e:
-            log_error(f"ERROR while handling message {message}: {str(e)}")
+        except Exception:
+            log_error(
+                f"ERROR while handling message {message}: {traceback.format_exc()}"
+            )
             self.stop = True

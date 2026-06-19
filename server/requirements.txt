@@ -19,3 +19,4 @@ SQLAlchemy==2.0.49
 typeguard==4.5.2
 typing_extensions==4.15.0
 urllib3==2.7.0
+python-dotenv==1.2.2

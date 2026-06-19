@@ -3,16 +3,19 @@ import shlex
 import socket
 import threading
 import time
+import traceback
 from queue import Queue
 from typing import Callable
 
 from command_context import CommandContext
 from config.general import GeneralConfig
-from config.load import load_config
+from config.load import load_config, load_new_config
 from config.servers import ConfigServers
 from config_gen.generators import Generators
 from context import HLMContext
 from database.database import DatabaseEngine
+from database.models import NeedsUpdate, Server, Service
+from dotenv import load_dotenv
 from fileserver.rclone import FileServer
 from helpers import set_current_context
 from logger import logger
@@ -20,11 +23,14 @@ from plugins.commands.library import COMMANDS
 from plugins.variable_providers.library import VARIABLE_PROVIDERS
 from protocol.agent import Agent
 from services.service import ServerService
+from sqlalchemy.orm import Session
 
 
 class ServerApp:
     def __init__(self) -> None:
-        self.config_raw = load_config()
+        config_raw, config_raw_str = load_config()
+        self.config_raw = config_raw
+        self.config_raw_str = config_raw_str
         self.config_general = GeneralConfig(self.config_raw)
         self.config_servers = ConfigServers(self.config_raw)
         self.socket_comm_host = socket.gethostname()
@@ -38,28 +44,52 @@ class ServerApp:
         self.init_thread = None
         self.postinit_completed = False
 
-    def reload_config(self, apply_now: bool, cmd_context: CommandContext | None) -> str:
-        self.config_raw = load_config()
+    def check_deleted_services(self, cmd_context: CommandContext | None = None) -> None:
+        services = self.context.database.session.query(Service).all()
+        for service in services:
+            if (
+                service.id_str not in self.config_raw.get("services", {}).keys()
+                and not service.disabled
+            ):
+                msg = f"!! Service {service.id_str} has been deleted from config...Disabling it...."
+                if cmd_context:
+                    cmd_context.output_print(msg)
+                else:
+                    logger.warning(msg)
+                server_service = ServerService.get_from_id_str(service.id_str)
+                if server_service:
+                    server_service.unassign()
+                service.disabled = True
+                self.context.database.session.commit()
+                del self.services[service.id_str]
+
+    def reload_config(self, cmd_context: CommandContext | None) -> str:
+        self.config_raw, self.config_raw_str = load_new_config()
+
         if self.config_general.dict != self.config_raw.get("config"):
             return "!! you changed the general config (config: {...}). You MUST restart the server!"
-
+        self.context.event_manager.trigger_event("config_reload", self.config_raw)
+        for agent in self.agents:
+            agent.sync_files()
         self.config_servers.reload(self.config_raw)
         for service_id, service in self.services.items():
             service_data = self.config_raw.get("services", {}).get(service_id)
             if service_data:
-                service.update(service_data)
-                if apply_now:
-                    if service.db_element.server:
-                        service.finish_init(cmd_context)
-            else:
-                pass  # TODO: Handle service deletion
-
-        self.context.event_manager.trigger_event("config_reload", self.config_raw)
+                service.finish_init(cmd_context)
+        for service_id, config_service in self.config_raw.get("services", {}).items():
+            if service_id not in self.services.keys():
+                if cmd_context:
+                    cmd_context.output_print(
+                        f"Service {service_id} added to the config!"
+                    )
+                self.services[service_id] = ServerService(service_id, config_service)
+        self.check_deleted_services(cmd_context)
+        self.context.event_manager.trigger_event("config_synced")
 
         return "Reload DONE"
 
     def wait_init_complete(self) -> None:
-        number_agents = len(self.context.config_servers.servers)
+        number_agents = self.context.database.session.query(Server).count()
         timeout = self.config_general.startup_timeout
         logger.info(f"Waiting for {number_agents} agents to initialize...")
         start_time = time.time()
@@ -74,9 +104,51 @@ class ServerApp:
             can_do_actions=False,
             debug=True,
         )  # Prevent automated actions during init. Debug is enable by default so the owner can see what's happening in case of issues
+        self.context.event_manager.trigger_event("post_init")
+
         logger.info("Post-init sync complete")
         self.postinit_completed = True
         self.init_thread = None
+
+    def check_ip_updates(self, restrict_to: None | Agent = None) -> None:
+        has_regenerated = False
+        for _, service in self.services.items():
+            needs_updates = self.context.database.session.query(NeedsUpdate).filter_by(
+                service_trigger_id=service.db_element.id
+            )
+            for needs_update in needs_updates:
+                if not (
+                    restrict_to is not None
+                    and restrict_to.db_server is not None
+                    and needs_update.service_trigger.server_id
+                    != restrict_to.db_server.id
+                ):
+                    service_class = ServerService.get_from_id(
+                        service.db_element.id, self.context
+                    )
+                    if service_class is not None:
+                        agent = service_class.get_agent()
+                        if agent is not None:
+                            if agent.ip != needs_update.last_ip:
+                                service_updated_class = ServerService.get_from_id(
+                                    needs_update.service_updated_id, self.context
+                                )
+                                if service_updated_class is not None:
+                                    for (
+                                        config_file
+                                    ) in service_updated_class.config_files:
+                                        config_file.regenerate()
+                                        has_regenerated = True
+        if has_regenerated:
+            self.context.event_manager.trigger_event("config_synced")
+
+    def on_config_synced(self) -> None:
+        with open(
+            os.getenv("CONFIG_FILE", "../conf/config.json") + ".donottouch.internal",
+            "w",
+            encoding="utf-8",
+        ) as f:
+            f.write(self.config_raw_str)
 
     def init(self) -> None:
         logger.info("Booting...")
@@ -94,6 +166,12 @@ class ServerApp:
         set_current_context(self.context)
         self.init_thread = threading.Thread(target=self.wait_init_complete)
         self.init_thread.start()
+        self.context.event_manager.register_event(
+            "config_synced", self.on_config_synced
+        )
+        self.context.event_manager.register_event(
+            "service_updated", self.check_ip_updates
+        )
         self.init_services()
         self.init_file_server()
         self.init_communication_socket()
@@ -101,7 +179,8 @@ class ServerApp:
 
     def temp_thread_wrapper(self, target: Callable) -> None:
         target()
-        self.temp_threads.remove(threading.current_thread())
+        if threading.current_thread() in self.temp_threads:
+            self.temp_threads.remove(threading.current_thread())
 
     def handle_socket_clients(self) -> None:
         while not self.context.kill_switch:
@@ -163,10 +242,15 @@ class ServerApp:
 
         for service, service_config in services_obj.items():
             self.services[service] = ServerService(service, service_config)
+        self.check_deleted_services()
         logger.debug("Services initialized!")
 
     def sync_services(
-        self, can_do_actions: bool = False, custom_logger=None, debug: bool = False
+        self,
+        can_do_actions: bool = False,
+        custom_logger=None,
+        debug: bool = False,
+        cmd_context: CommandContext | None = None,
     ) -> int:
         def base_log(message):
             if custom_logger:
@@ -227,9 +311,16 @@ class ServerApp:
                                     f"Service {name} is not supposed to be running. (Did you start it manually? If so, please use the manager... syncing)"
                                 )
                                 server_service.db_element.server = agent.db_server
-                                self.context.database.session.commit()
+                                session = Session.object_session(
+                                    server_service.db_element
+                                )
+                                if session:
+                                    session.commit()
                             else:
-                                if server_service.db_element.id != agent.db_server.id:
+                                if (
+                                    server_service.db_element.server.id
+                                    != agent.db_server.id
+                                ):
                                     log_warning(
                                         f"Service {name} is supposed to be running on server {agent.db_server.name}, but is running on server {server_service.db_element.server.name}. (Did you start it manually? If so, please use the manager...)"
                                         + "Generating report of the issue..."
@@ -251,7 +342,11 @@ class ServerApp:
                                             server_service.db_element.server = (
                                                 real_agent.db_server
                                             )
-                                            self.context.database.session.commit()
+                                            session = Session.object_session(
+                                                server_service.db_element
+                                            )
+                                            if session:
+                                                session.commit()
                                     else:
                                         log_error(
                                             f"Could not find agent for server {server_service.db_element.server.name}"
@@ -280,7 +375,9 @@ class ServerApp:
                                     logger.warning(
                                         f"Service {service_id} is not running. Starting..."
                                     )
-                                    is_error, error_message = service.start_on(agent)
+                                    is_error, error_message = service.start_on(
+                                        agent, cmd_context
+                                    )
                                     if is_error:
                                         log_error(
                                             f"Failed to start service {service_id}: {error_message}"
@@ -331,10 +428,12 @@ class ServerApp:
                     conn.sendall("OK\n".encode())
                 else:
                     conn.sendall("ERROR\n".encode())
-            except Exception as e:
-                conn.sendall(f"Exception while handling command: {e}".encode())
+            except Exception:
+                conn.sendall(
+                    f"Exception while handling command: {traceback.format_exc()}".encode()
+                )
                 conn.sendall("ERROR".encode())
-                logger.error(f"Error handling command: {e}")
+                logger.error(f"Error handling command: {traceback.format_exc()}")
 
     def execute_command(self, command: str, socket: socket.socket) -> bool:
         parts = shlex.split(command)
@@ -402,5 +501,6 @@ class ServerApp:
 
 
 if __name__ == "__main__":
+    load_dotenv()
     app = ServerApp()
     app.init()

@@ -36,8 +36,17 @@ while not stop:
         else:
             if response.decode().strip().endswith("::INPUT"):
                 print(f"{response.decode().strip().removesuffix('::INPUT')}", end="")
-                answer = input("")
-                client.sendall(answer.encode())
+                ok = False
+                while not ok:
+                    try:
+                        answer = input("")
+                        if answer.strip() == "":
+                            continue
+                        client.sendall(answer.encode())
+                        ok = True
+                    # Gosh I hate these special characters when I do a shortcut by mistake in the shell
+                    except Exception:
+                        ok = True
             else:
                 print(f"{response.decode()}\n")
     if message.lower() == "exit":

@@ -14,7 +14,7 @@ class ConfigFile:
         self.path = self.data.get("path")
         if self.path is None:
             raise MissingConfigException("services.$.configFiles.$.path")
-        self.generators_obj = self.data.get("generators", [])
+        self.generators_obj: list[dict] = self.data.get("generators", [])
         if len(self.generators_obj) == 0:
             logger.warning("No generators found for config file at " + self.path)
         self.real_path = os.path.join(
@@ -48,20 +48,27 @@ class ConfigFile:
                         f"cmd_context is required when using cli frontend for provider {provider_type}"
                     )
                 datas = provider.cli_frontend(
-                    provider_datas, cmd_context.output_print, cmd_context.output_input
+                    provider_datas,
+                    cmd_context.output_print,
+                    cmd_context.output_input,
+                    config_file=self,
                 )
             else:
                 # TODO: Complete this when WebUI is ready
                 datas = {}
-            return provider.backend_process(provider_datas, datas)
+            return provider.backend_process(provider_datas, datas, config_file=self)
         else:
-            return provider.backend_process(provider_datas, None)
+            return provider.backend_process(provider_datas, None, config_file=self)
 
-    def regenerate(self, cmd_context: CommandContext | None = None) -> str | None:
+    def regenerate(
+        self, cmd_context: CommandContext | None = None
+    ) -> list[dict] | None:
+        responses = []
         for generator in self.generators_obj:
             generator_name = generator.get("generator")
             generator_arguments = generator.get("generatorArgs", [])
             if generator_name is None:
+                logger.error(generator)
                 raise MissingConfigException(
                     "services.$.configFiles.$.generators.$.generator"
                 )
@@ -92,19 +99,24 @@ class ConfigFile:
             #         "commands": [command[0]],
             #     }
             # )
-            message_uuid = self.context.send_from_service(
-                self.service.id,
-                {
-                    "type": "gen_config",
-                    "service": self.service.id,
-                    "path": self.path,
-                    "commands": [command[0]],
-                },
-            )
-            if not message_uuid:
+            try:
+                response = self.context.send_from_service(
+                    self.service.id,
+                    {
+                        "type": "gen_config",
+                        "service": self.service.id,
+                        "path": self.path,
+                        "commands": [command[0]],
+                    },
+                    timeout=generator[0].get(
+                        "timeout", 30
+                    ),  # Since you sometimes need to install deps
+                )
+            except TimeoutError:
+                response = None
+            if not response:
                 logger.error("Failed to send config regeneration request")
-                return None
-            logger.debug(
-                f"Sent config regeneration request, message UUID: {message_uuid}"
-            )
-            return message_uuid
+            else:
+                responses.append(response)
+
+        return responses

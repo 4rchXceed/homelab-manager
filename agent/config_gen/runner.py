@@ -14,7 +14,7 @@ def run_command(command: str, path: str) -> int:
     tmp_dir = f"/tmp/config-gen-{random_id}"
     os.mkdir(tmp_dir)
     with open(f"{tmp_dir}/commands.sh", "w") as f:
-        f.write("#!/bin/bash\napt update\ncd /mnt/workdir\n" + command)
+        f.write("#!/bin/bash\ncd /mnt/workdir\n" + command)
     debug(f"Running command: {command} on {path}")
     result = subprocess.run(
         [

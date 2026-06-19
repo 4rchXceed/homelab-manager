@@ -15,6 +15,7 @@ class ServicesSync(CommandBase):
             can_do_actions=can_do_actions,
             custom_logger=cmd_context.output_print,
             debug=debug,
+            cmd_context=cmd_context,
         )
         if errors > 0:
             cmd_context.output_print(

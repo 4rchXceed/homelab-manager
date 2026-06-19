@@ -1,5 +1,7 @@
+import threading
+
 from sqlalchemy import create_engine
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, sessionmaker
 
 
 class DatabaseEngine:
@@ -14,4 +16,11 @@ class DatabaseEngine:
         self.engine = create_engine(
             f"postgresql://{self.username}:{self.password}@{self.host}:{self.port}/{self.database}"
         )
-        self.session = Session(bind=self.engine)
+        self.SessionLocal = sessionmaker(self.engine)
+        self.thread_data = threading.local()
+
+    @property
+    def session(self) -> Session:
+        if not hasattr(self.thread_data, "session"):
+            self.thread_data.session = self.SessionLocal()
+        return self.thread_data.session

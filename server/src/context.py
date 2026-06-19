@@ -1,4 +1,3 @@
-import uuid
 from queue import Queue
 from typing import TYPE_CHECKING, Literal
 
@@ -37,17 +36,9 @@ class HLMContext:
         self.agents = self.app.agents
         self.event_manager = EventManager()
 
-    def send(self, agent, message: dict) -> str:
-        message_uuid = uuid.uuid4()
-        message["r_uuid"] = str(message_uuid)
-        agent.request_queue.put(message)
-        return str(message_uuid)
-
-    def send_to_all(self, message: dict):
-        for a in self.agents:
-            a.request_queue.put(message)
-
-    def send_from_service(self, service_id: str, message: dict) -> str | None:
+    def send_from_service(
+        self, service_id: str, message: dict, timeout=10
+    ) -> dict | None:
         service = (
             self.database.session.query(Service).filter_by(id_str=service_id).first()
         )
@@ -55,7 +46,7 @@ class HLMContext:
             if service.server:
                 for a in self.agents:
                     if a.id == service.server.id_str:
-                        return self.send(a, message)
+                        return a.send_pingpong(message, timeout=timeout)
                 logger.warning(
                     f"Agent {service.server.id_str} connected, but tried to send message"
                 )

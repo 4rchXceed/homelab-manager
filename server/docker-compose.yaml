@@ -23,15 +23,19 @@ services:
         build:
             context: .
             dockerfile: Dockerfile.dev
-        command: /bin/sh
+        # command: /bin/sh
         ports:
             - 4398:4398
             - 4399:4399
         volumes:
             - .:/app
-        # Allow input
-        tty: true
-        stdin_open: true
+        depends_on:
+            - db
+        environment:
+            - BYPASS_TTY_INIT_CHECK=true
+        # # Allow input
+        # tty: true
+        # stdin_open: true
 
 volumes:
     db-data:

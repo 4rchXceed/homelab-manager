@@ -1,10 +1,14 @@
-from typing import Callable
+import os
+from typing import TYPE_CHECKING, Callable
 
 from database.models import UserVariable
 from error.exceptions import MissingConfigException
 from helpers import get_current_context
 from logger import logger
 from plugins.variable_providers._template import VariableProvider
+
+if TYPE_CHECKING:
+    from services.config_file import ConfigFile
 
 
 class UserVarProvider(VariableProvider):
@@ -16,14 +20,21 @@ class UserVarProvider(VariableProvider):
             logger.warning(
                 f"No name provided for user variable: {datas}. User might not know what to write. Please provide a name."
             )
-        if datas.get("id") is None:
+        id = datas.get("id")
+        if id is None:
             raise MissingConfigException("provider:type=UserVar->id key (missing)")
         context = get_current_context()
         user_var = (
-            context.database.session.query(UserVariable)
-            .filter_by(id_str=datas.get("id"))
-            .first()
+            context.database.session.query(UserVariable).filter_by(id_str=id).first()
         )
+        if user_var is None:
+            if os.getenv("USERVAR_" + id.upper()):
+                user_var = UserVariable(
+                    id_str=id,
+                    value=os.getenv("USERVAR_" + id.upper()),
+                )
+                context.database.session.add(user_var)
+                context.database.session.commit()
         return user_var
 
     @staticmethod
@@ -31,6 +42,7 @@ class UserVarProvider(VariableProvider):
         datas: dict,
         output_print: Callable[[str], None],
         output_input: Callable[[str], str],
+        config_file: "ConfigFile",
     ) -> dict:
         user_var = UserVarProvider.frontend_init(datas)
         if user_var is None:
@@ -41,7 +53,10 @@ class UserVarProvider(VariableProvider):
             return {"value": user_var.value}
 
     @staticmethod
-    def frontend_builder(datas: dict) -> str:
+    def frontend_builder(
+        datas: dict,
+        config_file: "ConfigFile",
+    ) -> str:
         user_var = UserVarProvider.frontend_init(datas)
         if user_var is None:
             var_name_safe = datas.get("name", "No Name").replace('"', "'")
@@ -60,7 +75,11 @@ class UserVarProvider(VariableProvider):
             """
 
     @staticmethod
-    def backend_process(data: dict, jsOutput: dict | None) -> str:
+    def backend_process(
+        data: dict,
+        jsOutput: dict | None,
+        config_file: "ConfigFile",
+    ) -> str:
         if jsOutput is None:
             return ""
         context = get_current_context()

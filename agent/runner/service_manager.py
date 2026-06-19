@@ -34,6 +34,20 @@ class ServiceManager:
             return False
         return False
 
+    def build(self, service_name) -> tuple[bool, str]:
+        service_name = os.path.join(self.services_folder, service_name)
+        if os.path.exists(service_name) and os.path.isdir(service_name):
+            pwd = os.getcwd()
+            os.chdir(service_name)
+            result = subprocess.run(
+                ["docker", "compose", "build"], capture_output=True, text=True
+            )
+            os.chdir(pwd)
+            if result.returncode == 0:
+                return False, result.stdout
+            return True, result.stderr
+        return True, f"Service {service_name} not found"
+
     def start(self, service_name) -> tuple[bool, str]:
         service_name = os.path.join(self.services_folder, service_name)
         if os.path.exists(service_name) and os.path.isdir(service_name):

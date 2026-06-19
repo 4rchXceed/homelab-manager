@@ -2,6 +2,7 @@ import json
 import socket
 import threading
 import time
+import traceback
 import uuid
 from queue import Queue
 
@@ -20,6 +21,20 @@ class Agent:
         self.requests = {}
         self.server = None
         self.keepalive_thread = None
+
+        # FXXX circular imports
+        from services.service import ServerService
+
+        self.ServerService = ServerService
+
+    # This is a shared resource between threads, and since every thread has it's own db session, this will f- up everything
+    @property
+    def db_server(self) -> Server | None:
+        return (
+            self.context.database.session.query(Server)
+            .filter_by(id_str=self.id)
+            .first()
+        )
 
     def reload(self, _):
         self.sync_to_db()
@@ -53,18 +68,26 @@ class Agent:
             if not self.ip:
                 raise MissingConfigException("servers.$.ip")
 
-            self.db_server = (
+            db_server = (
                 self.context.database.session.query(Server)
                 .filter_by(id_str=self.id)
                 .first()
             )
-            if not self.db_server:
-                self.db_server = Server(
+            if not db_server:
+                db_server = Server(
                     id_str=self.id, name=self.name, ip=self.ip, description=description
                 )
-                self.context.database.session.add(self.db_server)
+                self.context.database.session.add(db_server)
                 self.context.database.session.commit()
-            self.migrate()
+                self.migrate()
+            else:
+                if db_server.name != self.server["name"]:
+                    db_server.name = self.server["name"]
+                    self.context.database.session.commit()
+                if db_server.ip != self.server["ip"]:
+                    db_server.ip = self.server["ip"]
+                    self.context.database.session.commit()
+            self.db_server_id = db_server.id
 
     def migrate(self) -> None:
         if not self.db_server or not self.server:
@@ -101,12 +124,18 @@ class Agent:
                     return server_obj
         return None
 
+    @staticmethod
+    def check_ip(server: dict, addr: tuple) -> bool:
+        if socket.gethostbyname(server["ip"]) != socket.gethostbyname(addr[0]):
+            return False
+        return True
+
     def init_connection(self) -> bool:
         try:
             data = self.socket.recv(1024).decode()
             if data:
                 self.server = self.check_api_key(data)
-                if self.server:
+                if self.server and self.check_ip(self.server, self.addr):
                     self.socket.sendall(b"OK")
                     return True
                 else:
@@ -151,8 +180,8 @@ class Agent:
                     logger.error(
                         f"[{data.get('path', 'Unknown')}]: File generation failed. Details: {', '.join(data.get('return_codes', []))}"
                     )
-        except Exception as e:
-            logger.error(f"Error during handle_request: {e}")
+        except Exception:
+            logger.error(f"Error during handle_request: {traceback.format_exc()}")
 
     def process_queue(self) -> None:
         while not self.context.kill_switch:
@@ -210,7 +239,17 @@ class Agent:
             logger.error(f"Error during close: {e}")
 
     def start_service(self, service_name: str, timeout=120) -> tuple[bool, str]:
-        data = {"type": "start_service", "service": service_name}
+        service = self.ServerService.get_from_id_str(service_name)
+        if not service:
+            data_folders = []
+        else:
+            data_folders = service.datas
+            data_folders.extend(service.ignored_folders)
+        data = {
+            "type": "start_service",
+            "service": service_name,
+            "data_folders": data_folders,
+        }
         datas = self.send_pingpong(data, timeout=timeout)
         return datas.get("error", True), datas.get("message", "Generic error")
 

@@ -12,7 +12,7 @@ class ServiceListCommand(CommandBase):
 
         for service_id, service in context.app.services.items():
             cmd_context.output_print(
-                f"[{service_id}]: {service.name} -> On server {service.db_element.server.id_str + ' (' + service.db_element.server.name + ')' if service.db_element.server else 'none'}"
+                f"[{service_id}]: {service.name} -> On server {service.db_element.server.id_str + ' (' + service.db_element.server.name + ')' if service.db_element.server else 'none'}\n"
             )
         return True
 

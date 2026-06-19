@@ -18,10 +18,10 @@
     },
     "generators": {
         "htpasswd": {
-            "installDeps": "apt install -y apache2-utils",
+            "installDeps": "apt update && apt install -y apache2-utils",
             "base": "bash",
             "run": "htpasswd -c -b $ARG1 $ARG2 $ARG3",
-            "needsRoot": true
+            "timeout": 60
         },
         "replaceFile": {
             "base": "bash",
@@ -29,6 +29,29 @@
         }
     },
     "services": {
+        "test": {
+            "name": "Testing service",
+            "data": [],
+            "configFiles": [
+                {
+                    "path": "test-cfg",
+                    "generators": [
+                        {
+                            "generator": "replaceFile",
+                            "generatorArgs": [
+                                "ip1",
+                                {
+                                    "type": "ip",
+                                    "get": "reverse-proxy",
+                                    "raiseNotFound": true
+                                },
+                                "test-cfg"
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
         "crowdsec": {
             "name": "Crowdsec",
             "data": [
@@ -41,28 +64,38 @@
         "reverse-proxy": {
             "name": "Reverse Proxy",
             "data": ["./letsencrypt/"],
+            "ignoredRebuildFolders": ["./logs", "./.htpasswd"],
             "configFiles": [
                 {
-                    "path": ".htpasswd",
+                    "path": "cron.sh",
                     "generators": [
                         {
-                            "generator": "htpasswd",
+                            "generator": "replaceFile",
                             "generatorArgs": [
-                                ".htpasswd",
+                                "your-username",
                                 {
                                     "type": "userVar",
-                                    "name": "Username for the admin section of Nginx",
-                                    "id": "username_main"
+                                    "name": "Username for infomaniak Dynamic DNS",
+                                    "id": "username_infomaniak_dyndns"
                                 },
+                                "cron.sh"
+                            ]
+                        },
+                        {
+                            "generator": "replaceFile",
+                            "generatorArgs": [
+                                "your-password",
                                 {
                                     "type": "userVar",
-                                    "name": "Password for the admin section Nginx",
-                                    "id": "password_main"
-                                }
+                                    "name": "Password for infomaniak Dynamic DNS",
+                                    "id": "password_infomaniak_dyndns"
+                                },
+                                "cron.sh"
                             ]
                         }
                     ]
                 },
+
                 {
                     "path": "crowdsec-nginx-bouncer.conf",
                     "generators": [
@@ -100,7 +133,7 @@
             "id": "main",
             "name": "Main Server",
             "description": "...",
-            "ip": "192.168.122.219"
+            "ip": "172.18.0.1"
         }
     ]
 }

@@ -35,7 +35,12 @@ class ServiceAssignCommand(CommandBase):
                 cmd_context.output_print(
                     f"Service {service_id} found, assigning to server {server_to_assign}"
                 )
-                service.start_on(agent)
+                service.start_on(agent, cmd_context)
                 return True
+
         cmd_context.output_print(f"Service {service_needed} not found")
         return False
+
+    @staticmethod
+    def get_help() -> str:
+        return f"Assign and start a service in a specific server. Usage: {ServiceAssignCommand.NAME} <service_id> <server_id>"

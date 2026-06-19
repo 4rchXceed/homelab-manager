@@ -42,6 +42,7 @@ CREATE TABLE public.service (
                 id_str VARCHAR(100) NOT NULL,
                 name VARCHAR(100) NOT NULL,
                 last_config VARCHAR,
+                disabled BOOLEAN NOT NULL,
                 CONSTRAINT service_pk PRIMARY KEY (id)
 );
 
@@ -52,9 +53,36 @@ CREATE UNIQUE INDEX service_id_str_unique
  ON public.service
  ( id_str );
 
+CREATE SEQUENCE public.needs_update_id_seq;
+
+CREATE TABLE public.needs_update (
+                id INTEGER NOT NULL DEFAULT nextval('public.needs_update_id_seq'),
+                service_trigger_id INTEGER NOT NULL,
+                service_updated_id INTEGER NOT NULL,
+                last_ip VARCHAR(15) NOT NULL,
+                CONSTRAINT needs_update_pk PRIMARY KEY (id)
+);
+
+
+ALTER SEQUENCE public.needs_update_id_seq OWNED BY public.needs_update.id;
+
 ALTER TABLE public.service ADD CONSTRAINT server_service_fk
 FOREIGN KEY (server_id)
 REFERENCES public.server (id)
+ON DELETE NO ACTION
+ON UPDATE NO ACTION
+NOT DEFERRABLE;
+
+ALTER TABLE public.needs_update ADD CONSTRAINT service_needs_update_fk
+FOREIGN KEY (service_trigger_id)
+REFERENCES public.service (id)
+ON DELETE NO ACTION
+ON UPDATE NO ACTION
+NOT DEFERRABLE;
+
+ALTER TABLE public.needs_update ADD CONSTRAINT service_needs_update_fk1
+FOREIGN KEY (service_updated_id)
+REFERENCES public.service (id)
 ON DELETE NO ACTION
 ON UPDATE NO ACTION
 NOT DEFERRABLE;

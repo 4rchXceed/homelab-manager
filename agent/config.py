@@ -33,6 +33,7 @@ class AgentConfig:
             "api_key": self.server_config["api_key"],
             "fsport": self.server_config.get("file_server_port", 4399),
             "keepalive_interval": self.server_config.get("keepalive_interval", 10),
+            "db_path": self.server_config.get("db_path", "_internal.db"),
         }
 
         self.services_folder = self.server_config.get("services_folder", "./services")

@@ -1,4 +1,7 @@
-from typing import Callable
+from typing import TYPE_CHECKING, Callable
+
+if TYPE_CHECKING:
+    from services.config_file import ConfigFile
 
 
 class VariableProvider:
@@ -11,6 +14,7 @@ class VariableProvider:
         datas: dict,
         output_print: Callable[[str], None],
         output_input: Callable[[str], str],
+        config_file: "ConfigFile",
     ) -> dict:
         """
         Runs the CLI frontend for this variable provider
@@ -23,7 +27,7 @@ class VariableProvider:
         return {}
 
     @staticmethod
-    def frontend_builder(datas: dict) -> str:
+    def frontend_builder(datas: dict, config_file: "ConfigFile") -> str:
         """
         Builds the frontend JavaScript for this variable provider
         Parameters:
@@ -37,7 +41,9 @@ class VariableProvider:
         """
 
     @staticmethod
-    def backend_process(data: dict, jsOutput: dict | None) -> str:
+    def backend_process(
+        data: dict, jsOutput: dict | None, config_file: "ConfigFile"
+    ) -> str:
         """
         Processes the data sent from the frontend and returns a string (value of the variable)
         Parameters:

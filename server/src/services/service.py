@@ -3,7 +3,7 @@ from collections import Counter
 
 from command_context import CommandContext
 from database.models import Service
-from error.exceptions import MissingConfigException
+from error.exceptions import MissingConfigException, ProgramStateError
 from helpers import get_current_context
 from protocol.agent import Agent
 from services.config_file import ConfigFile
@@ -24,6 +24,7 @@ class ServerService:
             raise MissingConfigException("services.$.name")
         self.name = name
         self.datas = self.config.get("data", [])
+        self.ignored_folders = self.config.get("ignoredRebuildFolders", [])
         self.config_files_obj = self.config.get("configFiles", [])
         self.config_files = [ConfigFile(data, self) for data in self.config_files_obj]
         self.need_update = False
@@ -35,32 +36,51 @@ class ServerService:
             .first()
         )
         if db_element is None:
-            self.db_element = Service(id_str=self.id, name=self.name, last_config="{}")
-            self.context.database.session.add(self.db_element)
+            db_element = Service(
+                id_str=self.id, name=self.name, last_config="{}", disabled=False
+            )
+            self.context.database.session.add(db_element)
             self.context.database.session.commit()
             self.need_update = True
         else:
-            self.db_element = db_element
+            if db_element.disabled:
+                self.need_update = True
+                db_element.disabled = False
+                self.context.database.session.commit()
+            db_element = db_element
+        self.db_element_id = db_element.id
 
-    def finish_init(self, cmd_context: CommandContext | None = None) -> list[str]:
+    # This is a shared resource between threads, and since every thread has it's own db session, this will f- up everything
+    @property
+    def db_element(self) -> Service:
+        db_element = (
+            self.context.database.session.query(Service)
+            .filter_by(id=self.db_element_id)
+            .first()
+        )
+        if not db_element:
+            raise ProgramStateError(f"Database element for service {self.id} not found")
+        return db_element
+
+    def finish_init(self, cmd_context: CommandContext | None = None) -> list[dict]:
         """To avoid the position of the services in the config to matter"""
-        requests = []
+        responses = []
         if self.db_element.last_config != json.dumps(self.config) or self.need_update:
             if self.db_element.last_config is None:
-                requests.extend(self.update({}, cmd_context))
+                responses.extend(self.update({}, cmd_context))
             else:
-                requests.extend(
+                responses.extend(
                     self.update(json.loads(self.db_element.last_config), cmd_context)
                 )
             self.db_element.last_config = json.dumps(self.config)
             self.context.database.session.commit()
             self.need_update = False
-        return requests
+        return responses
 
     def update(
         self, old_config: dict, cmd_context: CommandContext | None = None
-    ) -> list[str]:
-        requests = []
+    ) -> list[dict]:
+        responses = []
         if old_config.get("name") != self.name:
             self.db_element.name = self.name
             self.context.database.session.commit()
@@ -68,27 +88,32 @@ class ServerService:
             # TODO: Add correct handling when self.data will be implemented
             self.db_element.last_config = json.dumps(self.config)
             self.context.database.session.commit()
-        if json.dumps(old_config.get("configFiles", [])) != json.dumps(
-            self.config_files_obj
+        if self.db_element.server and (
+            self.need_update
+            or json.dumps(old_config.get("configFiles", []))
+            != json.dumps(self.config_files_obj)
         ):
             for config_file in self.config_files:
-                request_uuid = config_file.regenerate(cmd_context)
-                if request_uuid:
-                    requests.append(request_uuid)
+                response = config_file.regenerate(cmd_context)
+                if response:
+                    responses.extend(response)
 
             self.db_element.last_config = json.dumps(self.config)
             self.context.database.session.commit()
 
-        return requests
+        return responses
 
-    def start_on(self, agent: Agent) -> tuple[bool, str]:
-        # For now, we don't have the docker compose up made, so we just return an empty list
-        # But we will assign it in the database
+    def start_on(
+        self, agent: Agent, cmd_context: CommandContext | None = None
+    ) -> tuple[bool, str]:
         if not agent.db_server:
             raise RuntimeError(f"Agent {agent.name} not initialized")
-        is_error, error_message = agent.start_service(self.id)
         self.db_element.server = agent.db_server
         self.context.database.session.commit()
+        self.need_update = True
+        self.finish_init(cmd_context)
+        is_error, error_message = agent.start_service(self.id)
+        self.context.event_manager.trigger_event("service_updated")
         return is_error, error_message
 
     def unassign(self) -> None:
@@ -106,4 +131,18 @@ class ServerService:
                 and agent.db_server.id == self.db_element.server.id
             ):
                 return agent
+        return None
+
+    @staticmethod
+    def get_from_id(service_id: int, context) -> "ServerService | None":
+        for service in context.app.services.values():
+            if service.db_element.id == service_id:
+                return service
+        return None
+
+    @staticmethod
+    def get_from_id_str(service_id: str) -> "ServerService | None":
+        for service in get_current_context().app.services.values():
+            if service.db_element.id_str == service_id:
+                return service
         return None

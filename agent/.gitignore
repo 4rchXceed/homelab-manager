@@ -78,3 +78,5 @@ services-compose/
 agent.log
 
 .venv-agent
+
+_internal.db
