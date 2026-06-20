@@ -75,7 +75,11 @@ class Agent:
             )
             if not db_server:
                 db_server = Server(
-                    id_str=self.id, name=self.name, ip=self.ip, description=description
+                    id_str=self.id,
+                    name=self.name,
+                    ip=self.ip,
+                    description=description,
+                    disabled=False,
                 )
                 self.context.database.session.add(db_server)
                 self.context.database.session.commit()
@@ -299,3 +303,11 @@ class Agent:
     def sync_files(self) -> None:
         data = {"type": "sync_files"}
         self.send_pingpong(data)
+
+    @staticmethod
+    def get_from_id_str(id: str) -> "None | Agent":
+        context = get_current_context()
+        for agent in context.agents:
+            if agent.server and agent.server.get("id") == id:
+                return agent
+        return None

@@ -23,10 +23,36 @@ class IpVarProvider(VariableProvider):
         get_key = data.get("get")
         context = get_current_context()
         service = (
-            context.database.session.query(Service).filter_by(id_str=get_key).first()
+            context.database.session.query(Service)
+            .filter_by(disabled=False)
+            .filter_by(id_str=get_key)
+            .first()
         )
         if service is None:
             raise GenericConfigException(f"Service not found: id={get_key}")
+
+        depends_on = (
+            context.database.session.query(NeedsUpdate)
+            .filter_by(
+                service_trigger_id=service.id,
+                service_updated_id=config_file.service.db_element.id,
+            )
+            .first()
+        )
+        if not depends_on:
+            ip = "127.0.0.1"
+            if service.server is not None:
+                ip = service.server.ip
+            depends_on = NeedsUpdate(
+                service_trigger_id=service.id,
+                service_updated_id=config_file.service.db_element.id,
+                last_ip=ip,
+            )
+            context.database.session.add(depends_on)
+            context.database.session.commit()
+        elif service.server is not None and depends_on.last_ip != service.server.ip:
+            depends_on.last_ip = service.server.ip
+            context.database.session.commit()
 
         if service.server is None:
             if data.get("raiseNotFound", False):
@@ -38,24 +64,4 @@ class IpVarProvider(VariableProvider):
                     f'No server associated with service: id={get_key}. Will return dummy IP. To raise an error, set "raiseNotFound": true in the config.'
                 )
             return "127.0.0.1"
-        depends_on = (
-            context.database.session.query(NeedsUpdate)
-            .filter_by(
-                service_trigger_id=service.id,
-                service_updated_id=config_file.service.db_element.id,
-            )
-            .first()
-        )
-        if not depends_on:
-            depends_on = NeedsUpdate(
-                service_trigger_id=service.id,
-                service_updated_id=config_file.service.db_element.id,
-                last_ip=service.server.ip,
-            )
-            context.database.session.add(depends_on)
-            context.database.session.commit()
-        elif depends_on.last_ip != service.server.ip:
-            depends_on.last_ip = service.server.ip
-            context.database.session.commit()
-
         return service.server.ip

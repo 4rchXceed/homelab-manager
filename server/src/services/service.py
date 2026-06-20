@@ -113,7 +113,7 @@ class ServerService:
         self.need_update = True
         self.finish_init(cmd_context)
         is_error, error_message = agent.start_service(self.id)
-        self.context.event_manager.trigger_event("service_updated")
+        self.context.event_manager.trigger_event("service_updated", cmd_context)
         return is_error, error_message
 
     def unassign(self) -> None:

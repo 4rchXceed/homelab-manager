@@ -7,9 +7,6 @@ import traceback
 from queue import Queue
 from typing import Callable
 
-from dotenv import load_dotenv
-from sqlalchemy.orm import Session
-
 from command_context import CommandContext
 from config.general import GeneralConfig
 from config.load import load_config, load_new_config
@@ -18,6 +15,7 @@ from config_gen.generators import Generators
 from context import HLMContext
 from database.database import DatabaseEngine
 from database.models import NeedsUpdate, Server, Service
+from dotenv import load_dotenv
 from fileserver.rclone import FileServer
 from helpers import set_current_context
 from logger import logger
@@ -25,6 +23,7 @@ from plugins.commands.library import COMMANDS
 from plugins.variable_providers.library import VARIABLE_PROVIDERS
 from protocol.agent import Agent
 from services.service import ServerService
+from sqlalchemy.orm import Session
 
 
 class ServerApp:
@@ -46,12 +45,11 @@ class ServerApp:
         self.postinit_completed = False
 
     def check_deleted_services(self, cmd_context: CommandContext | None = None) -> None:
-        services = self.context.database.session.query(Service).all()
+        services = (
+            self.context.database.session.query(Service).filter_by(disabled=False).all()
+        )
         for service in services:
-            if (
-                service.id_str not in self.config_raw.get("services", {}).keys()
-                and not service.disabled
-            ):
+            if service.id_str not in self.config_raw.get("services", {}).keys():
                 msg = f"!! Service {service.id_str} has been deleted from config...Disabling it...."
                 if cmd_context:
                     cmd_context.output_print(msg)
@@ -65,10 +63,23 @@ class ServerApp:
                 del self.services[service.id_str]
 
     def reload_config(self, cmd_context: CommandContext | None) -> str:
+        if cmd_context is None:
+
+            def fake_input(msg):
+                raise Exception("Non-interactive env")
+
+            cmd_context = CommandContext()
+            cmd_context.output_input = fake_input
         self.config_raw, self.config_raw_str = load_new_config()
 
         if self.config_general.dict != self.config_raw.get("config"):
-            return "!! you changed the general config (config: {...}). You MUST restart the server!"
+            cmd_context.output_print(
+                "!! you changed the general config (config: {...}). You must restart the server to apply the new config!"
+            )
+        if len(self.config_raw.get("servers", [])) < len(self.config_servers.servers):
+            cmd_context.output_print(
+                "!! You deleted an agent. FOR NOW, you need to restart the server to apply the config!!!."
+            )  # TODO: Handle this
         self.context.event_manager.trigger_event("config_reload", self.config_raw)
         for agent in self.agents:
             agent.sync_files()
@@ -76,13 +87,12 @@ class ServerApp:
         for service_id, service in self.services.items():
             service_data = self.config_raw.get("services", {}).get(service_id)
             if service_data:
+                service.reload(service_data)
                 service.finish_init(cmd_context)
+
         for service_id, config_service in self.config_raw.get("services", {}).items():
             if service_id not in self.services.keys():
-                if cmd_context:
-                    cmd_context.output_print(
-                        f"Service {service_id} added to the config!"
-                    )
+                cmd_context.output_print(f"Service {service_id} added to the config!")
                 self.services[service_id] = ServerService(service_id, config_service)
         self.check_deleted_services(cmd_context)
         self.context.event_manager.trigger_event("config_synced")
@@ -91,7 +101,11 @@ class ServerApp:
         return "Reload DONE"
 
     def wait_init_complete(self) -> None:
-        number_agents = self.context.database.session.query(Server).count()
+        number_agents = (
+            self.context.database.session.query(Server)
+            .filter_by(disabled=False)
+            .count()
+        )
         timeout = self.config_general.startup_timeout
         logger.info(f"Waiting for {number_agents} agents to initialize...")
         start_time = time.time()
@@ -170,13 +184,28 @@ class ServerApp:
             self,
         )
         set_current_context(self.context)
+        for db_server in (
+            self.context.database.session.query(Server).filter_by(disabled=False).all()
+        ):
+            found = False
+            i = 0
+            while not found and i < len(self.config_servers.servers):
+                if self.config_servers.servers[i].get("id", "") == db_server.id_str:
+                    found = True
+                else:
+                    i += 1
+            if not found:
+                # Server has been deleted, disable it from the database
+                db_server.disabled = True
+                self.context.database.session.commit()
+                # del self.config_servers.servers[i] Not needed since it's at startup
         self.init_thread = threading.Thread(target=self.wait_init_complete)
         self.init_thread.start()
         self.context.event_manager.register_event(
             "config_synced", self.on_config_synced
         )
         self.context.event_manager.register_event(
-            "service_updated", self.check_ip_updates
+            "service_updated", lambda a: self.check_ip_updates(None, a)
         )
         self.init_services()
         self.init_file_server()

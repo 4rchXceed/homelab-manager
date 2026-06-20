@@ -38,7 +38,7 @@ class ServerAddCommand(CommandBase):
         db_server = (
             context.database.session.query(Server).filter_by(id_str=id_str).first()
         )
-        if db_server:
+        if db_server and not db_server.disabled:
             if len(arguments) > 1 and arguments[1] == "can_update":
                 cmd_context.output_print(
                     "Server already exists in the database, updating due to can_update flag"
@@ -47,9 +47,17 @@ class ServerAddCommand(CommandBase):
                 cmd_context.output_print(
                     "Server already exists in the database. Failed to add."
                 )
+                cmd_context.output_print(f"Old API Key: {db_server.api_key}")
                 return False
+        elif db_server and db_server.disabled:
+            db_server.disabled = False
+            db_server.ip = ip
+            cmd_context.output_print("Old server restored (ip updated)")
+            context.database.session.commit()
         else:
-            db_server = Server(id_str=id_str, name=name, description=description, ip=ip)
+            db_server = Server(
+                id_str=id_str, name=name, description=description, ip=ip, disabled=False
+            )
             context.database.session.add(db_server)
             context.database.session.commit()
             cmd_context.output_print("Server added to the database")

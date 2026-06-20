@@ -40,7 +40,10 @@ class HLMContext:
         self, service_id: str, message: dict, timeout=10
     ) -> dict | None:
         service = (
-            self.database.session.query(Service).filter_by(id_str=service_id).first()
+            self.database.session.query(Service)
+            .filter_by(disabled=False)
+            .filter_by(id_str=service_id)
+            .first()
         )
         if service:
             if service.server:

@@ -24,6 +24,7 @@ CREATE TABLE public.server (
                 description VARCHAR(1000) DEFAULT 'No description' NOT NULL,
                 ip VARCHAR(15) NOT NULL,
                 api_key VARCHAR(36),
+                disabled BOOLEAN NOT NULL,
                 CONSTRAINT server_pk PRIMARY KEY (id)
 );
 

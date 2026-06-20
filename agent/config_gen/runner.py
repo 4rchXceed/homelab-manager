@@ -1,6 +1,7 @@
 import os
 import subprocess
 import uuid
+from sys import stderr
 
 from messaging.log import debug, warning
 
@@ -16,7 +17,12 @@ def run_command(command: str, path: str) -> int:
         )
         pwd = os.getcwd()
         os.chdir(path)
-        res = subprocess.Popen(command.split("::", 1)[1], shell=True)
+        res = subprocess.Popen(
+            command.split("::", 1)[1],
+            shell=True,
+            stdout=open(os.devnull, "wb"),
+            stderr=open(os.devnull, "wb"),
+        )
         os.chdir(pwd)
         return res.returncode
     elif command.startswith("SANDBOX::"):
@@ -38,7 +44,9 @@ def run_command(command: str, path: str) -> int:
                 image,
                 "/bin/bash",
                 "/commands.sh",
-            ]
+            ],
+            stdout=open(os.devnull, "wb"),
+            stderr=open(os.devnull, "wb"),
         )
         return result.returncode
     else:

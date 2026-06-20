@@ -52,7 +52,7 @@
         },
         "nextcloud": {
             "name": "Cloud (nextcloud)",
-            "data": [".cloud-data", "./db"],
+            "data": ["./cloud-data", "./db"],
             "configFiles": [
                 {
                     "path": ".env",
@@ -120,18 +120,6 @@
                         {
                             "generator": "replaceFile",
                             "generatorArgs": [
-                                "WEBSITE_URL_VAR",
-                                {
-                                    "type": "userVar",
-                                    "name": "Website URL",
-                                    "id": "website_url"
-                                },
-                                ".env"
-                            ]
-                        },
-                        {
-                            "generator": "replaceFile",
-                            "generatorArgs": [
                                 "CLOUD_SUBFOLDER_VAR",
                                 {
                                     "type": "userVar",
@@ -149,7 +137,7 @@
                                 {
                                     "type": "ip",
                                     "get": "nextcloud",
-                                    "raiseNotFound": true
+                                    "raiseNotFound": false
                                 },
                                 ""
                             ]
@@ -184,7 +172,7 @@
                                 {
                                     "type": "ip",
                                     "get": "reverse-proxy",
-                                    "raiseNotFound": true
+                                    "raiseNotFound": false
                                 },
                                 ":",
                                 {
@@ -229,7 +217,7 @@
                                 {
                                     "type": "ip",
                                     "get": "main-website",
-                                    "raiseNotFound": true
+                                    "raiseNotFound": false
                                 },
                                 "nginx.conf"
                             ]
@@ -241,7 +229,7 @@
                                 {
                                     "type": "ip",
                                     "get": "nextcloud",
-                                    "raiseNotFound": true
+                                    "raiseNotFound": false
                                 },
                                 "nginx.conf"
                             ]
@@ -293,12 +281,6 @@
             "name": "Main Server",
             "description": "...",
             "ip": "192.168.1.249"
-        },
-        {
-            "id": "server-1",
-            "name": "Server Number 1",
-            "description": "...",
-            "ip": "192.168.1.248"
         }
     ]
 }
