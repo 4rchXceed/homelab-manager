@@ -17,110 +17,269 @@
         "keepaliveInterval": 5
     },
     "generators": {
-        "htpasswd": {
-            "installDeps": "apt update && apt install -y apache2-utils",
-            "base": "bash",
-            "run": "htpasswd -c -b $ARG1 $ARG2 $ARG3",
-            "timeout": 60
-        },
         "replaceFile": {
             "base": "bash",
             "run": "sed -i -e \"s/$ARG1/$ARG2/g\" $ARG3"
+        },
+        "nextcloudOcc": {
+            "base": "bashUnsandboxed",
+            "run": "docker compose exec -it $ARG1 php --define apc.enable_cli=1 occ $ARG2$ARG3$ARG4$ARG5"
         }
     },
     "services": {
-        "test": {
-            "name": "Testing service",
-            "data": [],
+        "main-website": {
+            "name": "Main Website (WebDash)",
+            "data": ["./server/db", "./server/config"],
             "configFiles": [
                 {
-                    "path": "test-cfg",
+                    "path": ".env",
                     "generators": [
                         {
                             "generator": "replaceFile",
                             "generatorArgs": [
-                                "ip1",
+                                "WEBSITE_PORT_VAR",
                                 {
-                                    "type": "ip",
-                                    "get": "reverse-proxy",
-                                    "raiseNotFound": true
+                                    "type": "userVar",
+                                    "name": "Main website port (example: 9005)",
+                                    "id": "main_website_port"
                                 },
-                                "test-cfg"
+                                ".env"
                             ]
                         }
                     ]
                 }
             ]
         },
-        "crowdsec": {
-            "name": "Crowdsec",
-            "data": [
-                "./crowdsec/acquis.yaml",
-                "./crowdsec-db",
-                "./crowdsec-config"
-            ],
-            "configFiles": []
-        },
-        "reverse-proxy": {
-            "name": "Reverse Proxy",
-            "data": ["./letsencrypt/"],
-            "ignoredRebuildFolders": ["./logs", "./.htpasswd"],
+        "nextcloud": {
+            "name": "Cloud (nextcloud)",
+            "data": [".cloud-data", "./db"],
             "configFiles": [
                 {
-                    "path": "cron.sh",
+                    "path": ".env",
                     "generators": [
                         {
                             "generator": "replaceFile",
                             "generatorArgs": [
-                                "your-username",
+                                "DB_PASSWORD_VAR",
                                 {
                                     "type": "userVar",
-                                    "name": "Username for infomaniak Dynamic DNS",
-                                    "id": "username_infomaniak_dyndns"
+                                    "name": "Nextcloud db password",
+                                    "id": "cloud_db_password"
                                 },
-                                "cron.sh"
+                                ".env"
                             ]
                         },
                         {
                             "generator": "replaceFile",
                             "generatorArgs": [
-                                "your-password",
+                                "ADMIN_USER_VAR",
                                 {
                                     "type": "userVar",
-                                    "name": "Password for infomaniak Dynamic DNS",
-                                    "id": "password_infomaniak_dyndns"
+                                    "name": "Nextcloud admin username",
+                                    "id": "cloud_admin_user"
                                 },
-                                "cron.sh"
+                                ".env"
+                            ]
+                        },
+                        {
+                            "generator": "replaceFile",
+                            "generatorArgs": [
+                                "ADMIN_PASSWORD_VAR",
+                                {
+                                    "type": "userVar",
+                                    "name": "Nextcloud admin password",
+                                    "id": "cloud_admin_password"
+                                },
+                                ".env"
+                            ]
+                        },
+                        {
+                            "generator": "replaceFile",
+                            "generatorArgs": [
+                                "DB_ROOT_PASSWORD_VAR",
+                                {
+                                    "type": "userVar",
+                                    "name": "Nextcloud *ROOT* db password",
+                                    "id": "cloud_root_db_password"
+                                },
+                                ".env"
+                            ]
+                        },
+                        {
+                            "generator": "replaceFile",
+                            "generatorArgs": [
+                                "CLOUD_PORT",
+                                {
+                                    "type": "userVar",
+                                    "name": "Cloud port (example: 3939)",
+                                    "id": "cloud_port"
+                                },
+                                ".env"
+                            ]
+                        },
+                        {
+                            "generator": "replaceFile",
+                            "generatorArgs": [
+                                "WEBSITE_URL_VAR",
+                                {
+                                    "type": "userVar",
+                                    "name": "Website URL",
+                                    "id": "website_url"
+                                },
+                                ".env"
+                            ]
+                        },
+                        {
+                            "generator": "replaceFile",
+                            "generatorArgs": [
+                                "CLOUD_SUBFOLDER_VAR",
+                                {
+                                    "type": "userVar",
+                                    "name": "Cloud subpath (example: cloud)",
+                                    "id": "cloud_subpath"
+                                },
+                                ".env"
+                            ]
+                        },
+                        {
+                            "generator": "nextcloudOcc",
+                            "generatorArgs": [
+                                "app",
+                                "config:system:set trusted_domains 0 --value=",
+                                {
+                                    "type": "ip",
+                                    "get": "nextcloud",
+                                    "raiseNotFound": true
+                                },
+                                ""
+                            ]
+                        },
+                        {
+                            "generator": "nextcloudOcc",
+                            "generatorArgs": [
+                                "app",
+                                "config:system:set overwriteprotocol --value=",
+                                "http://",
+                                ""
+                            ]
+                        },
+                        {
+                            "generator": "nextcloudOcc",
+                            "generatorArgs": [
+                                "app",
+                                "config:system:set overwritewebroot --value=/",
+                                {
+                                    "type": "userVar",
+                                    "name": "Cloud subpath (example: cloud)",
+                                    "id": "cloud_subpath"
+                                },
+                                ""
+                            ]
+                        },
+                        {
+                            "generator": "nextcloudOcc",
+                            "generatorArgs": [
+                                "app",
+                                "config:system:set overwritehost --value=",
+                                {
+                                    "type": "ip",
+                                    "get": "reverse-proxy",
+                                    "raiseNotFound": true
+                                },
+                                ":",
+                                {
+                                    "type": "userVar",
+                                    "name": "Reverse proxy port",
+                                    "id": "reverse_proxy_port"
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        "reverse-proxy": {
+            "name": "Nginx Reverse Proxy",
+            "data": [],
+            "configFiles": [
+                {
+                    "path": ".env",
+                    "generators": [
+                        {
+                            "generator": "replaceFile",
+                            "generatorArgs": [
+                                "REVERSE_PROXY_PORT_VAR",
+                                {
+                                    "type": "userVar",
+                                    "name": "Reverse proxy port",
+                                    "id": "reverse_proxy_port"
+                                },
+                                ".env"
                             ]
                         }
                     ]
                 },
-
                 {
-                    "path": "crowdsec-nginx-bouncer.conf",
+                    "path": "nginx.conf",
                     "generators": [
                         {
                             "generator": "replaceFile",
                             "generatorArgs": [
-                                "your-api-url",
+                                "MAIN-WEBSITE-HOST",
                                 {
                                     "type": "ip",
-                                    "get": "crowdsec",
-                                    "raiseNotFound": false
+                                    "get": "main-website",
+                                    "raiseNotFound": true
                                 },
-                                "crowdsec-nginx-bouncer.conf"
+                                "nginx.conf"
                             ]
                         },
                         {
                             "generator": "replaceFile",
                             "generatorArgs": [
-                                "your-api",
+                                "CLOUD-HOST",
+                                {
+                                    "type": "ip",
+                                    "get": "nextcloud",
+                                    "raiseNotFound": true
+                                },
+                                "nginx.conf"
+                            ]
+                        },
+                        {
+                            "generator": "replaceFile",
+                            "generatorArgs": [
+                                "CLOUD-SUBDIR",
                                 {
                                     "type": "userVar",
-                                    "name": "The crowdsec nginx bouncer API key",
-                                    "id": "nginx_bouncer_api_key"
+                                    "name": "Cloud subpath (example: cloud)",
+                                    "id": "cloud_subpath"
                                 },
-                                "crowdsec-nginx-bouncer.conf"
+                                "nginx.conf"
+                            ]
+                        },
+                        {
+                            "generator": "replaceFile",
+                            "generatorArgs": [
+                                "CLOUD-PORT",
+                                {
+                                    "type": "userVar",
+                                    "name": "Cloud port (example: 3939)",
+                                    "id": "cloud_port"
+                                },
+                                "nginx.conf"
+                            ]
+                        },
+                        {
+                            "generator": "replaceFile",
+                            "generatorArgs": [
+                                "MAIN-WEBSITE-PORT",
+                                {
+                                    "type": "userVar",
+                                    "name": "Main website port (example: 9005)",
+                                    "id": "main_website_port"
+                                },
+                                "nginx.conf"
                             ]
                         }
                     ]
@@ -133,7 +292,13 @@
             "id": "main",
             "name": "Main Server",
             "description": "...",
-            "ip": "172.18.0.1"
+            "ip": "192.168.1.249"
+        },
+        {
+            "id": "server-1",
+            "name": "Server Number 1",
+            "description": "...",
+            "ip": "192.168.1.248"
         }
     ]
 }

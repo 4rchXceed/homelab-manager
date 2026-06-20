@@ -7,6 +7,9 @@ import traceback
 from queue import Queue
 from typing import Callable
 
+from dotenv import load_dotenv
+from sqlalchemy.orm import Session
+
 from command_context import CommandContext
 from config.general import GeneralConfig
 from config.load import load_config, load_new_config
@@ -15,7 +18,6 @@ from config_gen.generators import Generators
 from context import HLMContext
 from database.database import DatabaseEngine
 from database.models import NeedsUpdate, Server, Service
-from dotenv import load_dotenv
 from fileserver.rclone import FileServer
 from helpers import set_current_context
 from logger import logger
@@ -23,7 +25,6 @@ from plugins.commands.library import COMMANDS
 from plugins.variable_providers.library import VARIABLE_PROVIDERS
 from protocol.agent import Agent
 from services.service import ServerService
-from sqlalchemy.orm import Session
 
 
 class ServerApp:
@@ -85,6 +86,7 @@ class ServerApp:
                 self.services[service_id] = ServerService(service_id, config_service)
         self.check_deleted_services(cmd_context)
         self.context.event_manager.trigger_event("config_synced")
+        self.check_ip_updates(cmd_context=cmd_context)
 
         return "Reload DONE"
 
@@ -110,7 +112,11 @@ class ServerApp:
         self.postinit_completed = True
         self.init_thread = None
 
-    def check_ip_updates(self, restrict_to: None | Agent = None) -> None:
+    def check_ip_updates(
+        self,
+        restrict_to: None | Agent = None,
+        cmd_context: CommandContext | None = None,
+    ) -> None:
         has_regenerated = False
         for _, service in self.services.items():
             needs_updates = self.context.database.session.query(NeedsUpdate).filter_by(
@@ -137,7 +143,7 @@ class ServerApp:
                                     for (
                                         config_file
                                     ) in service_updated_class.config_files:
-                                        config_file.regenerate()
+                                        config_file.regenerate(cmd_context)
                                         has_regenerated = True
         if has_regenerated:
             self.context.event_manager.trigger_event("config_synced")
@@ -176,6 +182,7 @@ class ServerApp:
         self.init_file_server()
         self.init_communication_socket()
         self.unix_socket_server()
+        self.check_ip_updates()
 
     def temp_thread_wrapper(self, target: Callable) -> None:
         target()
@@ -480,7 +487,10 @@ class ServerApp:
 
         def input(msg: str):
             socket.sendall((msg + "::INPUT").encode())
-            return socket.recv(1024).decode().strip()
+            buffer = ""
+            while "\n" not in buffer:
+                buffer += socket.recv(1024).decode()
+            return buffer.split("\n", 1)[0]
 
         command_context.output_print = output
         command_context.output_input = input

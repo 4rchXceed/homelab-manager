@@ -53,6 +53,6 @@ class RawCommand(CommandBase):
         This execute "raw" commands, bypassing most of the integrity checks.
         This is ONLY used when you have a app state problem as it might cause state corruption.
         Supported commands:
-            - {RawCommand.NAME} <agent_id> <action:stop,start,restart> <service_id>
-            - {RawCommand.NAME} <agent_id> list
+            - {RawCommand.NAME} service <agent_id> <action:stop,start,restart> <service_id>
+            - {RawCommand.NAME} service <agent_id> list
         """

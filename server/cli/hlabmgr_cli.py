@@ -42,7 +42,7 @@ while not stop:
                         answer = input("")
                         if answer.strip() == "":
                             continue
-                        client.sendall(answer.encode())
+                        client.sendall((answer + "\n").encode())
                         ok = True
                     # Gosh I hate these special characters when I do a shortcut by mistake in the shell
                     except Exception:

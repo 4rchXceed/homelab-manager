@@ -124,18 +124,18 @@ class Agent:
                     return server_obj
         return None
 
-    @staticmethod
-    def check_ip(server: dict, addr: tuple) -> bool:
-        if socket.gethostbyname(server["ip"]) != socket.gethostbyname(addr[0]):
-            return False
-        return True
+    # @staticmethod
+    # def check_ip(server: dict, addr: tuple) -> bool:
+    #     if socket.gethostbyname(server["ip"]) != socket.gethostbyname(addr[0]):
+    #         return False
+    #     return True
 
     def init_connection(self) -> bool:
         try:
             data = self.socket.recv(1024).decode()
             if data:
                 self.server = self.check_api_key(data)
-                if self.server and self.check_ip(self.server, self.addr):
+                if self.server:
                     self.socket.sendall(b"OK")
                     return True
                 else:
@@ -147,14 +147,17 @@ class Agent:
 
     def receive(self) -> None:
         stop = False
+        buffer = ""
         while not self.context.kill_switch and not stop:
             try:
-                data = self.socket.recv(1024).decode()
-                if data:
+                buffer += self.socket.recv(1024).decode()
+                while "\n" in buffer:
+                    line = buffer.split("\n")[0]
+                    if buffer.count("\n") > 0:
+                        buffer = buffer.split("\n", 1)[1]
                     try:
-                        for line in data.split("\n"):
-                            if line:
-                                self.handle_request(json.loads(line))
+                        if line:
+                            self.handle_request(json.loads(line))
                     except json.JSONDecodeError as e:
                         logger.error(f"JSON decode error: {e}")
             except Exception as e:

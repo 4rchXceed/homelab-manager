@@ -64,6 +64,14 @@ class ConfigFile:
         self, cmd_context: CommandContext | None = None
     ) -> list[dict] | None:
         responses = []
+        response = self.context.send_from_service(
+            self.service.id,
+            {
+                "type": "rewrite_config",
+                "service": self.service.id,
+                "path": self.path,
+            },
+        )
         for generator in self.generators_obj:
             generator_name = generator.get("generator")
             generator_arguments = generator.get("generatorArgs", [])

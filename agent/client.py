@@ -114,7 +114,7 @@ class Client:
                     if response:
                         if not response.get("r_uuid"):
                             response["r_uuid"] = uuid
-                            print(f"Sending message: {response}")
+                            print(f"Sending message: {json.dumps(response)}")
                             self.client.sendall((json.dumps(response) + "\n").encode())
                     self.thread_pool.remove(threading.current_thread())
 
@@ -201,6 +201,27 @@ class Client:
                     "error": error,
                     "message": msg,
                 }
+            elif message.get("type", "") == "rewrite_config":
+                path = os.path.join("services", message.get("service", ""))
+                if not os.path.exists(
+                    os.path.join(path, message.get("path", "") + ".sample")
+                ):
+                    log_error(
+                        f"Path does not exist: {os.path.join(path, message.get('path', ''))}"
+                    )
+                    return {
+                        "type": "rewrite_config_report",
+                        "success": False,
+                    }
+                else:
+                    cfg_original_path = message.get("path", "") + ".sample"
+                    cfg_new_path = message.get("path", "")
+                    command_copy = f"FREE::cp {cfg_original_path} {cfg_new_path}\n"
+                    return_code = run_command(command_copy, path)
+                    return {
+                        "type": "rewrite_config_report",
+                        "success": True,
+                    }
             elif message.get("type", "") == "gen_config":
                 path = os.path.join("services", message.get("service", ""))
                 commands = message.get("commands", [])
@@ -215,12 +236,20 @@ class Client:
                         )
                         success = False
                     else:
-                        cfg_original_path = message.get("path", "") + ".sample"
                         cfg_new_path = message.get("path", "")
-                        command_copy = f"""
-                        cp {cfg_original_path} {cfg_new_path}
-                        """
-                        return_code = run_command(command_copy + command, path)
+                        command_copy = "\n"
+                        if not os.path.exists(os.path.join(path, cfg_new_path)):
+                            cfg_original_path = message.get("path", "") + ".sample"
+                            command_copy = f"""
+                            cp {cfg_original_path} {cfg_new_path}
+                            """
+                        return_code = run_command(
+                            command.split("::")[0]
+                            + "::"
+                            + command_copy
+                            + command.split("::", 1)[1],
+                            path,
+                        )
                         return_codes.append(str(return_code))
                         if return_code != 0:
                             success = False
@@ -230,6 +259,12 @@ class Client:
                             "return_codes": return_codes,
                             "success": success,
                         }
+            else:
+                return {
+                    "type": "error",
+                    "success": False,
+                    "message": f"Unknown command {message['type']}",
+                }
         except Exception:
             log_error(
                 f"ERROR while handling message {message}: {traceback.format_exc()}"

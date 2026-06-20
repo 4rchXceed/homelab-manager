@@ -23,15 +23,19 @@ class Database:
         """)
         conn.commit()
 
-    def get_service(self, id_str: str):
+    def get_service(self, id_str: str, do_not_create=False):
         with self.conn_lock:
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
             cursor.execute("SELECT * FROM services WHERE id_str = ?", (id_str,))
-        return cursor.fetchone()
+        res = cursor.fetchone()
+        if not res and not do_not_create:
+            self.ensure_service(id_str)
+            return self.get_service(id_str)
+        return res
 
     def ensure_service(self, id_str: str):
-        if self.get_service(id_str):
+        if self.get_service(id_str, do_not_create=True):
             return
         with self.conn_lock:
             conn = sqlite3.connect(self.db_path)

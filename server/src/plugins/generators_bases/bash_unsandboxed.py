@@ -1,7 +1,7 @@
 from plugins.generators_bases._template import GeneratorBase
 
 
-class BashGeneratorBase(GeneratorBase):
+class BashUnsandboxedGeneratorBase(GeneratorBase):
     @staticmethod
     def ensure_valid_config(generator_config: dict) -> bool:
 
@@ -12,7 +12,7 @@ class BashGeneratorBase(GeneratorBase):
     @staticmethod
     def generate(generator_config: dict, arguments: list[str]) -> tuple[str, bool]:
 
-        command = "SANDBOX::"
+        command = "FREE::"
         for i, arg in enumerate(arguments):
             command += f'\nARG{i + 1}="{arg.replace('"', '\\"')}"'
         command += "\n"
