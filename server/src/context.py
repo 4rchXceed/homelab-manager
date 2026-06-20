@@ -2,6 +2,7 @@ from queue import Queue
 from typing import TYPE_CHECKING, Literal
 
 if TYPE_CHECKING:
+    from config.runtime import RuntimeConfig
     from main import ServerApp
 from config.general import GeneralConfig
 from config.servers import ConfigServers
@@ -22,6 +23,7 @@ class HLMContext:
         message_queue: Queue,
         config_general: GeneralConfig,
         config_servers: ConfigServers,
+        runtime_config: RuntimeConfig,
         app: "ServerApp",
     ) -> None:
         self.database = database
@@ -35,6 +37,7 @@ class HLMContext:
         self.app = app
         self.agents = self.app.agents
         self.event_manager = EventManager()
+        self.runtime_config = runtime_config
 
     def send_from_service(
         self, service_id: str, message: dict, timeout=10

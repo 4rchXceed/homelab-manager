@@ -10,6 +10,7 @@ from typing import Callable
 from command_context import CommandContext
 from config.general import GeneralConfig
 from config.load import load_config, load_new_config
+from config.runtime import RuntimeConfig
 from config.servers import ConfigServers
 from config_gen.generators import Generators
 from context import HLMContext
@@ -174,6 +175,7 @@ class ServerApp:
         logger.info("Booting...")
         self.init_db()
         self.init_plugins()
+        self.runtime_config = RuntimeConfig()
         self.context = HLMContext(
             self.db,
             self.generators,
@@ -181,6 +183,7 @@ class ServerApp:
             self.agents_message_queue,
             self.config_general,
             self.config_servers,
+            self.runtime_config,
             self,
         )
         set_current_context(self.context)
@@ -210,8 +213,9 @@ class ServerApp:
         self.init_services()
         self.init_file_server()
         self.init_communication_socket()
-        self.unix_socket_server()
+        self.runtime_config.init()
         self.check_ip_updates()
+        self.unix_socket_server()  # WARNING: THIS FUNCTION NEVER ENDS (it's a server), DO NOT PUT ANYTHING AFTER THAT
 
     def temp_thread_wrapper(self, target: Callable) -> None:
         target()

@@ -1,6 +1,7 @@
 from plugins.commands._template import CommandBase
 from plugins.commands.config_regen import RegenConfigCommand
 from plugins.commands.config_reload import ConfigReloadCommand
+from plugins.commands.config_runtime import ConfigRuntimeCommand
 from plugins.commands.config_sync import ConfigSyncCommand
 from plugins.commands.raw_command import RawCommand
 from plugins.commands.server_add import ServerAddCommand
@@ -18,5 +19,6 @@ COMMANDS: list[type[CommandBase]] = [
     ServiceUnassignCommand,
     ServiceListCommand,
     RawCommand,
+    ConfigRuntimeCommand,
     RegenConfigCommand,
 ]

@@ -5,6 +5,7 @@ from command_context import CommandContext
 from database.models import Service
 from error.exceptions import MissingConfigException, ProgramStateError
 from helpers import get_current_context
+from logger import logger
 from protocol.agent import Agent
 from services.config_file import ConfigFile
 
@@ -117,11 +118,11 @@ class ServerService:
         return is_error, error_message
 
     def unassign(self) -> None:
-        self.db_element.server = None
-        self.context.database.session.commit()
         agent = self.get_agent()
         if agent:
             agent.stop_service(self.id)
+        self.db_element.server = None
+        self.context.database.session.commit()
 
     def get_agent(self) -> Agent | None:
         for agent in self.context.app.agents:
