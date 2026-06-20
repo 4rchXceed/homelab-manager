@@ -23,6 +23,7 @@ def run_command(command: str, path: str) -> int:
             stdout=open(os.devnull, "wb"),
             stderr=open(os.devnull, "wb"),
         )
+        res.wait()
         os.chdir(pwd)
         return res.returncode
     elif command.startswith("SANDBOX::"):

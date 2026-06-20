@@ -202,7 +202,9 @@ class Client:
                     "message": msg,
                 }
             elif message.get("type", "") == "rewrite_config":
-                path = os.path.join("services", message.get("service", ""))
+                path = os.path.join(
+                    self.config.services_folder, message.get("service", "")
+                )
                 if not os.path.exists(
                     os.path.join(path, message.get("path", "") + ".sample")
                 ):
@@ -222,8 +224,28 @@ class Client:
                         "type": "rewrite_config_report",
                         "success": True,
                     }
+            elif message.get("type", "") == "run_service_command":
+                path = os.path.join(
+                    self.config.services_folder, message.get("service", "")
+                )
+                commands = message.get("commands", [])
+                return_codes = []
+                success = True
+                for command in commands:
+                    return_code = run_command(command, path)
+                    if return_code != 0:
+                        success = False
+                    return_codes.append(return_code)
+                return {
+                    "type": "run_service_command_report",
+                    "path": message.get("path", ""),
+                    "return_codes": return_codes,
+                    "success": success,
+                }
             elif message.get("type", "") == "gen_config":
-                path = os.path.join("services", message.get("service", ""))
+                path = os.path.join(
+                    self.config.services_folder, message.get("service", "")
+                )
                 commands = message.get("commands", [])
                 return_codes = []
                 success = True
@@ -253,12 +275,12 @@ class Client:
                         return_codes.append(str(return_code))
                         if return_code != 0:
                             success = False
-                        return {
-                            "type": "gen_config_report",
-                            "path": message.get("path", ""),
-                            "return_codes": return_codes,
-                            "success": success,
-                        }
+                    return {
+                        "type": "gen_config_report",
+                        "path": message.get("path", ""),
+                        "return_codes": return_codes,
+                        "success": success,
+                    }
             else:
                 return {
                     "type": "error",

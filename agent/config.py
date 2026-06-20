@@ -36,7 +36,9 @@ class AgentConfig:
             "db_path": self.server_config.get("db_path", "_internal.db"),
         }
 
-        self.services_folder = self.server_config.get("services_folder", "./services")
+        self.services_folder: str = self.server_config.get(
+            "services_folder", "./services"
+        )
 
         self.apprise_urls = self.report_notif["apprise_url"]
         for url in self.apprise_urls:

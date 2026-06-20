@@ -1,17 +1,25 @@
 import os
+from typing import TYPE_CHECKING
 
 from command_context import CommandContext
 from error.exceptions import GenericConfigException, MissingConfigException
 from helpers import get_current_context
 from logger import logger
 
+if TYPE_CHECKING:
+    from services.service import ServerService
+
 
 class ConfigFile:
-    def __init__(self, data: dict, service) -> None:
+    def __init__(self, data: dict, service: ServerService) -> None:
         self.service = service
         self.context = get_current_context()
         self.data = data
         self.path = self.data.get("path")
+        self.reload_commands = self.data.get("whenConfigUpdated", [])
+        if len(self.reload_commands) == 0:
+            self.reload_commands = ["docker compose restart"]
+        self.reload_timeout = self.data.get("reloadTimeout", 10)
         if self.path is None:
             raise MissingConfigException("services.$.configFiles.$.path")
         self.generators_obj: list[dict] = self.data.get("generators", [])
@@ -127,4 +135,21 @@ class ConfigFile:
             else:
                 responses.append(response)
 
+        reload_commands = []
+        for reload_command in self.reload_commands:
+            reload_commands.append("FREE::" + reload_command)
+
+        response = self.context.send_from_service(
+            self.service.id,
+            {
+                "type": "run_service_command",
+                "service": self.service.id,
+                "commands": reload_commands,
+            },
+            timeout=self.reload_timeout,
+        )
+        if cmd_context and response:
+            cmd_context.output_print(
+                f"Reloaded service: {self.service.id}. Success: {response.get('success', False)}. Return codes: {response.get('return_codes', [])}"
+            )
         return responses

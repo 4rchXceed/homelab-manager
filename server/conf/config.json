@@ -209,6 +209,10 @@
                 },
                 {
                     "path": "nginx.conf",
+                    "whenConfigUpdated": [
+                        "docker compose exec nginx nginx -s reload"
+                    ],
+                    "reloadTimeout": 5,
                     "generators": [
                         {
                             "generator": "replaceFile",
