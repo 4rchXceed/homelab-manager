@@ -1,5 +1,7 @@
 {
     "assignments": {
-        "reverse-proxy": "main"
+        "main-website": "main",
+        "reverse-proxy": "main",
+        "subsite": "main"
     }
 }

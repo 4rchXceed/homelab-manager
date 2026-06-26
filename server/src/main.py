@@ -58,7 +58,7 @@ class ServerApp:
                     logger.warning(msg)
                 server_service = ServerService.get_from_id_str(service.id_str)
                 if server_service:
-                    server_service.unassign()
+                    server_service.unassign(cmd_context)
                 service.disabled = True
                 self.context.database.session.commit()
                 del self.services[service.id_str]

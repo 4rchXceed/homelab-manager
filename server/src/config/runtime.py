@@ -32,7 +32,7 @@ class RuntimeConfig:
                     cmd_context.output_print(
                         f"Stopping {service_id} on {service.db_element.server.id_str}..."
                     )
-                    service.unassign()
+                    service.unassign(cmd_context)
                     cmd_context.output_print(f"Starting {service_id} on {server_id}...")
                     service.start_on(agent, cmd_context)
                 else:
@@ -45,7 +45,7 @@ class RuntimeConfig:
                     cmd_context.output_print(
                         f"Stopping {service_id} on {service.db_element.server.id_str}..."
                     )
-                    service.unassign()
+                    service.unassign(cmd_context)
 
     def dump(self):
         # Dump the current config to the file !! it overwrites the file entirely

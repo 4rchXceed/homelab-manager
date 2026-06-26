@@ -209,9 +209,7 @@
                 },
                 {
                     "path": "nginx.conf",
-                    "whenConfigUpdated": [
-                        "docker compose exec nginx nginx -s reload"
-                    ],
+                    "whenConfigUpdated": ["docker compose restart"],
                     "reloadTimeout": 5,
                     "generators": [
                         {
@@ -233,6 +231,18 @@
                                 {
                                     "type": "ip",
                                     "get": "nextcloud",
+                                    "raiseNotFound": false
+                                },
+                                "nginx.conf"
+                            ]
+                        },
+                        {
+                            "generator": "replaceFile",
+                            "generatorArgs": [
+                                "SUBSITE_HOST",
+                                {
+                                    "type": "ip",
+                                    "get": "subsite",
                                     "raiseNotFound": false
                                 },
                                 "nginx.conf"
@@ -272,6 +282,58 @@
                                     "id": "main_website_port"
                                 },
                                 "nginx.conf"
+                            ]
+                        },
+                        {
+                            "generator": "replaceFile",
+                            "generatorArgs": [
+                                "SUBSITE_PORT_VAR",
+                                {
+                                    "type": "userVar",
+                                    "name": "Subsite port variable",
+                                    "id": "subsite_port_var"
+                                },
+                                "nginx.conf"
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        "subsite": {
+            "name": "Website that gives nextcloud's ip",
+            "data": [],
+            "configFiles": [
+                {
+                    "path": ".env",
+                    "generators": [
+                        {
+                            "generator": "replaceFile",
+                            "generatorArgs": [
+                                "SUBSITE_PORT_VAR",
+                                {
+                                    "type": "userVar",
+                                    "name": "Subsite port variable",
+                                    "id": "subsite_port_var"
+                                },
+                                ".env"
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "path": "index.html",
+                    "generators": [
+                        {
+                            "generator": "replaceFile",
+                            "generatorArgs": [
+                                "COULD_IP",
+                                {
+                                    "type": "ip",
+                                    "get": "nextcloud",
+                                    "raiseNotFound": false
+                                },
+                                "index.html"
                             ]
                         }
                     ]

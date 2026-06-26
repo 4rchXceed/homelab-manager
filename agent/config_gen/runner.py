@@ -1,7 +1,6 @@
 import os
 import subprocess
 import uuid
-from sys import stderr
 
 from messaging.log import debug, warning
 
@@ -41,7 +40,7 @@ def run_command(command: str, path: str) -> int:
                 "-v",
                 f"{tmp_dir}/commands.sh:/commands.sh",
                 "-v",
-                f"./{path}:/mnt/workdir",
+                f"./{path.removeprefix('./')}:/mnt/workdir",
                 image,
                 "/bin/bash",
                 "/commands.sh",
