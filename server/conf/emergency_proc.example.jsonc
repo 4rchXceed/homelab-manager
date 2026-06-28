@@ -1,0 +1,80 @@
+{
+    // Name of the emergency procedure
+    "server_not_connecting": {
+        // Event listener configuration
+        "listener": {
+            // The name of the event listener (in src/plugins/emergency_events)
+            "type": "server_offline",
+            // The name of the server to monitor for offline status. Two possible values:
+            // * => Wilcard, matches all servers
+            // <name> => Specific server name
+            "server": "*",
+            // The timeout in seconds before considering the server offline (since config reload or server startup)
+            "timeout": 5,
+        },
+        // The actions to perform when the event listener triggers
+        "actions": [
+            {
+                // Type of the action to perform
+                // Here it's shell
+                "type": "shell",
+                // The command to execute
+                // Use $<variable> to reference a variable (given by the event listener)
+                "command": "echo \"ERROR: $server not connected\"",
+            },
+            {
+                // Action to log the error message
+                "type": "logger",
+                // Log level
+                "level": "error",
+                // The message to log
+                "message": "$server connection TIMEOUT!",
+            },
+            {
+                // Run a homelab-manager cli command
+                "type": "command",
+                // The command to execute
+                "command": "exec:raw",
+                // The arguments to pass to the command
+                "arguments": ["service", "$server_id_str", "list"],
+                // The inputs to pass to the command (ex. if it's asking for input)
+                // It'll at first, return the [0] input, then [1], then [2], ...
+                // If there's an overflow, the remaining inputs will be [last]
+                "inputs": [],
+            },
+            {
+                // Show a notification to the user
+                "type": "notification",
+                // The message to display
+                "message": "Error: Server $server connection timeout!",
+                // The gravity level of the notification (1-3)
+                "level": "2.5",
+                // The title of the notification
+                "title": "Server Connection Timeout",
+            },
+        ],
+    },
+    // Another example
+    "config_reload_hook": {
+        "listener": {
+            // With this listener, the actions will be executed when a specific event is triggered on the event bus
+            "type": "listen_event",
+            // The name of the event to listen for
+            "event_name": "config_reload",
+        },
+        "actions": [
+            {
+                "type": "notification",
+                "message": "Config reloaded successfully",
+                "level": "info",
+                "title": "Config Reload",
+            },
+            {
+                "type": "command",
+                "command": "config:runtime",
+                "arguments": ["reload"],
+                "inputs": [],
+            },
+        ],
+    },
+}

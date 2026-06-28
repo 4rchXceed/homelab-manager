@@ -1,6 +1,7 @@
 from calendar import c
 from typing import TYPE_CHECKING
 
+from command_context import CommandContext
 from database.models import NeedsUpdate, Service
 from error.exceptions import GenericConfigException, MissingConfigException
 from helpers import get_current_context
@@ -15,9 +16,9 @@ class IpVarProvider(VariableProvider):
     OPTIONS = {"has_frontend": False}
 
     @staticmethod
-    def backend_process(
-        data: dict, jsOutput: dict | None, config_file: "ConfigFile"
-    ) -> str:
+    def get_db_elements(
+        data: dict, config_file: "ConfigFile"
+    ) -> tuple[NeedsUpdate | None, Service | None]:
         if data.get("get") is None:
             raise MissingConfigException("provider:type=ip->get key (missing)")
         get_key = data.get("get")
@@ -31,7 +32,7 @@ class IpVarProvider(VariableProvider):
         if service is None:
             raise GenericConfigException(f"Service not found: id={get_key}")
 
-        depends_on = (
+        db_elem = (
             context.database.session.query(NeedsUpdate)
             .filter_by(
                 service_trigger_id=service.id,
@@ -39,6 +40,16 @@ class IpVarProvider(VariableProvider):
             )
             .first()
         )
+        return db_elem, service
+
+    @staticmethod
+    def backend_process(
+        data: dict, jsOutput: dict | None, config_file: "ConfigFile"
+    ) -> str:
+        context = get_current_context()
+        depends_on, service = IpVarProvider.get_db_elements(data, config_file)
+        if not service:
+            return "127.0.0.1"
         if not depends_on:
             ip = "127.0.0.1"
             if service.server is not None:
@@ -55,13 +66,16 @@ class IpVarProvider(VariableProvider):
             context.database.session.commit()
 
         if service.server is None:
-            if data.get("raiseNotFound", False):
-                raise GenericConfigException(
-                    f"No server associated with service: id={get_key}. Set raiseNotFound to false to suppress this warning."
-                )
-            else:
-                logger.warning(
-                    f'No server associated with service: id={get_key}. Will return dummy IP. To raise an error, set "raiseNotFound": true in the config.'
-                )
+            logger.warning(
+                f"No server associated with service: id={data.get('get')}. Will return dummy IP."
+            )
             return "127.0.0.1"
         return service.server.ip
+
+    @staticmethod
+    def cleanup(data: dict, cmd_context: CommandContext, config_file: "ConfigFile"):
+        context = get_current_context()
+        depends_on, _ = IpVarProvider.get_db_elements(data, config_file)
+        if depends_on:
+            context.database.session.delete(depends_on)
+            context.database.session.commit()

@@ -1,6 +1,7 @@
 import os
 from typing import TYPE_CHECKING, Callable
 
+from command_context import CommandContext
 from database.models import UserVariable
 from error.exceptions import MissingConfigException
 from helpers import get_current_context
@@ -40,14 +41,15 @@ class UserVarProvider(VariableProvider):
     @staticmethod
     def cli_frontend(
         datas: dict,
-        output_print: Callable[[str], None],
-        output_input: Callable[[str], str],
+        cmd_context: CommandContext,
         config_file: "ConfigFile",
     ) -> dict:
         user_var = UserVarProvider.frontend_init(datas)
         if user_var is None:
             var_name = datas.get("name", "No Name")
-            value = output_input(f"Enter the value for the variable: {var_name}: ")
+            value = cmd_context.output_print(
+                f"Enter the value for the variable: {var_name}: "
+            )
             return {"value": value}
         else:
             return {"value": user_var.value}
@@ -96,3 +98,7 @@ class UserVarProvider(VariableProvider):
             user_var.value = jsOutput.get("value")
             context.database.session.commit()
         return jsOutput.get("value", "")
+
+    @staticmethod
+    def cleanup(data: dict, cmd_context: CommandContext, config_file: "ConfigFile"):
+        return

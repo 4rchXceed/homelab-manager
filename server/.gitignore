@@ -76,3 +76,4 @@ __pypackages__/
 services-compose/
 # Internal updated config
 *.donottouch.internal
+logs/

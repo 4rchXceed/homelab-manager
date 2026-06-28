@@ -7,6 +7,8 @@ import traceback
 from queue import Queue
 from typing import Callable
 
+import apprise
+
 from command_context import CommandContext
 from config.general import GeneralConfig
 from config.load import load_config, load_new_config
@@ -23,6 +25,7 @@ from logger import logger
 from plugins.commands.library import COMMANDS
 from plugins.variable_providers.library import VARIABLE_PROVIDERS
 from protocol.agent import Agent
+from config.emergency import EmergencyProceduresConfig
 from services.service import ServerService
 from sqlalchemy.orm import Session
 
@@ -43,7 +46,8 @@ class ServerApp:
         self.temp_threads = []
         self.services: dict[str, ServerService] = {}
         self.init_thread = None
-        self.postinit_completed = False
+        self.emergency_procedure_config = None
+        self.apprise_client = apprise.Apprise()
 
     def check_deleted_services(self, cmd_context: CommandContext | None = None) -> None:
         services = (
@@ -101,32 +105,6 @@ class ServerApp:
 
         return "Reload DONE"
 
-    def wait_init_complete(self) -> None:
-        number_agents = (
-            self.context.database.session.query(Server)
-            .filter_by(disabled=False)
-            .count()
-        )
-        timeout = self.config_general.startup_timeout
-        logger.info(f"Waiting for {number_agents} agents to initialize...")
-        start_time = time.time()
-        while len(self.agents) < number_agents:
-            time.sleep(0.1)
-            if time.time() - start_time > timeout:
-                logger.error(f"Startup timeout: {timeout}s")
-                raise TimeoutError(
-                    "Startup timeout"
-                )  # TimeoutException is reserved for transport timeouts
-        self.sync_services(
-            can_do_actions=False,
-            debug=True,
-        )  # Prevent automated actions during init. Debug is enable by default so the owner can see what's happening in case of issues
-        self.context.event_manager.trigger_event("post_init")
-
-        logger.info("Post-init sync complete")
-        self.postinit_completed = True
-        self.init_thread = None
-
     def check_ip_updates(
         self,
         restrict_to: None | Agent = None,
@@ -179,7 +157,7 @@ class ServerApp:
         self.context = HLMContext(
             self.db,
             self.generators,
-            self.var_providers,
+            self.var_providers, # ty: ignore[invalid-argument-type]
             self.agents_message_queue,
             self.config_general,
             self.config_servers,
@@ -202,8 +180,9 @@ class ServerApp:
                 db_server.disabled = True
                 self.context.database.session.commit()
                 # del self.config_servers.servers[i] Not needed since it's at startup
-        self.init_thread = threading.Thread(target=self.wait_init_complete)
-        self.init_thread.start()
+        for notification_url in self.config_general.notification_urls:
+            self.apprise_client.add(notification_url)
+        self.emergency_procedure_config = EmergencyProceduresConfig()
         self.context.event_manager.register_event(
             "config_synced", self.on_config_synced
         )
@@ -216,6 +195,8 @@ class ServerApp:
         self.runtime_config.init()
         self.check_ip_updates()
         self.unix_socket_server()  # WARNING: THIS FUNCTION NEVER ENDS (it's a server), DO NOT PUT ANYTHING AFTER THAT
+
+
 
     def temp_thread_wrapper(self, target: Callable) -> None:
         target()
@@ -230,15 +211,12 @@ class ServerApp:
 
                 def init_wrapper():
                     agent.init()
-                    # If post-initialization is completed, start the sync thread, because else the agent would not be synced
-                    # This happens only due to a disconnect from an agent.
 
-                    if self.postinit_completed:
-                        sync_thread = threading.Thread(
-                            target=self.temp_thread_wrapper, args=(self.sync_services,)
-                        )
-                        sync_thread.start()
-                        self.temp_threads.append(sync_thread)
+                    sync_thread = threading.Thread(
+                        target=self.temp_thread_wrapper, args=(self.sync_services,)
+                    )
+                    sync_thread.start()
+                    self.temp_threads.append(sync_thread)
 
                 init_thread = threading.Thread(
                     target=self.temp_thread_wrapper, args=(init_wrapper,)

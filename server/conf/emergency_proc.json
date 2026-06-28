@@ -1,0 +1,52 @@
+{
+    "server_not_connecting": {
+        "listener": {
+            "type": "server_offline",
+            "server": "*",
+            "timeout": 5
+        },
+        "actions": [
+            {
+                "type": "shell",
+                "command": "echo \"ERROR: $server not connected\""
+            },
+            {
+                "type": "logger",
+                "level": "error",
+                "message": "$server connection TIMEOUT!"
+            },
+            {
+                "type": "command",
+                "command": "exec:raw",
+                "arguments": ["service", "$server_id_str", "list"],
+                "inputs": []
+            },
+            {
+                "type": "notification",
+                "message": "Error: Server $server connection timeout!",
+                "level": "2.5",
+                "title": "Server Connection Timeout"
+            }
+        ]
+    },
+    "config_reload_hook": {
+        "listener": {
+            "type": "listen_event",
+            "event_name": "config_reload"
+        },
+        "actions": [
+            {
+                "type": "notification",
+                "message": "Config reloaded successfully",
+                "level": "info",
+                "title": "Config Reload"
+            },
+            {
+                "type": "command",
+                "command": "config:runtime",
+                "arguments": ["reload"],
+                "inputs": []
+            }
+        ]
+    }
+}

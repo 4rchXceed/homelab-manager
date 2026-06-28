@@ -57,9 +57,8 @@ class ConfigFile:
                     )
                 datas = provider.cli_frontend(
                     provider_datas,
-                    cmd_context.output_print,
-                    cmd_context.output_input,
-                    config_file=self,
+                    cmd_context,
+                    self,
                 )
             else:
                 # TODO: Complete this when WebUI is ready

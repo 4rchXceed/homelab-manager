@@ -1,55 +1,78 @@
 {
+    // Here you have the "generic config". You need to restart the server to apply it
     "config": {
+        // Where the folders with docker-compose.[yaml|yml] are located
         "servicesFolder": "../services-compose",
+        // Database [POSTGRES!] connection informations
         "database": {
             "postgresHost": "db",
             "postgresPort": "5432",
             "postgresDbName": "homelabmanager",
             "postgresUsername": "postgres",
-            "postgresPassword": "Passw0rd"
+            "postgresPassword": "Passw0rd",
         },
+        // Listening ports
         "net": {
             "serverPort": 4398,
-            "fileServerPort": 4399
+            "fileServerPort": 4399,
         },
+        // Unix socket path for the cli
         "unixSocketPath": "/tmp/homelabmanager.sock",
+        // Will be deleted soon :)
         "startupTimeout": 120,
+        // Keepalive interval (with agents)
         "keepaliveInterval": 5,
-        "notifications": ["ntfy://test-39393939"]
     },
+    // "templates" commands to generate/update configurations
     "generators": {
+        // VERY USEFUL: Replace a value in a file (no $ and " allowed). TODO: Sanitization
         "replaceFile": {
             "base": "bash",
-            "run": "sed -i -e \"s/$ARG1/$ARG2/g\" $ARG3"
+            "run": "sed -i -e \"s/$ARG1/$ARG2/g\" $ARG3",
         },
+        // Runs a nextcloud occ command (max. 5 values)
         "nextcloudOcc": {
             "base": "bashUnsandboxed",
-            "run": "docker compose exec -it $ARG1 php --define apc.enable_cli=1 occ $ARG2$ARG3$ARG4$ARG5"
-        }
+            "run": "docker compose exec -it $ARG1 php --define apc.enable_cli=1 occ $ARG2$ARG3$ARG4$ARG5",
+        },
     },
+    // Config for each services
     "services": {
+        // "id_str": {...}
         "main-website": {
+            // "Human" name
             "name": "Main Website (WebDash)",
+            // Folders/files that holds the datas (for backups)
             "data": ["./server/db", "./server/config"],
+            // All the configuration files
             "configFiles": [
                 {
+                    // "path": "path/relative/to/service/folder"
                     "path": ".env",
+                    // "generators": [...]
                     "generators": [
                         {
+                            // Name of the generator in "generators": {
                             "generator": "replaceFile",
+                            // Arguments
                             "generatorArgs": [
+                                // 1st arg: string
                                 "WEBSITE_PORT_VAR",
+                                // When it's an object: it's something in src/plugins/variable_providers
                                 {
+                                    // UserVar -> Ask the user for the config
                                     "type": "userVar",
+                                    // Name (describe to the user what he needs to write)
                                     "name": "Main website port (example: 9005)",
-                                    "id": "main_website_port"
+                                    // id => when the user enters a uservar's value, the it's value will be saved, and when another userVar with the same ID (NOT name) needs to be updated, it'll get the returned value
+                                    "id": "main_website_port",
                                 },
-                                ".env"
-                            ]
-                        }
-                    ]
-                }
-            ]
+                                ".env",
+                            ],
+                        },
+                    ],
+                },
+            ],
         },
         "nextcloud": {
             "name": "Cloud (nextcloud)",
@@ -65,10 +88,10 @@
                                 {
                                     "type": "userVar",
                                     "name": "Nextcloud db password",
-                                    "id": "cloud_db_password"
+                                    "id": "cloud_db_password",
                                 },
-                                ".env"
-                            ]
+                                ".env",
+                            ],
                         },
                         {
                             "generator": "replaceFile",
@@ -77,10 +100,10 @@
                                 {
                                     "type": "userVar",
                                     "name": "Nextcloud admin username",
-                                    "id": "cloud_admin_user"
+                                    "id": "cloud_admin_user",
                                 },
-                                ".env"
-                            ]
+                                ".env",
+                            ],
                         },
                         {
                             "generator": "replaceFile",
@@ -89,10 +112,10 @@
                                 {
                                     "type": "userVar",
                                     "name": "Nextcloud admin password",
-                                    "id": "cloud_admin_password"
+                                    "id": "cloud_admin_password",
                                 },
-                                ".env"
-                            ]
+                                ".env",
+                            ],
                         },
                         {
                             "generator": "replaceFile",
@@ -101,10 +124,10 @@
                                 {
                                     "type": "userVar",
                                     "name": "Nextcloud *ROOT* db password",
-                                    "id": "cloud_root_db_password"
+                                    "id": "cloud_root_db_password",
                                 },
-                                ".env"
-                            ]
+                                ".env",
+                            ],
                         },
                         {
                             "generator": "replaceFile",
@@ -113,10 +136,10 @@
                                 {
                                     "type": "userVar",
                                     "name": "Cloud port (example: 3939)",
-                                    "id": "cloud_port"
+                                    "id": "cloud_port",
                                 },
-                                ".env"
-                            ]
+                                ".env",
+                            ],
                         },
                         {
                             "generator": "replaceFile",
@@ -125,10 +148,10 @@
                                 {
                                     "type": "userVar",
                                     "name": "Cloud subpath (example: cloud)",
-                                    "id": "cloud_subpath"
+                                    "id": "cloud_subpath",
                                 },
-                                ".env"
-                            ]
+                                ".env",
+                            ],
                         },
                         {
                             "generator": "nextcloudOcc",
@@ -136,11 +159,14 @@
                                 "app",
                                 "config:system:set trusted_domains 0 --value=",
                                 {
+                                    // IP variable provider: gets the IP where a service is installed
+                                    // The config will be auto-updated when the services changes server / IP changed
                                     "type": "ip",
-                                    "get": "nextcloud"
+                                    // The service
+                                    "get": "nextcloud",
                                 },
-                                ""
-                            ]
+                                "",
+                            ],
                         },
                         {
                             "generator": "nextcloudOcc",
@@ -148,8 +174,8 @@
                                 "app",
                                 "config:system:set overwriteprotocol --value=",
                                 "http://",
-                                ""
-                            ]
+                                "",
+                            ],
                         },
                         {
                             "generator": "nextcloudOcc",
@@ -159,10 +185,10 @@
                                 {
                                     "type": "userVar",
                                     "name": "Cloud subpath (example: cloud)",
-                                    "id": "cloud_subpath"
+                                    "id": "cloud_subpath",
                                 },
-                                ""
-                            ]
+                                "",
+                            ],
                         },
                         {
                             "generator": "nextcloudOcc",
@@ -171,19 +197,19 @@
                                 "config:system:set overwritehost --value=",
                                 {
                                     "type": "ip",
-                                    "get": "reverse-proxy"
+                                    "get": "reverse-proxy",
                                 },
                                 ":",
                                 {
                                     "type": "userVar",
                                     "name": "Reverse proxy port",
-                                    "id": "reverse_proxy_port"
-                                }
-                            ]
-                        }
-                    ]
-                }
-            ]
+                                    "id": "reverse_proxy_port",
+                                },
+                            ],
+                        },
+                    ],
+                },
+            ],
         },
         "reverse-proxy": {
             "name": "Nginx Reverse Proxy",
@@ -199,12 +225,12 @@
                                 {
                                     "type": "userVar",
                                     "name": "Reverse proxy port",
-                                    "id": "reverse_proxy_port"
+                                    "id": "reverse_proxy_port",
                                 },
-                                ".env"
-                            ]
-                        }
-                    ]
+                                ".env",
+                            ],
+                        },
+                    ],
                 },
                 {
                     "path": "nginx.conf",
@@ -217,10 +243,10 @@
                                 "MAIN-WEBSITE-HOST",
                                 {
                                     "type": "ip",
-                                    "get": "main-website"
+                                    "get": "main-website",
                                 },
-                                "nginx.conf"
-                            ]
+                                "nginx.conf",
+                            ],
                         },
                         {
                             "generator": "replaceFile",
@@ -228,10 +254,10 @@
                                 "CLOUD-HOST",
                                 {
                                     "type": "ip",
-                                    "get": "nextcloud"
+                                    "get": "nextcloud",
                                 },
-                                "nginx.conf"
-                            ]
+                                "nginx.conf",
+                            ],
                         },
                         {
                             "generator": "replaceFile",
@@ -239,10 +265,10 @@
                                 "SUBSITE_HOST",
                                 {
                                     "type": "ip",
-                                    "get": "subsite"
+                                    "get": "subsite",
                                 },
-                                "nginx.conf"
-                            ]
+                                "nginx.conf",
+                            ],
                         },
                         {
                             "generator": "replaceFile",
@@ -251,10 +277,10 @@
                                 {
                                     "type": "userVar",
                                     "name": "Cloud subpath (example: cloud)",
-                                    "id": "cloud_subpath"
+                                    "id": "cloud_subpath",
                                 },
-                                "nginx.conf"
-                            ]
+                                "nginx.conf",
+                            ],
                         },
                         {
                             "generator": "replaceFile",
@@ -263,10 +289,10 @@
                                 {
                                     "type": "userVar",
                                     "name": "Cloud port (example: 3939)",
-                                    "id": "cloud_port"
+                                    "id": "cloud_port",
                                 },
-                                "nginx.conf"
-                            ]
+                                "nginx.conf",
+                            ],
                         },
                         {
                             "generator": "replaceFile",
@@ -275,10 +301,10 @@
                                 {
                                     "type": "userVar",
                                     "name": "Main website port (example: 9005)",
-                                    "id": "main_website_port"
+                                    "id": "main_website_port",
                                 },
-                                "nginx.conf"
-                            ]
+                                "nginx.conf",
+                            ],
                         },
                         {
                             "generator": "replaceFile",
@@ -287,14 +313,14 @@
                                 {
                                     "type": "userVar",
                                     "name": "Subsite port variable",
-                                    "id": "subsite_port_var"
+                                    "id": "subsite_port_var",
                                 },
-                                "nginx.conf"
-                            ]
-                        }
-                    ]
-                }
-            ]
+                                "nginx.conf",
+                            ],
+                        },
+                    ],
+                },
+            ],
         },
         "subsite": {
             "name": "Website that gives nextcloud's ip",
@@ -310,12 +336,12 @@
                                 {
                                     "type": "userVar",
                                     "name": "Subsite port variable",
-                                    "id": "subsite_port_var"
+                                    "id": "subsite_port_var",
                                 },
-                                ".env"
-                            ]
-                        }
-                    ]
+                                ".env",
+                            ],
+                        },
+                    ],
                 },
                 {
                     "path": "index.html",
@@ -326,22 +352,27 @@
                                 "COULD_IP",
                                 {
                                     "type": "ip",
-                                    "get": "nextcloud"
+                                    "get": "nextcloud",
                                 },
-                                "index.html"
-                            ]
-                        }
-                    ]
-                }
-            ]
-        }
+                                "index.html",
+                            ],
+                        },
+                    ],
+                },
+            ],
+        },
     },
+    // This stores all the servers
     "servers": [
         {
+            // Their id
             "id": "main",
+            // "Human" name
             "name": "Main Server",
+            // Description
             "description": "...",
-            "ip": "192.168.1.249"
-        }
-    ]
+            // Their IP (used for IP variable_provider)
+            "ip": "192.168.1.249",
+        },
+    ],
 }

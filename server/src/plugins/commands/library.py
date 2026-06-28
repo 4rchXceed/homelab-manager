@@ -9,6 +9,7 @@ from plugins.commands.service_assign import ServiceAssignCommand
 from plugins.commands.service_unassign import ServiceUnassignCommand
 from plugins.commands.services_list import ServiceListCommand
 from plugins.commands.services_sync import ServicesSync
+from plugins.commands.emergency_procedure import EmergencyProcedureCommand
 
 COMMANDS: list[type[CommandBase]] = [
     ConfigSyncCommand,
@@ -21,4 +22,5 @@ COMMANDS: list[type[CommandBase]] = [
     RawCommand,
     ConfigRuntimeCommand,
     RegenConfigCommand,
+    EmergencyProcedureCommand
 ]

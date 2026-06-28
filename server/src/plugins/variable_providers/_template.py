@@ -1,5 +1,7 @@
 from typing import TYPE_CHECKING, Callable
 
+from command_context import CommandContext
+
 if TYPE_CHECKING:
     from services.config_file import ConfigFile
 
@@ -12,8 +14,7 @@ class VariableProvider:
     @staticmethod
     def cli_frontend(
         datas: dict,
-        output_print: Callable[[str], None],
-        output_input: Callable[[str], str],
+        cmd_context: CommandContext,
         config_file: "ConfigFile",
     ) -> dict:
         """
@@ -21,6 +22,8 @@ class VariableProvider:
         This will be called when the config needs to be updated via CLI (no webui or ran from the terminal)
         Parameters:
             - datas: dict - the data that are written in the config
+            - cmd_context: CommandContext - stdout+stdin utils functions (print/input())
+            - config_file: the config OBJECT (useful to get the context, such as current service, etc.)
         Returns:
             - dict - data to be sent to the backend_process
         """
@@ -53,3 +56,16 @@ class VariableProvider:
             - str - the value of the variable
         """
         return ""
+
+    @staticmethod
+    def cleanup(data: dict, cmd_context: CommandContext, config_file: "ConfigFile"):
+        """
+        Cleanup done BEFORE re-generating the files
+        Parameters:
+            - data: dict - the datas that are written in the config
+            - cmd_context: CommandContext - stdout+stdin utils functions (print/input())
+            - config_file: the config OBJECT (useful to get the context, such as current service, etc.)
+        Returns:
+            - None
+        """
+        return

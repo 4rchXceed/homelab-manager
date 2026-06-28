@@ -48,3 +48,7 @@ class GeneralConfig:
             "keepaliveInterval",
             5,
         )
+        self.notification_urls = self.dict.get(
+            "notifications",
+            [],
+        )
