@@ -10,3 +10,10 @@ Added "cleanup" function for the variable providers + switch to cmd_context for 
 Added an entirely new configuration file: emergency procedures: allows actions to be executed when specific events are triggered
 
 ### Commit message: `- raiseNotFound removed on ip-type var-provider; + cleanup function for variable providers; ~ switched to cmd_context for cli_frontend [variable providers]; + emergency procedures system: allows actions to be executed when specific events are triggered`
+
+## LAST: 0fbc8728a3760ccaee6fa453a397a576f612842b
+Added support for python3.12 (required for py-spy profiling)
+Added py-spy profiling script
+Fixed a bug in server/src/protocol/agent.py:200 (After the fix, CPU usage decreased from 150% to 0.5%)
+
+### Commit message: `+ support for python3.12; + py-spy profiling script; ~ fixed CPU usage bug in agent.py`

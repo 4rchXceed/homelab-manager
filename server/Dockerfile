@@ -1,10 +1,10 @@
-FROM python:alpine3.23
+FROM python:3.12-alpine3.23
 
 WORKDIR /app
 
 RUN python3 -m venv /venv
 
-RUN apk add --no-cache rclone
+RUN apk add --no-cache rclone build-base # py-spy
 
 COPY requirements.txt requirements.txt
 

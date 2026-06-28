@@ -11,7 +11,7 @@ if TYPE_CHECKING:
 
 
 class ConfigFile:
-    def __init__(self, data: dict, service: ServerService) -> None:
+    def __init__(self, data: dict, service: "ServerService") -> None:
         self.service = service
         self.context = get_current_context()
         self.data = data

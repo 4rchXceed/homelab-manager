@@ -192,12 +192,15 @@ class Agent:
 
     def process_queue(self) -> None:
         while not self.context.kill_switch:
-            if not self.request_queue.empty():
+            if self.request_queue.qsize() > 0:
                 request = self.request_queue.get(timeout=1)
                 if request:
                     self.send(request)
-                else:
-                    time.sleep(0.1)
+                # OLD: 150% CPU usage
+                # else:
+                #     time.sleep(0.1)
+            # New: 0.5% CPU usage
+            time.sleep(0.1)
 
     def send(self, data: dict) -> None:
         if not data.get("r_uuid"):

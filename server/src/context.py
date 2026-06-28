@@ -23,7 +23,7 @@ class HLMContext:
         message_queue: Queue,
         config_general: GeneralConfig,
         config_servers: ConfigServers,
-        runtime_config: RuntimeConfig,
+        runtime_config: "RuntimeConfig",
         app: "ServerApp",
     ) -> None:
         self.database = database
