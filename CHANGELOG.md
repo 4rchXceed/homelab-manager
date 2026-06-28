@@ -17,3 +17,6 @@ Added py-spy profiling script
 Fixed a bug in server/src/protocol/agent.py:200 (After the fix, CPU usage decreased from 150% to 0.5%)
 
 ### Commit message: `+ support for python3.12; + py-spy profiling script; ~ fixed CPU usage bug in agent.py`
+
+### Bugfixes childs commits:
+- Forgot to rename Dockerfile to Dockerfile.dev back
