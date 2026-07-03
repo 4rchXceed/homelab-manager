@@ -61,7 +61,10 @@ class ServerAddCommand(CommandBase):
             context.database.session.add(db_server)
             context.database.session.commit()
             cmd_context.output_print("Server added to the database")
-        api_key = str(uuid.uuid4())
+        if cfg_server.get("apiKey"):
+            api_key = cfg_server.get("apiKey")
+        else:
+            api_key = str(uuid.uuid4())
         cmd_context.output_print(f"New API key: {api_key}")
         db_server.api_key = api_key
         context.database.session.commit()

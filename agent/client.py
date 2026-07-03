@@ -81,8 +81,10 @@ class Client:
         self.keepalive_thread = threading.Thread(target=self.keepalive_check)
         self.keepalive_thread.start()
         self.sync_services()
-        for service in self.service_manager.list_services():
-            self.database.ensure_service(service.name)
+        services = self.service_manager.list_services()
+        if services is not None:
+            for service in services:
+                self.database.ensure_service(service.name)
         threading.Thread(target=self.queue_processor).start()
         while not self.stop:
             try:
@@ -136,16 +138,23 @@ class Client:
             if message.get("type") == "list_services":
                 services = self.service_manager.list_services()
                 return_datas = []
-                for service in services:
-                    return_datas.append(
-                        {
-                            "name": service.name,
-                            "is_running": service.running,
-                            "is_healthy": service.healthy,
-                            "raw_data": service.line_str,
-                        }
-                    )
-                return {"type": "list_services_report", "services": return_datas}
+                if services is not None:
+                    for service in services:
+                        return_datas.append(
+                            {
+                                "name": service.name,
+                                "is_running": service.running,
+                                "is_healthy": service.healthy,
+                                "raw_data": service.line_str,
+                            }
+                        )
+                        return {"type": "list_services_report", "services": return_datas}
+                else:
+                    return {
+                        "type": "error",
+                        "success": False,
+                        "message": f"Error while listing services...",
+                    }
             elif message.get("type") == "keepalive":
                 self.last_keepalive = time.time()
                 return {"type": "keepalive_report"}

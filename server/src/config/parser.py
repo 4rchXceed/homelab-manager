@@ -1,3 +1,4 @@
+from copy import deepcopy
 import urllib.request
 import os
 import json5
@@ -8,10 +9,11 @@ def postprocess_json_file(data: dict|list, fpath: str):
             if key == "_import":
                 if isinstance(value, str):
                     return parse_json_file(value if value.endswith(".jsonc") or value.endswith(".json") else value + ".jsonc", os.path.dirname(fpath))
-            postprocess_json_file(data[key], fpath)
+            data[key] = postprocess_json_file(data[key], fpath)
     elif isinstance(data, list):
-        for _, item in enumerate(data):
-            postprocess_json_file(item, fpath)
+        for i, item in enumerate(data):
+            data[i] = postprocess_json_file(item, fpath)
+    return data
 
 def parse_json_file(file_path: str, dir: str=os.getcwd()) -> dict:
     if file_path.startswith("http://") or file_path.startswith("https://"):
@@ -30,5 +32,4 @@ def parse_json_file(file_path: str, dir: str=os.getcwd()) -> dict:
         with open(file_path, 'r', encoding="utf-8") as file:
             data = json5.load(file)
     postprocess_json_file(data, file_path)
-    print(data)
     return data

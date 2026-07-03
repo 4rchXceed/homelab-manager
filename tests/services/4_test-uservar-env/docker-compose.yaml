@@ -1,0 +1,5 @@
+services:
+    test-basic:
+        build: .
+        volumes:
+            - .:/app

@@ -1,0 +1,7 @@
+{
+    "id": "agent01",
+    "name": "Test Server nb 1",
+    "description": "",
+    "ip": "192.168.239.10",
+    "apiKey": "test-api-key-agent01"
+}

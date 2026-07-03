@@ -1,0 +1,4 @@
+{
+    "base": "bash",
+    "run": "echo $ARG1 > $ARG2",
+}

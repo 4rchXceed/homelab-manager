@@ -29,3 +29,11 @@ Fixed a bug in server/src/protocol/agent.py:200 (After the fix, CPU usage decrea
 ~ Migrated config files to jsonc format
 
 ### Commit message: `Fixed 2 bugs, added var:set command, added user variable dependencies, added _import support in json config files, migrated config files to jsonc format. See CHANGELOG.md for more details.`
+
+## LAST: ace24868318d1d8543a81149610c314a0d759b25
+~ Fixed a bug in the previous commit, _imports did not work at all (yeah, I know, I should have tested it before committing)
++ Added *some* (not all of them) Unittests. (YAY :) ). There: 1_test-service-basic 2_test-generator-1 3_test-generator-2 4_test-uservar-env
++ Added unittest base (py scripts + tearup shell script)
++ Sleepy rn it's 2 am tired of doing unittests :(
+
+### Commit message: `Fixed a bug in the previous commit, _imports did not work at all; Added some unittests; Added unittest base;`

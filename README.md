@@ -4,3 +4,5 @@ Homelab-Manager is a program that manages services on servers, with a declarativ
 
 
 ## This is not another vibe-coded slop project. I put my time into this!
+
+CREDITS: tests/wait-healthy.sh: https://github.com/jordyv/wait-for-healthy-container (MIT License)

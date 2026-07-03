@@ -1,0 +1,36 @@
+// Basic example, just starts a service
+{
+    "config": {
+        "_import": "../general"
+    },
+    "generators": {
+        "replaceFile": {
+            "_import": "../generators/replaceFile"
+        }
+    },
+    "services": {
+        "2_test-generator-1": {
+            "name": "Test Service Basic",
+            "configFiles": [
+                {
+                    "path": "config.txt",
+                    "generators": [
+                        {
+                            "generator": "replaceFile",
+                            "generatorArgs": [
+                                "STATUS",
+                                "ok",
+                                "config.txt"
+                            ]
+                        }
+                    ]
+                }
+            ]
+        }
+    },
+    "servers": [
+        {
+            "_import": "../servers/1"
+        }
+    ]
+}

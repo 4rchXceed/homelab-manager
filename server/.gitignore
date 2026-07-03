@@ -78,3 +78,4 @@ services-compose/
 *.donottouch.internal
 logs/
 profile.svg
+tests

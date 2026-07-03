@@ -1,0 +1,4 @@
+{
+    "base": "bash",
+    "run": "sed -i -e \"s/$ARG1/$ARG2/g\" $ARG3"
+}

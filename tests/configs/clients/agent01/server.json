@@ -1,0 +1,11 @@
+{
+    "host": "192.168.239.10",
+    "port": 4398,
+    "api_key": "test-api-key-agent01",
+    "this": "Test Server nb 1",
+    "this_id": "agent01",
+    "services_folder": "./services",
+    "file_server_port": 4399,
+    "keepalive_interval": 10,
+    "db_path": "_internal.db"
+}

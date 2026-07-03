@@ -156,7 +156,7 @@ class ServerApp:
         self.context = HLMContext(
             self.db,
             self.generators,
-            self.var_providers,  # ty: ignore[invalid-argument-type]
+            self.var_providers,
             self.agents_message_queue,
             self.config_general,
             self.config_servers,

@@ -12,6 +12,11 @@ services:
             - "./init.sql:/docker-entrypoint-initdb.d/init.sql"
         ports:
             - 5432:5432
+        healthcheck:
+            test: ["CMD-SHELL", "pg_isready -U postgres"]
+            interval: 1s
+            timeout: 5s
+            retries: 5
     pgadmin:
         image: dpage/pgadmin4
         environment:
@@ -35,10 +40,12 @@ services:
             - 4399:4399
         volumes:
             - .:/app
-        depends_on:
-            - db
+            - ../tests:/app/tests
         environment:
             - BYPASS_TTY_INIT_CHECK=true
+        depends_on:
+            db:
+                condition: service_healthy
         # # Allow input
         # tty: true
         # stdin_open: true

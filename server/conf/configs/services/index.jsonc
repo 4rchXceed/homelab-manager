@@ -1,6 +1,14 @@
 {
-    "main-website": {},
-    "nextcloud": {},
-    "reverse-proxy": {},
-    "subsite": {}
+    "main-website": {
+        "_import": "./mainWebsite"
+    },
+    "nextcloud": {
+        "_import": "./nextcloud"
+    },
+    "reverse-proxy": {
+        "_import": "./reverseProxy"
+    },
+    "subsite": {
+        "_import": "./subsite"
+    }
 }
