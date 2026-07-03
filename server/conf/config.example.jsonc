@@ -1,4 +1,9 @@
 {
+    // This is a jsonc file, you can write comments
+    // First off, you can put anywhere in your config something like this:
+    "key": {
+        "_import": "file/relative/to/this/file.jsonc" // It'll replace the value of "key" with the content of the file
+    },
     // Here you have the "generic config". You need to restart the server to apply it
     "config": {
         // Where the folders with docker-compose.[yaml|yml] are located
@@ -43,7 +48,10 @@
             // "Human" name
             "name": "Main Website (WebDash)",
             // Folders/files that holds the datas (for backups)
-            "data": ["./server/db", "./server/config"],
+            "data": [
+                "./server/db",
+                "./server/config"
+            ],
             // All the configuration files
             "configFiles": [
                 {
@@ -76,7 +84,10 @@
         },
         "nextcloud": {
             "name": "Cloud (nextcloud)",
-            "data": ["./cloud-data", "./db"],
+            "data": [
+                "./cloud-data",
+                "./db"
+            ],
             "configFiles": [
                 {
                     "path": ".env",
@@ -234,7 +245,9 @@
                 },
                 {
                     "path": "nginx.conf",
-                    "whenConfigUpdated": ["docker compose restart"],
+                    "whenConfigUpdated": [
+                        "docker compose restart"
+                    ],
                     "reloadTimeout": 5,
                     "generators": [
                         {

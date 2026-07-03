@@ -21,3 +21,4 @@ typing_extensions==4.15.0
 urllib3==2.7.0
 python-dotenv==1.2.2
 py-spy
+json5

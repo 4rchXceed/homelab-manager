@@ -1,0 +1,4 @@
+{
+    "base": "bashUnsandboxed",
+    "run": "docker compose exec -it $ARG1 php --define apc.enable_cli=1 occ $ARG2$ARG3$ARG4$ARG5"
+}

@@ -18,7 +18,7 @@ class ConfigFile:
         self.path = self.data.get("path")
         self.reload_commands = self.data.get("whenConfigUpdated", [])
         if len(self.reload_commands) == 0:
-            self.reload_commands = ["docker compose restart"]
+            self.reload_commands = ["docker compose down", "docker compose up -d"]
         self.reload_timeout = self.data.get("reloadTimeout", 10)
         if self.path is None:
             raise MissingConfigException("services.$.configFiles.$.path")

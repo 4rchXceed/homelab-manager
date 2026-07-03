@@ -1,3 +1,4 @@
+import secrets
 import os
 from typing import TYPE_CHECKING, Callable
 
@@ -7,6 +8,7 @@ from error.exceptions import MissingConfigException
 from helpers import get_current_context
 from logger import logger
 from plugins.variable_providers._template import VariableProvider
+from database.models import UserVarNeedsUpdate
 
 if TYPE_CHECKING:
     from services.config_file import ConfigFile
@@ -14,6 +16,10 @@ if TYPE_CHECKING:
 
 class UserVarProvider(VariableProvider):
     OPTIONS = {"has_frontend": True}
+
+    @staticmethod
+    def get_db_element(user_var: UserVariable, config_file: "ConfigFile") -> UserVarNeedsUpdate|None:
+        return get_current_context().database.session.query(UserVarNeedsUpdate).filter_by(user_variable_id=user_var.id, service_id=config_file.service.db_element.id).first()
 
     @staticmethod
     def frontend_init(datas: dict) -> UserVariable | None:
@@ -47,8 +53,8 @@ class UserVarProvider(VariableProvider):
         user_var = UserVarProvider.frontend_init(datas)
         if user_var is None:
             var_name = datas.get("name", "No Name")
-            value = cmd_context.output_print(
-                f"Enter the value for the variable: {var_name}: "
+            value = cmd_context.output_input(
+                f"Enter the value for the variable: (id: {datas.get('id')}) {var_name}: "
             )
             return {"value": value}
         else:
@@ -97,6 +103,18 @@ class UserVarProvider(VariableProvider):
         else:
             user_var.value = jsOutput.get("value")
             context.database.session.commit()
+
+        element = UserVarProvider.get_db_element(user_var, config_file)
+        if element is None:
+            element = UserVarNeedsUpdate(
+                user_variable_id=user_var.id, service_id=config_file.service.db_element.id, last_value=jsOutput.get("value", "")
+            )
+            context.database.session.add(element)
+            context.database.session.commit()
+        else:
+            element.last_value = jsOutput.get("value", "")
+            context.database.session.commit()
+
         return jsOutput.get("value", "")
 
     @staticmethod

@@ -1,0 +1,8 @@
+[
+    {
+        "id": "main",
+        "name": "Main Server",
+        "description": "...",
+        "ip": "192.168.1.26"
+    }
+]

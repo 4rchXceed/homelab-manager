@@ -2,7 +2,7 @@ from calendar import c
 from typing import TYPE_CHECKING
 
 from command_context import CommandContext
-from database.models import NeedsUpdate, Service
+from database.models import IpNeedsUpdate, Service
 from error.exceptions import GenericConfigException, MissingConfigException
 from helpers import get_current_context
 from logger import logger
@@ -18,7 +18,7 @@ class IpVarProvider(VariableProvider):
     @staticmethod
     def get_db_elements(
         data: dict, config_file: "ConfigFile"
-    ) -> tuple[NeedsUpdate | None, Service | None]:
+    ) -> tuple[IpNeedsUpdate | None, Service | None]:
         if data.get("get") is None:
             raise MissingConfigException("provider:type=ip->get key (missing)")
         get_key = data.get("get")
@@ -33,7 +33,7 @@ class IpVarProvider(VariableProvider):
             raise GenericConfigException(f"Service not found: id={get_key}")
 
         db_elem = (
-            context.database.session.query(NeedsUpdate)
+            context.database.session.query(IpNeedsUpdate)
             .filter_by(
                 service_trigger_id=service.id,
                 service_updated_id=config_file.service.db_element.id,
@@ -54,7 +54,7 @@ class IpVarProvider(VariableProvider):
             ip = "127.0.0.1"
             if service.server is not None:
                 ip = service.server.ip
-            depends_on = NeedsUpdate(
+            depends_on = IpNeedsUpdate(
                 service_trigger_id=service.id,
                 service_updated_id=config_file.service.db_element.id,
                 last_ip=ip,

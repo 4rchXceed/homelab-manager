@@ -1,0 +1,20 @@
+{
+    "servicesFolder": "../services-compose",
+    "database": {
+        "postgresHost": "db",
+        "postgresPort": "5432",
+        "postgresDbName": "homelabmanager",
+        "postgresUsername": "postgres",
+        "postgresPassword": "Passw0rd"
+    },
+    "net": {
+        "serverPort": 4398,
+        "fileServerPort": 4399
+    },
+    "unixSocketPath": "/tmp/homelabmanager.sock",
+    "startupTimeout": 120,
+    "keepaliveInterval": 5,
+    "notifications": [
+        "ntfy://test-39393939"
+    ]
+}

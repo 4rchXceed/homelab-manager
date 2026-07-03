@@ -19,4 +19,13 @@ Fixed a bug in server/src/protocol/agent.py:200 (After the fix, CPU usage decrea
 ### Commit message: `+ support for python3.12; + py-spy profiling script; ~ fixed CPU usage bug in agent.py`
 
 ### Bugfixes childs commits:
-- Forgot to rename Dockerfile to Dockerfile.dev back
+- Forgot to rename Dockerfile to Dockerfile.dev back (LAST: 1864c3ab22a6e60bec65221bee355b6357ce5547)
+
+## LAST: e03d0fdc515023de5771fa38262057f2dda61a44
+~ Fixed 2 bugs: docker down+up instead of restart, and other small bugfixes
++ Added a new command: `var:set` to set a variable value from the CLI
++ Added a user variable dependency, so when a variable is changed, the dependent config will be regenerated automatically
++ You can now write _import in the json config file, which will import a dict or list from another json file (! supports http/https urls, disable with CFG_NO_WEB_IMPORT env var)
+~ Migrated config files to jsonc format
+
+### Commit message: `Fixed 2 bugs, added var:set command, added user variable dependencies, added _import support in json config files, migrated config files to jsonc format. See CHANGELOG.md for more details.`

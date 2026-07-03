@@ -1,0 +1,26 @@
+{
+    "name": "Main Website (WebDash)",
+    "data": [
+        "./server/db",
+        "./server/config"
+    ],
+    "configFiles": [
+        {
+            "path": ".env",
+            "generators": [
+                {
+                    "generator": "replaceFile",
+                    "generatorArgs": [
+                        "WEBSITE_PORT_VAR",
+                        {
+                            "type": "userVar",
+                            "name": "Main website port (example: 9005)",
+                            "id": "main_website_port"
+                        },
+                        ".env"
+                    ]
+                }
+            ]
+        }
+    ]
+}

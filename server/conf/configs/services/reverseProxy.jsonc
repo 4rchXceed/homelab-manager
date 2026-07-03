@@ -1,0 +1,114 @@
+{
+    "name": "Nginx Reverse Proxy",
+    "data": [],
+    "configFiles": [
+        {
+            "path": ".env",
+            "generators": [
+                {
+                    "generator": "replaceFile",
+                    "generatorArgs": [
+                        "REVERSE_PROXY_PORT_VAR",
+                        {
+                            "type": "userVar",
+                            "name": "Reverse proxy port",
+                            "id": "reverse_proxy_port"
+                        },
+                        ".env"
+                    ]
+                }
+            ]
+        },
+        {
+            "path": "nginx.conf",
+            "whenConfigUpdated": [
+                "docker compose down",
+                "docker compose up -d"
+            ],
+            "reloadTimeout": 5,
+            "generators": [
+                {
+                    "generator": "replaceFile",
+                    "generatorArgs": [
+                        "MAIN-WEBSITE-HOST",
+                        {
+                            "type": "ip",
+                            "get": "main-website"
+                        },
+                        "nginx.conf"
+                    ]
+                },
+                {
+                    "generator": "replaceFile",
+                    "generatorArgs": [
+                        "CLOUD-HOST",
+                        {
+                            "type": "ip",
+                            "get": "nextcloud"
+                        },
+                        "nginx.conf"
+                    ]
+                },
+                {
+                    "generator": "replaceFile",
+                    "generatorArgs": [
+                        "SUBSITE_HOST",
+                        {
+                            "type": "ip",
+                            "get": "subsite"
+                        },
+                        "nginx.conf"
+                    ]
+                },
+                {
+                    "generator": "replaceFile",
+                    "generatorArgs": [
+                        "CLOUD-SUBDIR",
+                        {
+                            "type": "userVar",
+                            "name": "Cloud subpath (example: cloud)",
+                            "id": "cloud_subpath"
+                        },
+                        "nginx.conf"
+                    ]
+                },
+                {
+                    "generator": "replaceFile",
+                    "generatorArgs": [
+                        "CLOUD-PORT",
+                        {
+                            "type": "userVar",
+                            "name": "Cloud port (example: 3939)",
+                            "id": "cloud_port"
+                        },
+                        "nginx.conf"
+                    ]
+                },
+                {
+                    "generator": "replaceFile",
+                    "generatorArgs": [
+                        "MAIN-WEBSITE-PORT",
+                        {
+                            "type": "userVar",
+                            "name": "Main website port (example: 9005)",
+                            "id": "main_website_port"
+                        },
+                        "nginx.conf"
+                    ]
+                },
+                {
+                    "generator": "replaceFile",
+                    "generatorArgs": [
+                        "SUBSITE_PORT_VAR",
+                        {
+                            "type": "userVar",
+                            "name": "Subsite port variable",
+                            "id": "subsite_port_var"
+                        },
+                        "nginx.conf"
+                    ]
+                }
+            ]
+        }
+    ]
+}

@@ -1,7 +1,7 @@
 {
     "assignments": {
         "main-website": "main",
-        "reverse-proxy": "main",
-        "subsite": "main"
+        "nextcloud": "main",
+        "reverse-proxy": "main"
     }
 }

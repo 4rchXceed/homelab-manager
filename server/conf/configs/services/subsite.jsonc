@@ -1,0 +1,39 @@
+{
+    "name": "Website that gives nextcloud's ip",
+    "data": [],
+    "configFiles": [
+        {
+            "path": ".env",
+            "generators": [
+                {
+                    "generator": "replaceFile",
+                    "generatorArgs": [
+                        "SUBSITE_PORT_VAR",
+                        {
+                            "type": "userVar",
+                            "name": "Subsite port variable",
+                            "id": "subsite_port_var"
+                        },
+                        ".env"
+                    ]
+                }
+            ]
+        },
+        {
+            "path": "index.html",
+            "generators": [
+                {
+                    "generator": "replaceFile",
+                    "generatorArgs": [
+                        "COULD_IP",
+                        {
+                            "type": "ip",
+                            "get": "nextcloud"
+                        },
+                        "index.html"
+                    ]
+                }
+            ]
+        }
+    ]
+}

@@ -36,6 +36,8 @@ class UserVariable(Base):
     id_str: Mapped[str] = mapped_column(String(100), nullable=False)
     value: Mapped[Optional[str]] = mapped_column(String)
 
+    user_var_needs_update: Mapped[list['UserVarNeedsUpdate']] = relationship('UserVarNeedsUpdate', back_populates='user_variable')
+
 
 class Service(Base):
     __tablename__ = 'service'
@@ -53,16 +55,17 @@ class Service(Base):
     last_config: Mapped[Optional[str]] = mapped_column(String)
 
     server: Mapped[Optional['Server']] = relationship('Server', back_populates='service')
-    needs_update_service_trigger: Mapped[list['NeedsUpdate']] = relationship('NeedsUpdate', foreign_keys='[NeedsUpdate.service_trigger_id]', back_populates='service_trigger')
-    needs_update_service_updated: Mapped[list['NeedsUpdate']] = relationship('NeedsUpdate', foreign_keys='[NeedsUpdate.service_updated_id]', back_populates='service_updated')
+    ip_needs_update_service_trigger: Mapped[list['IpNeedsUpdate']] = relationship('IpNeedsUpdate', foreign_keys='[IpNeedsUpdate.service_trigger_id]', back_populates='service_trigger')
+    ip_needs_update_service_updated: Mapped[list['IpNeedsUpdate']] = relationship('IpNeedsUpdate', foreign_keys='[IpNeedsUpdate.service_updated_id]', back_populates='service_updated')
+    user_var_needs_update: Mapped[list['UserVarNeedsUpdate']] = relationship('UserVarNeedsUpdate', back_populates='service')
 
 
-class NeedsUpdate(Base):
-    __tablename__ = 'needs_update'
+class IpNeedsUpdate(Base):
+    __tablename__ = 'ip_needs_update'
     __table_args__ = (
         ForeignKeyConstraint(['service_trigger_id'], ['service.id'], name='service_needs_update_fk'),
         ForeignKeyConstraint(['service_updated_id'], ['service.id'], name='service_needs_update_fk1'),
-        PrimaryKeyConstraint('id', name='needs_update_pk')
+        PrimaryKeyConstraint('id', name='ip_needs_update_pk')
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -70,5 +73,22 @@ class NeedsUpdate(Base):
     service_updated_id: Mapped[int] = mapped_column(Integer, nullable=False)
     last_ip: Mapped[str] = mapped_column(String(15), nullable=False)
 
-    service_trigger: Mapped['Service'] = relationship('Service', foreign_keys=[service_trigger_id], back_populates='needs_update_service_trigger')
-    service_updated: Mapped['Service'] = relationship('Service', foreign_keys=[service_updated_id], back_populates='needs_update_service_updated')
+    service_trigger: Mapped['Service'] = relationship('Service', foreign_keys=[service_trigger_id], back_populates='ip_needs_update_service_trigger')
+    service_updated: Mapped['Service'] = relationship('Service', foreign_keys=[service_updated_id], back_populates='ip_needs_update_service_updated')
+
+
+class UserVarNeedsUpdate(Base):
+    __tablename__ = 'user_var_needs_update'
+    __table_args__ = (
+        ForeignKeyConstraint(['service_id'], ['service.id'], name='service_user_var_needs_update_fk'),
+        ForeignKeyConstraint(['user_variable_id'], ['user_variable.id'], name='user_variable_user_var_needs_update_fk'),
+        PrimaryKeyConstraint('id', name='user_var_needs_update_pk')
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    service_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    user_variable_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    last_value: Mapped[Optional[str]] = mapped_column(String)
+
+    service: Mapped['Service'] = relationship('Service', back_populates='user_var_needs_update')
+    user_variable: Mapped['UserVariable'] = relationship('UserVariable', back_populates='user_var_needs_update')

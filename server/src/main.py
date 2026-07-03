@@ -8,8 +8,8 @@ from queue import Queue
 from typing import Callable
 
 import apprise
-
 from command_context import CommandContext
+from config.emergency import EmergencyProceduresConfig
 from config.general import GeneralConfig
 from config.load import load_config, load_new_config
 from config.runtime import RuntimeConfig
@@ -17,7 +17,7 @@ from config.servers import ConfigServers
 from config_gen.generators import Generators
 from context import HLMContext
 from database.database import DatabaseEngine
-from database.models import NeedsUpdate, Server, Service
+from database.models import IpNeedsUpdate, Server, Service
 from dotenv import load_dotenv
 from fileserver.rclone import FileServer
 from helpers import set_current_context
@@ -25,7 +25,6 @@ from logger import logger
 from plugins.commands.library import COMMANDS
 from plugins.variable_providers.library import VARIABLE_PROVIDERS
 from protocol.agent import Agent
-from config.emergency import EmergencyProceduresConfig
 from services.service import ServerService
 from sqlalchemy.orm import Session
 
@@ -101,20 +100,20 @@ class ServerApp:
                 self.services[service_id] = ServerService(service_id, config_service)
         self.check_deleted_services(cmd_context)
         self.context.event_manager.trigger_event("config_synced")
-        self.check_ip_updates(cmd_context=cmd_context)
+        self.check_inner_deps_updates(cmd_context=cmd_context)
 
         return "Reload DONE"
 
-    def check_ip_updates(
+    def check_inner_deps_updates(
         self,
         restrict_to: None | Agent = None,
         cmd_context: CommandContext | None = None,
     ) -> None:
         has_regenerated = False
         for _, service in self.services.items():
-            needs_updates = self.context.database.session.query(NeedsUpdate).filter_by(
-                service_trigger_id=service.db_element.id
-            )
+            needs_updates = self.context.database.session.query(
+                IpNeedsUpdate
+            ).filter_by(service_trigger_id=service.db_element.id)
             for needs_update in needs_updates:
                 if not (
                     restrict_to is not None
@@ -157,7 +156,7 @@ class ServerApp:
         self.context = HLMContext(
             self.db,
             self.generators,
-            self.var_providers, # ty: ignore[invalid-argument-type]
+            self.var_providers,  # ty: ignore[invalid-argument-type]
             self.agents_message_queue,
             self.config_general,
             self.config_servers,
@@ -187,16 +186,14 @@ class ServerApp:
             "config_synced", self.on_config_synced
         )
         self.context.event_manager.register_event(
-            "service_updated", lambda a: self.check_ip_updates(None, a)
+            "service_updated", lambda a: self.check_inner_deps_updates(None, a)
         )
         self.init_services()
         self.init_file_server()
         self.init_communication_socket()
         self.runtime_config.init()
-        self.check_ip_updates()
+        self.check_inner_deps_updates()
         self.unix_socket_server()  # WARNING: THIS FUNCTION NEVER ENDS (it's a server), DO NOT PUT ANYTHING AFTER THAT
-
-
 
     def temp_thread_wrapper(self, target: Callable) -> None:
         target()

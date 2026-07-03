@@ -7,7 +7,7 @@ from helpers import get_current_context
 from logger import logger
 from protocol.agent import Agent
 from services.service import ServerService
-
+from config.parser import parse_json_file
 
 class RuntimeConfig:
     def init(self) -> None:
@@ -62,7 +62,7 @@ class RuntimeConfig:
         if runtime_config is None:
             normal_config = get_config()
             runtime_config = os.path.join(
-                os.path.dirname(normal_config), "runtime.json"
+                os.path.dirname(normal_config), "runtime.jsonc"
             )
         self.config_path = runtime_config
 
@@ -71,6 +71,5 @@ class RuntimeConfig:
             with open(runtime_config, "w", encoding="utf-8") as f_dst:
                 f_dst.write("{}")
 
-        with open(runtime_config, "r", encoding="utf-8") as f:
-            self.config_raw = json.load(f)
+        self.config_raw = parse_json_file(runtime_config)
         self.assignments: dict[str, str] = self.config_raw.get("assignments", {})

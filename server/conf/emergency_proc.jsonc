@@ -3,7 +3,7 @@
         "listener": {
             "type": "server_offline",
             "server": "*",
-            "timeout": 5
+            "timeout": 120
         },
         "actions": [
             {
@@ -18,7 +18,11 @@
             {
                 "type": "command",
                 "command": "exec:raw",
-                "arguments": ["service", "$server_id_str", "list"],
+                "arguments": [
+                    "service",
+                    "$server_id_str",
+                    "list"
+                ],
                 "inputs": []
             },
             {
@@ -40,12 +44,6 @@
                 "message": "Config reloaded successfully",
                 "level": "info",
                 "title": "Config Reload"
-            },
-            {
-                "type": "command",
-                "command": "config:runtime",
-                "arguments": ["reload"],
-                "inputs": []
             }
         ]
     }

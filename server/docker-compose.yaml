@@ -17,6 +17,12 @@ services:
         environment:
             PGADMIN_DEFAULT_EMAIL: lyam.zambaz@pm.me
             PGADMIN_DEFAULT_PASSWORD: Passw0rd
+            POSTGRES_HOST: postgreshost
+            POSTGRES_USER: postgres
+            POSTGRES_PASSWORD: Passw0rd
+            POSTGRES_DB: homelabmanager
+            PGADMIN_CONFIG_SERVER_MODE: False
+            PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: False
         ports:
             - 8082:80
     server:

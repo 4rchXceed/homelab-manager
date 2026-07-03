@@ -77,3 +77,4 @@ services-compose/
 # Internal updated config
 *.donottouch.internal
 logs/
+profile.svg

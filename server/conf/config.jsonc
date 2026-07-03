@@ -1,0 +1,14 @@
+{
+    "config": {
+        "_import": "configs/general.jsonc"
+    },
+    "generators": {
+        "_import": "configs/generators/index.jsonc"
+    },
+    "services": {
+        "_import": "configs/services/index.jsonc"
+    },
+    "servers": {
+        "_import": "configs/servers.jsonc"
+    }
+}

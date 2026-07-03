@@ -1,0 +1,137 @@
+{
+    "name": "Cloud (nextcloud)",
+    "data": [
+        "./cloud-data",
+        "./db"
+    ],
+    "configFiles": [
+        {
+            "path": ".env",
+            "generators": [
+                {
+                    "generator": "replaceFile",
+                    "generatorArgs": [
+                        "DB_PASSWORD_VAR",
+                        {
+                            "type": "userVar",
+                            "name": "Nextcloud db password",
+                            "id": "cloud_db_password"
+                        },
+                        ".env"
+                    ]
+                },
+                {
+                    "generator": "replaceFile",
+                    "generatorArgs": [
+                        "ADMIN_USER_VAR",
+                        {
+                            "type": "userVar",
+                            "name": "Nextcloud admin username",
+                            "id": "cloud_admin_user"
+                        },
+                        ".env"
+                    ]
+                },
+                {
+                    "generator": "replaceFile",
+                    "generatorArgs": [
+                        "ADMIN_PASSWORD_VAR",
+                        {
+                            "type": "userVar",
+                            "name": "Nextcloud admin password",
+                            "id": "cloud_admin_password"
+                        },
+                        ".env"
+                    ]
+                },
+                {
+                    "generator": "replaceFile",
+                    "generatorArgs": [
+                        "DB_ROOT_PASSWORD_VAR",
+                        {
+                            "type": "userVar",
+                            "name": "Nextcloud *ROOT* db password",
+                            "id": "cloud_root_db_password"
+                        },
+                        ".env"
+                    ]
+                },
+                {
+                    "generator": "replaceFile",
+                    "generatorArgs": [
+                        "CLOUD_PORT",
+                        {
+                            "type": "userVar",
+                            "name": "Cloud port (example: 3939)",
+                            "id": "cloud_port"
+                        },
+                        ".env"
+                    ]
+                },
+                {
+                    "generator": "replaceFile",
+                    "generatorArgs": [
+                        "CLOUD_SUBFOLDER_VAR",
+                        {
+                            "type": "userVar",
+                            "name": "Cloud subpath (example: cloud)",
+                            "id": "cloud_subpath"
+                        },
+                        ".env"
+                    ]
+                },
+                {
+                    "generator": "nextcloudOcc",
+                    "generatorArgs": [
+                        "app",
+                        "config:system:set trusted_domains 0 --value=",
+                        {
+                            "type": "ip",
+                            "get": "nextcloud"
+                        },
+                        ""
+                    ]
+                },
+                {
+                    "generator": "nextcloudOcc",
+                    "generatorArgs": [
+                        "app",
+                        "config:system:set overwriteprotocol --value=",
+                        "http://",
+                        ""
+                    ]
+                },
+                {
+                    "generator": "nextcloudOcc",
+                    "generatorArgs": [
+                        "app",
+                        "config:system:set overwritewebroot --value=/",
+                        {
+                            "type": "userVar",
+                            "name": "Cloud subpath (example: cloud)",
+                            "id": "cloud_subpath"
+                        },
+                        ""
+                    ]
+                },
+                {
+                    "generator": "nextcloudOcc",
+                    "generatorArgs": [
+                        "app",
+                        "config:system:set overwritehost --value=",
+                        {
+                            "type": "ip",
+                            "get": "reverse-proxy"
+                        },
+                        ":",
+                        {
+                            "type": "userVar",
+                            "name": "Reverse proxy port",
+                            "id": "reverse_proxy_port"
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

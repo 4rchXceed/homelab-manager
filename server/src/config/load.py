@@ -1,6 +1,7 @@
 import json
 import os
 import threading
+from config.parser import parse_json_file
 
 from logger import logger
 
@@ -23,7 +24,7 @@ def check_interactive_env() -> bool:
 
 
 def get_config() -> str:
-    cfg_env = os.getenv("CONFIG_FILE", "../conf/config.json")
+    cfg_env = os.getenv("CONFIG_FILE", "../conf/config.jsonc")
 
     if not os.path.exists(cfg_env + ".donottouch.internal"):
         if not check_interactive_env():
@@ -44,18 +45,16 @@ def get_config() -> str:
 def load_config() -> tuple[dict, str]:
     cfg_path = get_config()
     if not os.path.exists(cfg_path + ".donottouch.internal"):
-        with open(cfg_path, encoding="utf-8") as f:
-            text = f.read()
-        return json.loads(text), text
+        file = parse_json_file(cfg_path)
+        return file, json.dumps(file)
     else:
-        with open(cfg_path + ".donottouch.internal", encoding="utf-8") as f:
-            text = f.read()
-        return json.loads(text), text
+        file = parse_json_file(cfg_path + ".donottouch.internal")
+        return file, json.dumps(file)
 
 
 def load_new_config() -> tuple[dict, str]:
     with open(
-        os.getenv("CONFIG_FILE", "../conf/config.json"), "r", encoding="utf-8"
+        os.getenv("CONFIG_FILE", "../conf/config.jsonc"), "r", encoding="utf-8"
     ) as f:
         text = f.read()
     return json.loads(text), text
