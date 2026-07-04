@@ -1,17 +1,20 @@
-// Basic example, just starts a service
 {
     "config": {
         "_import": "../general"
     },
     "generators": {},
     "services": {
-        "1_test-service-basic": {
+        "13_test-services-sync": {
             "name": "Test Service",
-        }
+            "configFiles": []
+        },
     },
     "servers": [
         {
-            "_import": "../servers/1"
+            "_import": "../servers/1",
+        },
+        {
+            "_import": "../servers/2",
         }
     ]
 }

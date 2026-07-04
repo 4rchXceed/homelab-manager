@@ -4,11 +4,7 @@
         "_import": "../general"
     },
     "generators": {},
-    "services": {
-        "1_test-service-basic": {
-            "name": "Test Service",
-        }
-    },
+    "services": {},
     "servers": [
         {
             "_import": "../servers/1"

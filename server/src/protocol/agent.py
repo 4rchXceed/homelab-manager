@@ -273,7 +273,7 @@ class Agent:
 
     def restart_service(self, service_name: str) -> tuple[bool, str]:
         data = {"type": "restart_service", "service": service_name}
-        datas = self.send_pingpong(data)
+        datas = self.send_pingpong(data, timeout=120)  # A service restart can take a while
         return datas.get("error", True), datas.get("message", "Generic error")
 
     def list_services(self) -> list[dict]:

@@ -60,3 +60,17 @@ Fixed a bug in server/src/protocol/agent.py:200 (After the fix, CPU usage decrea
 ~ Bugfixes + code improvements
 
 ### Commit message: `Fixed a bug with config:reload; Added json5 dependency to tests; Added tests for config:reload, config:regen, and config:runtime, bugfixes & code improvements. See CHANGELOG.md for more details.`
+
+## LAST: 14403654bafc770816aeab2038efb86d6b2b85cf
+~ Fixed a bug with list_services
+- Removed unused .gitkeep files
++ Added tests (for commands):
+  - exec:raw service <agent> restart
+  - services:sync
+  - config:emergency_proc reload (tests the emergency procedures system) !! only the shell action, but the 2 listeners
+~ Improved test script
++ Switched server's docker image to python (*debian*)
+~ Few other improvements / bugfixes / code improvements
+! Finished tests (for now)
+
+### Commit message: `~ Fixed a bug with list_services - Removed unused .gitkeep files + Added tests (for commands):   - exec:raw service <agent> restart   - services:sync   - config:emergency_proc reload (tests the emergency procedures system) !! only the shell action, but the 2 listeners ~ Improved test script + Switched server's docker image to python (*debian*) ~ Few other improvements / bugfixes / code improvements`

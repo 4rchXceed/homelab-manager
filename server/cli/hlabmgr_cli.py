@@ -1,8 +1,12 @@
+import sys
 import socket
 
 from pyfiglet import Figlet
 
-socket_path = "/tmp/homelabmanager.sock"
+if len(sys.argv) > 1:
+    socket_path = sys.argv[1]
+else:
+    socket_path = "/tmp/homelabmanager.sock"
 
 client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
 

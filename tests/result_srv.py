@@ -6,18 +6,21 @@ number_of_success_expected = 0
 success_counter = 0
 multiple_objectives = False
 done_objectives = []
+success_text = "ok"
 
 def get_counter() -> int:
     global success_counter
     return success_counter
 
-def set_test(nbr, counter, multiple_obj: bool = False):
-    global success, test_nbr, number_of_success_expected, success_counter, multiple_objectives
+def set_test(nbr, counter, multiple_obj: bool = False, success_text_param: str = "ok"):
+    global success, test_nbr, number_of_success_expected, success_counter, multiple_objectives, done_objectives, success_text
+    done_objectives = []
     success = False
     test_nbr = nbr
     multiple_objectives = multiple_obj
     number_of_success_expected = counter
     success_counter = 0
+    success_text = success_text_param
 
 def is_success() -> bool:
     global success
@@ -39,15 +42,16 @@ class ResultServer(BaseHTTPRequestHandler):
         global success, test_nbr, number_of_success_expected, success_counter
         self.send_response(200)
         self.send_header('Content-type', 'text/html')
-        if self.path.strip() == f"/r/{test_nbr}/ok":
+        path = self.path
+        if path.strip() == f"/r/{test_nbr}/{success_text}":
             success_counter += 1
             if success_counter >= number_of_success_expected:
                 print(f"Success: {success_counter}/{number_of_success_expected}")
                 success = True
-        elif not multiple_objectives and self.path.strip().startswith(f"/r/{test_nbr}/"):
+        elif not multiple_objectives and path.strip().startswith(f"/r/{test_nbr}/"):
             print(f"Fail: {success_counter}/{number_of_success_expected}")
-        if self.path.strip().startswith(f"/r/{test_nbr}/ok/") and multiple_objectives:
-            server_nbr = self.path.strip().split("/")[-1]
+        if path.strip().startswith(f"/r/{test_nbr}/{success_text}/") and multiple_objectives:
+            server_nbr = path.strip().split("/")[-1]
             if server_nbr not in done_objectives:
                 done_objectives.append(server_nbr)
                 success_counter += 1

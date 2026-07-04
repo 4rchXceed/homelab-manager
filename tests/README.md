@@ -16,10 +16,8 @@ This folder provides a testing suite for the Homelab-manager project. The tests 
   - [X]: config:regen
   - [X]: config:reload
   - [X]: config:runtime
-  - [ ]: config:sync
-  - [ ]: config:emergency_proc
-  - [ ]: exec:raw <agent> restart <service>
-  - [ ]: service:unassign
-  - [ ]: services:sync
-  - [ ]: var:set
+  - [X]: exec:raw <agent> restart <service>
+  - [X]: service:unassign (tested via config:runtime)
+  - [X]: services:sync
+  - [X]: var:set
 - [ ]: Emergency procedures

@@ -24,6 +24,9 @@ def launch_service(service: str, instance: HomelabManagerInstance, inputs: list[
 killswitch = False
 
 class TestHomelabManager():
+    def __init__(self) -> None:
+        self.nbr_success = 0
+
     def is_http_server_running(self, ip: str, port: int) -> bool:
         import socket
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
@@ -271,11 +274,11 @@ class TestHomelabManager():
         instance.send_command(f"config:runtime reload")
         print("Waiting for FIRST test result.", end="", flush=True)
         s = time.time()
-        while time.time() - s < 120 and not self.is_http_server_running("192.168.239.10", 5003):
+        while time.time() - s < 120 and not self.is_http_server_running("192.168.239.10", 5005):
             time.sleep(1)
             print(".", end="", flush=True)
         print("ok")
-        assert self.is_http_server_running("192.168.239.10", 5003)
+        assert self.is_http_server_running("192.168.239.10", 5005)
         shutil.copyfile("configs/runtime/11_2_bak.jsonc", "configs/runtime/11.jsonc")
         instance.send_command("config:runtime reload")
         s = time.time()
@@ -290,11 +293,11 @@ class TestHomelabManager():
         instance.send_command("config:runtime reload")
         s = time.time()
         print("Waiting for THIRD test result.", end="", flush=True)
-        while time.time() - s < 120 and self.is_http_server_running("192.168.239.10", 5003):
+        while time.time() - s < 120 and self.is_http_server_running("192.168.239.10", 5005):
             time.sleep(1)
             print(".", end="", flush=True)
             print("ok")
-        assert not self.is_http_server_running("192.168.239.10", 5003)
+        assert not self.is_http_server_running("192.168.239.10", 5005)
         print("Removing old services...")
         instance.send_command(f"service:unassign 11_test-config-runtime")
         print("Re-assigning service...")
@@ -314,8 +317,109 @@ class TestHomelabManager():
         print("ok")
         self.ok(nbr)
 
+    # Tests the exec_raw command with a service that restarts itself
+    def test_exec_raw_restart(self):
+        nbr = "12"
+        set_test(nbr, 2)
+        instance = HomelabManagerInstance(nbr,["agent01"])
+        service = "12_test-exec-raw-restart"
+        instance.send_command(f"service:assign {service} agent01")
+        s = time.time()
+        instance.send_command(f"exec:raw service agent01 restart {service}")
+        print("Waiting for test result.", end="", flush=True)
+        while time.time() - s < 120 and not is_success():
+            time.sleep(1)
+            print(".", end="", flush=True)
+        print("ok")
+        assert is_success(), "Service exec_raw_restart test failed"
+        self.ok(nbr)
+
+    # Tests the services:sync command.
+    def test_services_sync(self):
+        nbr = "13"
+        instance = HomelabManagerInstance(nbr,["agent01"])
+        service = "13_test-services-sync"
+        instance.send_command(f"service:assign {service} agent01")
+        s = time.time()
+        instance.send_command(f"exec:raw service agent01 stop {service}")
+        print("Waiting for test result.", end="", flush=True)
+        while time.time() - s < 120 and self.is_http_server_running("192.168.239.10", 5006):
+            time.sleep(1)
+            print(".", end="", flush=True)
+        print("ok")
+        assert not self.is_http_server_running("192.168.239.10", 5006), "Test test_services_sync test failed"
+        # allow_actions => Allow starting / stopping services
+        # Btw: the database state has a priority over the actual state of the services.
+        instance.send_command(f"services:sync allow_actions") # Since we did not stopped it with the "normal" way (service:unassign), the service is still marked as "running" in the agent's state, so we need to sync the state with the actual state of the services (aka. start the service again)
+        print("Waiting for test result.", end="", flush=True)
+        while time.time() - s < 120 and not self.is_http_server_running("192.168.239.10", 5006):
+            time.sleep(1)
+            print(".", end="", flush=True)
+        print("ok")
+        assert self.is_http_server_running("192.168.239.10", 5006), "Test test_services_sync test failed"
+        self.ok(nbr)
+
+
+    # Tests passing a user variable to a service's config with a generator
+    def test_var_set(self):
+        nbr = "14"
+        set_test(nbr, 2, multiple_obj=True)
+        instance = HomelabManagerInstance(nbr,["agent01"], "USERVAR_TESTVAR=ok/1")
+        print("Starting services... (may take some time)")
+        service = "14_test-var-set"
+        th = threading.Thread(target=launch_service, args=(service, instance))
+        th.start()
+        s = time.time()
+        print("Waiting for test result.", end="", flush=True)
+        while time.time() - s < 120 and not get_counter() == 1:
+            time.sleep(1)
+            print(".", end="", flush=True)
+        print("ok")
+        assert get_counter() == 1, "Test var set test failed"
+        instance.send_command(f"var:set testVar ok/2")
+        s = time.time()
+        print("Waiting for test result.", end="", flush=True)
+        while time.time() - s < 120 and not get_counter() == 2:
+            time.sleep(1)
+            print(".", end="", flush=True)
+        print("ok")
+        assert get_counter() == 2, "Test var set test failed"
+        th.join(0.1)
+        self.ok(nbr)
+
+
+    # Tests the emergency_proc configuration file and the config:emergency_proc reload command
+    def test_emergency_proc(self):
+        nbr = "15"
+        if os.path.exists("configs/emergency_proc/15.jsonc"):
+            os.unlink("configs/emergency_proc/15.jsonc")
+        shutil.copyfile("configs/emergency_proc/15_bak.jsonc", "configs/emergency_proc/15.jsonc")
+        set_test(nbr, 2, multiple_obj=True)
+        instance = HomelabManagerInstance(nbr,["agent01"], "EMERGENCY_CONFIG_FILE=../tests/configs/emergency_proc/15.jsonc", do_not_connect_agents=True)
+        print("Reloading config...")
+        instance.send_command(f"config:reload")
+        s = time.time()
+        print("Waiting for test result.", end="", flush=True)
+        while time.time() - s < 120 and not get_counter() == 1:
+            time.sleep(1)
+            print(".", end="", flush=True)
+        print("ok")
+        assert get_counter() == 1, "Test emergency proc test failed"
+        shutil.copyfile("configs/emergency_proc/15_2_bak.jsonc", "configs/emergency_proc/15.jsonc")
+        instance.send_command(f"config:emergency_proc reload")
+        s = time.time()
+        print("Waiting for test result.", end="", flush=True)
+        while time.time() - s < 120 and not get_counter() == 2:
+            time.sleep(1)
+            print(".", end="", flush=True)
+        print("ok")
+        assert get_counter() == 2, "Test emergency proc test failed"
+        self.ok(nbr)
+
+
     def ok(self, n):
         print(f"\033[92mTest {n} passed\033[0m")
+        self.nbr_success += 1
 
 def main():
     global server, kill_switch
@@ -335,12 +439,17 @@ def main():
         print("9: test_reload_config")
         print("10: test_regen_config")
         print("11: test_runtime_config")
+        print("12: test_exec_raw_restart")
+        print("13: test_services_sync")
+        print("14: test_var_set")
+        print("15: test_emergency_proc")
         print("all: run all tests")
         print("logs: print logs from the previous test run (requires the cache to be present)")
         print("clear: clear the test cache")
         sys.exit(1)
+    all_args = [str(i) for i in range(1, 15+1)]
     if args[0] == "all":
-        args = [str(i) for i in range(1, 12)]
+        args = all_args
     if args[0] == "logs":
         print("Clients:")
         for f in os.listdir("tmp"):
@@ -363,11 +472,17 @@ def main():
         if os.path.exists("test-server-logs.txt"):
             os.unlink("test-server-logs.txt")
         sys.exit(0)
+    args = [arg for arg in args if arg in all_args] # Clear any invalid args
     print("Removing cache...")
     shutil.rmtree("tmp", ignore_errors=True)
     server = ResultServer.threaded_server(5001)
     os.makedirs("tmp", exist_ok=True)
     all_ok = True
+    test_start_time = time.time()
+    HomelabManagerInstance.LOG_FILE = open("test-logs.txt", "w", buffering=True)
+    old_stdout = sys.stdout
+    logger = Logger(HomelabManagerInstance.LOG_FILE)
+    sys.stdout = logger
     print("Running tests...")
     print("\033[91m !! DISCLAIMER !! \033[00m")
     print("\033[91m IF YOU THINK THE TEST IS STUCK, OPEN ANOTHER SHELL AND TYPE `python3 tests.py logs` TO SEE THE AGENT + SERVER LOGS \033[00m")
@@ -449,14 +564,67 @@ def main():
             print(f"\033[91mTest 11 failed: {e}\033[0m")
             print(traceback.format_exc())
             all_ok = False
+    if "12" in args:
+        try:
+            test.test_exec_raw_restart()
+        except Exception as e:
+            print(f"\033[91mTest 12 failed: {e}\033[0m")
+            print(traceback.format_exc())
+            all_ok = False
+    if "13" in args:
+        try:
+            test.test_services_sync()
+        except Exception as e:
+            print(f"\033[91mTest 13 failed: {e}\033[0m")
+            print(traceback.format_exc())
+            all_ok = False
+    if "14" in args:
+        try:
+            test.test_var_set()
+        except Exception as e:
+            print(f"\033[91mTest 14 failed: {e}\033[0m")
+            print(traceback.format_exc())
+            all_ok = False
+    if "15" in args:
+        try:
+            test.test_emergency_proc()
+        except Exception as e:
+            print(f"\033[91mTest 15 failed: {e}\033[0m")
+            print(traceback.format_exc())
+            all_ok = False
     if all_ok:
+        print(f"\033[92mPassed: {test.nbr_success}/{len(args)}\033[0m")
         print("\033[92mAll tests passed\033[0m")
+    else:
+        print(f"\033[92mPassed: {test.nbr_success}/{len(args)}\033[0m")
+        print(f"\033[91mFailed: {len(args) - test.nbr_success}/{len(args)}\033[0m")
+        print("\033[91mSome tests failed\033[0m")
+    print(f"Ran {len(args)}/{len(all_args)} tests in {time.time() - test_start_time:.2f}s")
+    logger.close()
+    sys.stdout = old_stdout
     server.shutdown()
     kill_switch = True
     for thread in threading.enumerate():
         if thread is not threading.current_thread():
             thread.join(0.1)
     sys.exit(0 if all_ok else 1)
+
+class Logger:
+    def __init__(self, log_file):
+        print(log_file.name)
+        self.terminal = sys.stdout
+        self.log = log_file
+
+    def write(self, message):
+        self.terminal.write(message)
+        self.log.write(message)
+
+    def flush(self):
+        self.terminal.flush()
+        self.log.flush()
+
+    def close(self):
+        self.log.close()
 
 if __name__ == "__main__":
     try:
@@ -469,6 +637,7 @@ if __name__ == "__main__":
         for thread in threading.enumerate():
             if thread is not threading.current_thread():
                 thread.join(0.1)
+
         sys.exit(1)
     except Exception as e:
         print(f"\033[91mUnexpected error: {e}\033[0m")

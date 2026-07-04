@@ -9,7 +9,7 @@
     },
     "services": {
         "4_test-uservar-env": {
-            "name": "Test Service Basic",
+            "name": "Test Service",
             "configFiles": [
                 {
                     "path": "config.txt",

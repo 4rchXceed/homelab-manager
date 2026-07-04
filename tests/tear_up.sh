@@ -14,6 +14,11 @@ if [ ! -d .venv ]; then
     pip install -r requirements.txt
 fi
 
+if [ ! -d ../server/tests ]; then
+    ln -s $PWD ../server/tests
+fi
+
+
 sudo modprobe dummy
 sudo ip link add veth0 type dummy
 sudo ip link add veth1 type dummy

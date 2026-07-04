@@ -91,49 +91,44 @@ class ServiceManager:
         return True, f"Service {service_name} not found"
 
     def list_services(self) -> list[ServiceStatus]:
-        try:
-            services = []
-            for service_name in os.listdir(self.services_folder):
-                service_path = os.path.join(self.services_folder, service_name)
-                if os.path.exists(service_path) and os.path.isdir(service_path):
-                    pwd = os.getcwd()
-                    os.chdir(service_path)
-                    print(f"Listing services in {service_path}")
-                    result = subprocess.run(
-                        ["docker", "compose", "ps", "--format", "json"],
-                        capture_output=True,
-                        text=True,
-                    )
-                    os.chdir(pwd)
-                    if result.returncode == 0:
-                        if result.stdout.strip() != "":
-                            try:
-                                datas = json.loads(result.stdout)
-                                health = datas.get("Health", "")
-                                services.append(
-                                    ServiceStatus(
-                                        service_name,
-                                        True,
-                                        health == "healthy"
-                                        if health != "starting"
-                                        else None,
-                                        datas["Status"],
-                                    )
+        services = []
+        for service_name in os.listdir(self.services_folder):
+            service_path = os.path.join(self.services_folder, service_name)
+            if os.path.exists(service_path) and os.path.isdir(service_path):
+                pwd = os.getcwd()
+                os.chdir(service_path)
+                result = subprocess.run(
+                    ["docker", "compose", "ps", "--format", "json"],
+                    capture_output=True,
+                    text=True,
+                )
+                os.chdir(pwd)
+                if result.returncode == 0:
+                    if result.stdout.strip() != "":
+                        try:
+                            datas = json.loads(result.stdout)
+                            health = datas.get("Health", "")
+                            services.append(
+                                ServiceStatus(
+                                    service_name,
+                                    True,
+                                    health == "healthy"
+                                    if health != "starting"
+                                    else None,
+                                    datas["Status"],
                                 )
-                            except Exception:
-                                services.append(
-                                    ServiceStatus(service_name, False, None, result.stdout)
-                                )
-
-                        else:
+                            )
+                        except Exception:
                             services.append(
                                 ServiceStatus(service_name, False, None, result.stdout)
                             )
+
                     else:
                         services.append(
-                            ServiceStatus(service_name, False, None, result.stderr)
+                            ServiceStatus(service_name, False, None, result.stdout)
                         )
-                        return services
-        except Exception as e:
-            print(f"Error occurred while listing services: {e}")
-        return []
+                else:
+                    services.append(
+                        ServiceStatus(service_name, False, None, result.stderr)
+                    )
+        return services

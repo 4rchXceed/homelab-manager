@@ -1,3 +1,4 @@
+from io import TextIOWrapper
 import threading
 import sys
 import socket
@@ -11,8 +12,9 @@ class HomelabManagerInstance:
     HOMELAB_MANAGER_CLIENT_PATH = "../agent"
     COPY_AGENT_EXCEPT = [".venv", "services", "_internal.db", "agent.log"]
     SERVER_CLI_UNIX_SOCKET = "tmp/homelabmanager.sock"
+    LOG_FILE: TextIOWrapper | None = None
 
-    def __init__(self, test_path: str, agents: list[str], env:str=""):
+    def __init__(self, test_path: str, agents: list[str], env:str="", do_not_connect_agents: bool = False):
         # kill all "python3 main.py" processes
         print("Killing all 'python3 main.py' processes... (use --no-kill to skip this step)")
         if not "--no-kill" in sys.argv:
@@ -32,6 +34,9 @@ class HomelabManagerInstance:
         for agent in agents:
             print("Registering server " + agent + " on the server...")
             self.send_command(f"server:add {agent}")
+        if do_not_connect_agents:
+            print("Skipping connecting agents to the server.")
+            return
         for agent in agents:
             print(f"Starting client {agent}...")
             self.start_client(agent)
@@ -55,7 +60,11 @@ class HomelabManagerInstance:
                     raise Exception("Server requested input but no input was provided.")
                 self.cli.sendall((inputs.pop(0) + "\n").encode())
             response_txt += response.decode()
+        if self.LOG_FILE is not None:
+            self.LOG_FILE.write(f"Command: {command}\nResponse: {response_txt}\n")
         time.sleep(0.5)
+        if response_txt.strip().endswith("ERROR"):
+            print("\033[93mWarning: command with error: " + response_txt.strip() + "\033[00m")
         return response_txt
 
     def create_agent(self, agent_name: str):

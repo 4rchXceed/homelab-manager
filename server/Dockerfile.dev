@@ -1,13 +1,13 @@
-FROM python:3.12-alpine3.23
+FROM python:3.12.13-bookworm
 
 WORKDIR /app
 
 RUN python3 -m venv /venv
 
-RUN apk add --no-cache rclone build-base # py-spy
+RUN apt-get update && apt-get install -y rclone curl # py-spy
 
 COPY requirements.txt requirements.txt
 
-RUN source /venv/bin/activate && pip install -r requirements.txt
+RUN . /venv/bin/activate && pip install -r requirements.txt
 
 CMD ["tail", "-f", "/dev/null"]

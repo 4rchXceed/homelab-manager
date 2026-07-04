@@ -1,0 +1,15 @@
+{
+    "server_not_connecting": {
+        "listener": {
+            "type": "server_offline",
+            "server": "*",
+            "timeout": 5
+        },
+        "actions": [
+            {
+                "type": "shell",
+                "command": "curl http://192.168.239.10:5001/r/15/ok/$server_id_str/1"
+            }
+        ]
+    }
+}

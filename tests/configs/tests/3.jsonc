@@ -9,7 +9,7 @@
     },
     "services": {
         "3_test-generator-2": {
-            "name": "Test Service Basic",
+            "name": "Test Service",
             "configFiles": [
                 {
                     "path": "config.txt",

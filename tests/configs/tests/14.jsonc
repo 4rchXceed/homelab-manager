@@ -8,7 +8,7 @@
         }
     },
     "services": {
-        "5_test-uservar-input": {
+        "14_test-var-set": {
             "name": "Test Service",
             "configFiles": [
                 {
