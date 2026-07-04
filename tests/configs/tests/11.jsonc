@@ -1,0 +1,20 @@
+{
+    "config": {
+        "_import": "../general"
+    },
+    "generators": {},
+    "services": {
+        "11_test-config-runtime": {
+            "name": "Test Service",
+            "configFiles": []
+        },
+    },
+    "servers": [
+        {
+            "_import": "../servers/1",
+        },
+        {
+            "_import": "../servers/2",
+        }
+    ]
+}

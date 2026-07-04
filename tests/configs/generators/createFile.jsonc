@@ -1,5 +1,5 @@
 {
-    "base": "bash",
+    "base": "bashUnsandboxed",
     "run": "echo $ARG1 > $ARG2",
     "timeout": 15
 }

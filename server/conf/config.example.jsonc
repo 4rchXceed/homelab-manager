@@ -246,9 +246,12 @@
                 },
                 {
                     "path": "nginx.conf",
+                    // Run these commands when the config is updated (like userVar changed, or IP changed)
+                    // By default: docker compose down && docker compose up -d
                     "whenConfigUpdated": [
                         "docker compose restart"
                     ],
+                    // Timeout in seconds to wait for the service to reload after the config is updated, if the service doesn't reload in time, an error will be thrown
                     "reloadTimeout": 5,
                     "generators": [
                         {

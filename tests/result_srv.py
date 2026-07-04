@@ -7,6 +7,10 @@ success_counter = 0
 multiple_objectives = False
 done_objectives = []
 
+def get_counter() -> int:
+    global success_counter
+    return success_counter
+
 def set_test(nbr, counter, multiple_obj: bool = False):
     global success, test_nbr, number_of_success_expected, success_counter, multiple_objectives
     success = False
@@ -15,7 +19,7 @@ def set_test(nbr, counter, multiple_obj: bool = False):
     number_of_success_expected = counter
     success_counter = 0
 
-def is_success():
+def is_success() -> bool:
     global success
     return success
 
@@ -40,7 +44,7 @@ class ResultServer(BaseHTTPRequestHandler):
             if success_counter >= number_of_success_expected:
                 print(f"Success: {success_counter}/{number_of_success_expected}")
                 success = True
-        elif multiple_objectives and self.path.strip().startswith(f"/r/{test_nbr}/"):
+        elif not multiple_objectives and self.path.strip().startswith(f"/r/{test_nbr}/"):
             print(f"Fail: {success_counter}/{number_of_success_expected}")
         if self.path.strip().startswith(f"/r/{test_nbr}/ok/") and multiple_objectives:
             server_nbr = self.path.strip().split("/")[-1]

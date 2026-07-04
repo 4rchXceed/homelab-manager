@@ -18,6 +18,7 @@ class ConfigFile:
         self.data = data
         self.path = self.data.get("path")
         self.reload_commands = self.data.get("whenConfigUpdated", [])
+        self.rebuild = self.data.get("rebuild", False)
         if len(self.reload_commands) == 0:
             self.reload_commands = ["docker compose down", "docker compose up -d"]
         self.reload_timeout = self.data.get("reloadTimeout", 20)
@@ -134,7 +135,14 @@ class ConfigFile:
                 logger.error("Failed to send config regeneration request")
             else:
                 responses.append(response)
-
+        response = self.context.send_from_service(
+            self.service.id,
+            {
+                "type": "ensure_service_build",
+                "service": self.service.id,
+                "data_folders": self.service.datas
+            }
+        )
         reload_commands = []
         for reload_command in self.reload_commands:
             reload_commands.append("FREE::" + reload_command)

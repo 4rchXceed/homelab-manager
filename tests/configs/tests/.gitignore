@@ -1,0 +1,3 @@
+*.donottouch.internal
+# This one is replaced, to test config:reload. The real ones are: 9_bak.jsonc and (after update: 9_2_bak.jsonc)
+9.jsonc

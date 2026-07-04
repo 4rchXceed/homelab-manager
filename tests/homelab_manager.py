@@ -12,7 +12,7 @@ class HomelabManagerInstance:
     COPY_AGENT_EXCEPT = [".venv", "services", "_internal.db", "agent.log"]
     SERVER_CLI_UNIX_SOCKET = "tmp/homelabmanager.sock"
 
-    def __init__(self, test_nbr: str, agents: list[str], env:str=""):
+    def __init__(self, test_path: str, agents: list[str], env:str=""):
         # kill all "python3 main.py" processes
         print("Killing all 'python3 main.py' processes... (use --no-kill to skip this step)")
         if not "--no-kill" in sys.argv:
@@ -23,7 +23,7 @@ class HomelabManagerInstance:
         print(f"Creating {len(agents)} agents... (copying code from ../agent)")
         for agent in agents:
             self.create_agent(agent)
-        self.config_path = f"../tests/configs/tests/{test_nbr}.jsonc"
+        self.config_path = f"../tests/configs/tests/{test_path}.jsonc"
         print(f"Starting server with config {self.config_path}...")
         self.start_server()
         self.wait_start()

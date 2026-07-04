@@ -44,42 +44,43 @@ class Database:
             conn.commit()
         return cursor.lastrowid
 
-    def check_folder_change(
-        self, service_folder: str, service_id: str, except_folders_or_files: list[str]
-    ) -> bool:
-        files_found = []
-        for root, dirs, files in os.walk(os.path.join(service_folder, service_id)):
-            for file in files:
-                files_found.append(os.path.join(root, file))
-        files_safe = []
-        for file in files_found:
-            safe = True
-            for except_folder_or_file in except_folders_or_files:
-                if file.startswith(
-                    os.path.join(
-                        service_folder,
-                        service_id,
-                        except_folder_or_file.removeprefix("./"),
-                    )
-                ):
-                    safe = False
-                    break
-            if safe:
-                files_safe.append(file)
-        files_safe.sort()
-        hashes = []
-        for file in files_safe:
-            with open(file, "rb") as f:
-                hashes.append(hashlib.sha256(f.read()).hexdigest())
-        folder_hash = hashlib.sha256(str(hashes).encode()).hexdigest()
-        old_hash = self.get_service(service_id)[2]
-        with self.conn_lock:
-            conn = sqlite3.connect(self.db_path)
-            cursor = conn.cursor()
-            cursor.execute(
-                "UPDATE services SET folder_hash = ? WHERE id_str = ?",
-                (folder_hash, service_id),
-            )
-            conn.commit()
-        print(folder_hash, old_hash)
-        return folder_hash != old_hash
+    # Removed
+    # def check_folder_change(
+    #     self, service_folder: str, service_id: str, except_folders_or_files: list[str]
+    # ) -> bool:
+    #     files_found = []
+    #     for root, dirs, files in os.walk(os.path.join(service_folder, service_id)):
+    #         for file in files:
+    #             files_found.append(os.path.join(root, file))
+    #     files_safe = []
+    #     for file in files_found:
+    #         safe = True
+    #         for except_folder_or_file in except_folders_or_files:
+    #             if file.startswith(
+    #                 os.path.join(
+    #                     service_folder,
+    #                     service_id,
+    #                     except_folder_or_file.removeprefix("./"),
+    #                 )
+    #             ):
+    #                 safe = False
+    #                 break
+    #         if safe:
+    #             files_safe.append(file)
+    #     files_safe.sort()
+    #     hashes = []
+    #     for file in files_safe:
+    #         with open(file, "rb") as f:
+    #             hashes.append(hashlib.sha256(f.read()).hexdigest())
+    #     folder_hash = hashlib.sha256(str(hashes).encode()).hexdigest()
+    #     old_hash = self.get_service(service_id)[2]
+    #     with self.conn_lock:
+    #         conn = sqlite3.connect(self.db_path)
+    #         cursor = conn.cursor()
+    #         cursor.execute(
+    #             "UPDATE services SET folder_hash = ? WHERE id_str = ?",
+    #             (folder_hash, service_id),
+    #         )
+    #         conn.commit()
+    #     print(folder_hash, old_hash)
+    #     return folder_hash != old_hash

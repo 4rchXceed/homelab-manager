@@ -1,15 +1,15 @@
- Container server-server-1 Killing 
  Container server-pgadmin-1 Killing 
  Container server-db-1 Killing 
+ Container server-server-1 Killing 
  Container server-server-1 Killed 
  Container server-db-1 Killed 
  Container server-pgadmin-1 Killed 
- Container server-pgadmin-1 Stopping 
  Container server-server-1 Stopping 
- Container server-pgadmin-1 Stopped 
- Container server-pgadmin-1 Removing 
+ Container server-pgadmin-1 Stopping 
  Container server-server-1 Stopped 
  Container server-server-1 Removing 
+ Container server-pgadmin-1 Stopped 
+ Container server-pgadmin-1 Removing 
  Container server-server-1 Removed 
  Container server-db-1 Stopping 
  Container server-db-1 Stopped 
@@ -24,10 +24,10 @@
  Network server_default Created 
  Volume server_db-data Creating 
  Volume server_db-data Created 
- Container server-db-1 Creating 
  Container server-pgadmin-1 Creating 
- Container server-db-1 Created 
+ Container server-db-1 Creating 
  Container server-pgadmin-1 Created 
+ Container server-db-1 Created 
  Container server-server-1 Creating 
  Container server-server-1 Created 
  Container server-pgadmin-1 Starting 
@@ -50,23 +50,23 @@ Container is healthy after 1 seconds.
 [37mDEBUG:logger:Initializing services...[0m
 [37mDEBUG:logger:Services initialized![0m
 [37mDEBUG:logger:Initializing file server...[0m
-2026/07/04 13:56:58 NOTICE: Config file "/root/.config/rclone/rclone.conf" not found - using defaults
-2026/07/04 13:56:58 NOTICE: Local file system at /app/tests/services: HTTP Server started on [http://[::]:4399/]
+2026/07/04 16:40:54 NOTICE: Config file "/root/.config/rclone/rclone.conf" not found - using defaults
+2026/07/04 16:40:54 NOTICE: Local file system at /app/tests/services: HTTP Server started on [http://[::]:4399/]
 [37mDEBUG:logger:File server initialized![0m
 [37mDEBUG:logger:Initializing communication socket server...[0m
 [32mINFO:logger:Communication socket server initialized![0m
 [37mDEBUG:logger:Unix socket server initialized![0m
 [37mDEBUG:logger:Received command: b'server:add agent01'[0m
 [37mDEBUG:logger:Received command: b'server:add agent02'[0m
-[32mINFO:logger:Agent initialized with connection from ('172.18.0.1', 59610)[0m
+[32mINFO:logger:Agent initialized with connection from ('172.18.0.1', 36570)[0m
 [32mINFO:logger:Syncing services... (this will take a while if there are errors / desync, progress will be logged below)[0m
-[32mINFO:logger:Agent initialized with connection from ('172.18.0.1', 46604)[0m
+[32mINFO:logger:Agent initialized with connection from ('172.18.0.1', 50266)[0m
 [32mINFO:logger:Syncing services... (this will take a while if there are errors / desync, progress will be logged below)[0m
 [37mDEBUG:logger:Received command: b'exec:raw service agent01 list'[0m
 [37mDEBUG:logger:Received command: b'exec:raw service agent02 list'[0m
-[37mDEBUG:logger:Received command: b'service:assign 8_test-multservers-ip-change-srv02 agent02'[0m
-[33mWARNING:logger:No server associated with service: id=8_test-multservers-ip-change-srv01. Will return dummy IP.[0m
-[37mDEBUG:logger:Received command: b'service:assign 8_test-multservers-ip-change-srv01 agent01'[0m
-[37mDEBUG:logger:Received command: b'service:assign 8_test-multservers-ip-change-srv01 agent01'[0m
-[37mDEBUG:logger:Received command: b'service:unassign 8_test-multservers-ip-change-srv01'[0m
-[37mDEBUG:logger:Received command: b'service:unassign 8_test-multservers-ip-change-srv02'[0m
+[37mDEBUG:logger:Received command: b'config:runtime reload'[0m
+[37mDEBUG:logger:Received command: b'config:runtime reload'[0m
+[37mDEBUG:logger:Received command: b'config:runtime reload'[0m
+[37mDEBUG:logger:Received command: b'service:unassign 11_test-config-runtime'[0m
+[37mDEBUG:logger:Received command: b'service:assign 11_test-config-runtime agent01'[0m
+[37mDEBUG:logger:Received command: b'config:runtime dump'[0m

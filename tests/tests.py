@@ -1,3 +1,5 @@
+import json5
+import json
 import traceback
 import threading
 import os
@@ -6,7 +8,7 @@ import sys
 import time
 import unittest
 from homelab_manager import HomelabManagerInstance
-from result_srv import ResultServer, set_test, is_success
+from result_srv import ResultServer, set_test, is_success, get_counter
 
 server = None
 kill_switch = False
@@ -22,6 +24,23 @@ def launch_service(service: str, instance: HomelabManagerInstance, inputs: list[
 killswitch = False
 
 class TestHomelabManager():
+    def is_http_server_running(self, ip: str, port: int) -> bool:
+        import socket
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+            sock.settimeout(1)
+            try:
+                sock.connect((ip, port))
+                return True
+            except (socket.timeout, ConnectionRefusedError):
+                return False
+    def read_file(self, path: str) -> str:
+        try:
+            with open(path, "r") as f:
+                return f.read()
+        except FileNotFoundError:
+            return ""
+
+    # Tests starting services and checking if they report success to the result server.
     def test_service_basic(self):
         nbr = "1"
         set_test(nbr, 1)
@@ -30,7 +49,7 @@ class TestHomelabManager():
         th = threading.Thread(target=launch_service, args=(service, instance))
         th.start()
         s = time.time()
-        print("Waiting for test result", end="", flush=True)
+        print("Waiting for test result.", end="", flush=True)
         while time.time() - s < 120 and not is_success():
             time.sleep(1)
             print(".", end="", flush=True)
@@ -39,6 +58,7 @@ class TestHomelabManager():
         th.join(0.1)
         self.ok(nbr)
 
+    # Tests generating a config with a generator
     def test_generator_1(self):
         nbr = "2"
         set_test(nbr, 1)
@@ -48,7 +68,7 @@ class TestHomelabManager():
         th = threading.Thread(target=launch_service, args=(service, instance))
         th.start()
         s = time.time()
-        print("Waiting for test result", end="", flush=True)
+        print("Waiting for test result.", end="", flush=True)
         while time.time() - s < 120 and not is_success():
             time.sleep(1)
             print(".", end="", flush=True)
@@ -57,6 +77,7 @@ class TestHomelabManager():
         th.join(0.1)
         self.ok(nbr)
 
+    # Tests generating a config with a generator (other type)
     def test_generator_2(self):
         nbr = "3"
         set_test(nbr, 1)
@@ -66,7 +87,7 @@ class TestHomelabManager():
         th = threading.Thread(target=launch_service, args=(service, instance))
         th.start()
         s = time.time()
-        print("Waiting for test result", end="", flush=True)
+        print("Waiting for test result.", end="", flush=True)
         while time.time() - s < 120 and not is_success():
             time.sleep(1)
             print(".", end="", flush=True)
@@ -75,7 +96,7 @@ class TestHomelabManager():
         th.join(0.1)
         self.ok(nbr)
 
-
+    # Tests passing a user variable to a service's config with a generator
     def test_uservar_1(self):
         nbr = "4"
         set_test(nbr, 1)
@@ -85,7 +106,7 @@ class TestHomelabManager():
         th = threading.Thread(target=launch_service, args=(service, instance))
         th.start()
         s = time.time()
-        print("Waiting for test result", end="", flush=True)
+        print("Waiting for test result.", end="", flush=True)
         while time.time() - s < 120 and not is_success():
             time.sleep(1)
             print(".", end="", flush=True)
@@ -95,6 +116,7 @@ class TestHomelabManager():
         self.ok(nbr)
 
 
+    # Tests passing a user variable to a service's config with a generator (with user input from CLI)
     def test_uservar_2(self):
         nbr = "5"
         set_test(nbr, 1)
@@ -104,7 +126,7 @@ class TestHomelabManager():
         th = threading.Thread(target=launch_service, args=(service, instance, ["ok"]))
         th.start()
         s = time.time()
-        print("Waiting for test result", end="", flush=True)
+        print("Waiting for test result.", end="", flush=True)
         while time.time() - s < 120 and not is_success():
             time.sleep(1)
             print(".", end="", flush=True)
@@ -113,6 +135,7 @@ class TestHomelabManager():
         th.join(0.1)
         self.ok(nbr)
 
+    # Tests a multiple servers setup with a service on each server, and checks if they can communicate with each other.
     def test_multiple_servers_basic(self):
         nbr = "6"
         set_test(nbr, 1)
@@ -124,7 +147,7 @@ class TestHomelabManager():
         th = threading.Thread(target=launch_service, args=(service1, instance, [], "agent01"))
         th.start()
         s = time.time()
-        print("Waiting for test result", end="", flush=True)
+        print("Waiting for test result.", end="", flush=True)
         while time.time() - s < 120 and not is_success():
             time.sleep(1)
             print(".", end="", flush=True)
@@ -133,6 +156,7 @@ class TestHomelabManager():
         th.join(0.1)
         self.ok(nbr)
 
+    # Tests a multiple servers setup with a service on each server, and checks if they can generate a config with the other server's IP address.
     def test_multiple_servers_ip(self):
         nbr = "7"
         set_test(nbr, 1)
@@ -144,7 +168,7 @@ class TestHomelabManager():
         th = threading.Thread(target=launch_service, args=(service1, instance, [], "agent01"))
         th.start()
         s = time.time()
-        print("Waiting for test result", end="", flush=True)
+        print("Waiting for test result.", end="", flush=True)
         while time.time() - s < 120 and not is_success():
             time.sleep(1)
             print(".", end="", flush=True)
@@ -156,6 +180,7 @@ class TestHomelabManager():
         th.join(0.1)
         self.ok(nbr)
 
+    # Same as test_multiple_servers_ip, but with a changes the IP address of one of the servers in the middle of the test, to check if the config generation is updated correctly.
     def test_multiple_servers_ip_with_change(self):
         nbr = "8"
         set_test(nbr, 1)
@@ -167,7 +192,7 @@ class TestHomelabManager():
         th = threading.Thread(target=launch_service, args=(service1, instance, [], "agent01"))
         th.start()
         s = time.time()
-        print("Waiting for test result", end="", flush=True)
+        print("Waiting for test result.", end="", flush=True)
         while time.time() - s < 120 and not is_success():
             time.sleep(1)
             print(".", end="", flush=True)
@@ -177,6 +202,116 @@ class TestHomelabManager():
         instance.send_command(f"service:unassign {service1}")
         instance.send_command(f"service:unassign {service2}")
         th.join(0.1)
+        self.ok(nbr)
+
+    # Tests updating the configuration and reloading it
+    def test_reload_config(self):
+        nbr = "9"
+        set_test(nbr, 2, multiple_obj=True)
+        if os.path.exists("configs/tests/9.jsonc.donottouch.internal"):
+            os.unlink("configs/tests/9.jsonc.donottouch.internal")
+        shutil.copyfile("configs/tests/9_bak.jsonc", "configs/tests/9.jsonc")
+        instance = HomelabManagerInstance(nbr,["agent01"])
+        print("Starting services... (may take some time)")
+        service = "9_test-reload-config-command"
+        instance.send_command(f"service:assign {service} agent01")
+        print("Waiting for first test result.", end="", flush=True)
+        s = time.time()
+        while time.time() - s < 120 and not get_counter() == 1:
+            time.sleep(1)
+            print(".", end="", flush=True)
+        print("ok")
+        shutil.copyfile("configs/tests/9_2_bak.jsonc", "configs/tests/9.jsonc")
+        instance.send_command("config:reload")
+        s = time.time()
+        print("Waiting for test result.", end="", flush=True)
+        while time.time() - s < 120 and not is_success():
+            time.sleep(1)
+            print(".", end="", flush=True)
+        print("ok")
+        assert is_success(), "Service generator 2 test failed"
+        print("Removing old services...")
+        instance.send_command(f"service:unassign {service}")
+        self.ok(nbr)
+
+
+    # Tests regenerating the configuration for a service and reloading it
+    def test_regen_config(self):
+        nbr = "10"
+        set_test(nbr, 2, multiple_obj=True)
+        instance = HomelabManagerInstance(nbr,["agent01"])
+        print("Starting services... (may take some time)")
+        service = "10_test-config-regen-command"
+        instance.send_command(f"service:assign {service} agent01")
+        print("Waiting for first test result.", end="", flush=True)
+        s = time.time()
+        while time.time() - s < 120 and not get_counter() == 1:
+            time.sleep(1)
+            print(".", end="", flush=True)
+        print("ok")
+        instance.send_command(f"config:regen {service}")
+        s = time.time()
+        print("Waiting for test result.", end="", flush=True)
+        while time.time() - s < 120 and not is_success():
+            time.sleep(1)
+            print(".", end="", flush=True)
+        print("ok")
+        assert is_success(), "Service generator 2 test failed"
+        print("Removing old services...")
+        instance.send_command(f"service:unassign {service}")
+        self.ok(nbr)
+
+
+    # Tests the runtime.jsonc configuration file
+    def test_runtime_config(self):
+        nbr = "11"
+        shutil.copyfile("configs/runtime/11_bak.jsonc", "configs/runtime/11.jsonc")
+        instance = HomelabManagerInstance(nbr,["agent01", "agent02"], env="RUNTIME_CONFIG_FILE=../tests/configs/runtime/11.jsonc")
+        print("Starting services... (may take some time)")
+        instance.send_command(f"config:runtime reload")
+        print("Waiting for FIRST test result.", end="", flush=True)
+        s = time.time()
+        while time.time() - s < 120 and not self.is_http_server_running("192.168.239.10", 5003):
+            time.sleep(1)
+            print(".", end="", flush=True)
+        print("ok")
+        assert self.is_http_server_running("192.168.239.10", 5003)
+        shutil.copyfile("configs/runtime/11_2_bak.jsonc", "configs/runtime/11.jsonc")
+        instance.send_command("config:runtime reload")
+        s = time.time()
+        print("Waiting for SECOND test result.", end="", flush=True)
+        while time.time() - s < 120 and self.read_file("tmp/agent02/services/11_test-config-runtime/status").strip() != "OK":
+            time.sleep(1)
+            print(".", end="", flush=True)
+        print("ok")
+        assert self.read_file("tmp/agent02/services/11_test-config-runtime/status").strip() == "OK"
+        shutil.copyfile("configs/runtime/11_3_bak.jsonc", "configs/runtime/11.jsonc")
+        print("Reloading runtime config...")
+        instance.send_command("config:runtime reload")
+        s = time.time()
+        print("Waiting for THIRD test result.", end="", flush=True)
+        while time.time() - s < 120 and self.is_http_server_running("192.168.239.10", 5003):
+            time.sleep(1)
+            print(".", end="", flush=True)
+            print("ok")
+        assert not self.is_http_server_running("192.168.239.10", 5003)
+        print("Removing old services...")
+        instance.send_command(f"service:unassign 11_test-config-runtime")
+        print("Re-assigning service...")
+        instance.send_command(f"service:assign 11_test-config-runtime agent01")
+        time.sleep(1)
+        print("Dumping config...")
+        instance.send_command(f"config:runtime dump")
+        time.sleep(1)
+        print("Checking dumped config...")
+        with open("configs/runtime/11.jsonc", "r") as f:
+            content = f.read()
+        config_ok = False
+        dumped_config: dict = json5.loads(content).get("assignments", {})
+        if len(dumped_config.keys()) == 1 and "11_test-config-runtime" in dumped_config and dumped_config["11_test-config-runtime"] == "agent01":
+            config_ok = True
+        assert config_ok, f"Dumped config is incorrect: {dumped_config}"
+        print("ok")
         self.ok(nbr)
 
     def ok(self, n):
@@ -195,12 +330,17 @@ def main():
         print("4: test_uservar_1")
         print("5: test_uservar_2")
         print("6: test_multiple_servers_basic_01")
+        print("7: test_multiple_servers_ip_01")
+        print("8: test_multiple_servers_ip_with_change_01")
+        print("9: test_reload_config")
+        print("10: test_regen_config")
+        print("11: test_runtime_config")
         print("all: run all tests")
         print("logs: print logs from the previous test run (requires the cache to be present)")
         print("clear: clear the test cache")
         sys.exit(1)
     if args[0] == "all":
-        args = ["1", "2", "3", "4", "5", "6", "7", "8"]
+        args = [str(i) for i in range(1, 12)]
     if args[0] == "logs":
         print("Clients:")
         for f in os.listdir("tmp"):
@@ -211,7 +351,7 @@ def main():
                         print(log_file.read())
                 else:
                     print("    No log file found")
-                if input("[q]: Quit, [Enter]: Continue") == "q":
+                if input("[q]: Quit, [Enter]: Continue ") == "q":
                     sys.exit(0)
         print("Server:")
         if os.path.exists("test-server-logs.txt"):
@@ -228,6 +368,9 @@ def main():
     server = ResultServer.threaded_server(5001)
     os.makedirs("tmp", exist_ok=True)
     all_ok = True
+    print("Running tests...")
+    print("\033[91m !! DISCLAIMER !! \033[00m")
+    print("\033[91m IF YOU THINK THE TEST IS STUCK, OPEN ANOTHER SHELL AND TYPE `python3 tests.py logs` TO SEE THE AGENT + SERVER LOGS \033[00m")
     test = TestHomelabManager()
     if "1" in args:
         try:
@@ -283,6 +426,27 @@ def main():
             test.test_multiple_servers_ip_with_change()
         except Exception as e:
             print(f"\033[91mTest 8 failed: {e}\033[0m")
+            print(traceback.format_exc())
+            all_ok = False
+    if "9" in args:
+        try:
+            test.test_reload_config()
+        except Exception as e:
+            print(f"\033[91mTest 9 failed: {e}\033[0m")
+            print(traceback.format_exc())
+            all_ok = False
+    if "10" in args:
+        try:
+            test.test_regen_config()
+        except Exception as e:
+            print(f"\033[91mTest 10 failed: {e}\033[0m")
+            print(traceback.format_exc())
+            all_ok = False
+    if "11" in args:
+        try:
+            test.test_runtime_config()
+        except Exception as e:
+            print(f"\033[91mTest 11 failed: {e}\033[0m")
             print(traceback.format_exc())
             all_ok = False
     if all_ok:

@@ -1,0 +1,8 @@
+services:
+    test-app:
+        image: nginx:latest
+        ports:
+            - "5003:80"
+        volumes:
+            - ./status:/status
+        command: ["sh", "-c", 'echo OK > /status && nginx -g "daemon off;"']

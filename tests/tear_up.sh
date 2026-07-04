@@ -3,6 +3,16 @@ if ! command -v ifconfig >/dev/null 2>&1; then
     echo "ifconfig command not found. Please install net-tools package."
     exit 1
 fi
+if ! command -v python3 >/dev/null 2>&1; then
+    echo "python3 command not found. Please install python3 package."
+    exit 1
+fi
+
+if [ ! -d .venv ]; then
+    python3 -m venv .venv
+    source .venv/bin/activate
+    pip install -r requirements.txt
+fi
 
 sudo modprobe dummy
 sudo ip link add veth0 type dummy

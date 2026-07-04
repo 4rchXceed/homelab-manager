@@ -1,0 +1,4 @@
+{
+    "base": "bash",
+    "run": "ESCAPED_REPLACE=$(printf '%s\n' \"$ARG2\" | sed -e 's/[\\/&]/\\\\&/g')\nsed -i -e \"s/$ARG1/$ESCAPED_REPLACE/g\" $ARG3"
+}

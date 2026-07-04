@@ -168,20 +168,6 @@ class Client:
                 }
             elif message.get("type") == "start_service":
                 service_name = message.get("service", "")
-                if self.database.check_folder_change(
-                    self.config.services_folder,
-                    service_name,
-                    message.get("data_folders", []),
-                ):
-                    error, msg = self.service_manager.build(service_name)
-                    print(error, msg)
-                    if error:
-                        return {
-                            "type": "build_service_report",
-                            "service": service_name,
-                            "error": error,
-                            "message": msg,
-                        }
                 error, msg = self.service_manager.start(service_name)
                 return {
                     "type": "start_service_report",

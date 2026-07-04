@@ -1,0 +1,41 @@
+{
+    "config": {
+        "_import": "../general"
+    },
+    "generators": {
+        "replaceFile": {
+            "_import": "../generators/replaceFileSafe"
+        }
+    },
+    "services": {
+        "9_test-reload-config-command": {
+            "name": "Test Service",
+            "configFiles": [
+                {
+                    "path": "Dockerfile",
+                    "whenConfigUpdated": [
+                        "docker compose build",
+                        "docker compose down",
+                        "docker compose up -d",
+                    ],
+                    "reloadTimeout": 20,
+                    "generators": [
+                        {
+                            "generator": "replaceFile",
+                            "generatorArgs": [
+                                "STATUS",
+                                "ok/2",
+                                "Dockerfile"
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+    },
+    "servers": [
+        {
+            "_import": "../servers/1",
+        }
+    ]
+}

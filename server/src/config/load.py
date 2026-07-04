@@ -53,8 +53,5 @@ def load_config() -> tuple[dict, str]:
 
 
 def load_new_config() -> tuple[dict, str]:
-    with open(
-        os.getenv("CONFIG_FILE", "../conf/config.jsonc"), "r", encoding="utf-8"
-    ) as f:
-        text = f.read()
-    return json.loads(text), text
+    file = parse_json_file(os.getenv("CONFIG_FILE", "../conf/config.jsonc"))
+    return file, json.dumps(file)

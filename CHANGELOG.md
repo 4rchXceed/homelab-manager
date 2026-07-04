@@ -32,11 +32,11 @@ Fixed a bug in server/src/protocol/agent.py:200 (After the fix, CPU usage decrea
 
 ## LAST: ace24868318d1d8543a81149610c314a0d759b25
 ~ Fixed a bug in the previous commit, _imports did not work at all (yeah, I know, I should have tested it before committing)
-+ Added *some* (not all of them) Unittests. (YAY :) ). There: 1_test-service-basic 2_test-generator-1 3_test-generator-2 4_test-uservar-env
-+ Added unittest base (py scripts + tearup shell script)
-+ Sleepy rn it's 2 am tired of doing unittests :(
++ Added *some* (not all of them) tests. (YAY :) ). There: 1_test-service-basic 2_test-generator-1 3_test-generator-2 4_test-uservar-env
++ Added test base (py scripts + tearup shell script)
++ Sleepy rn it's 2 am tired of doing tests :(
 
-### Commit message: `Fixed a bug in the previous commit, _imports did not work at all; Added some unittests; Added unittest base;`
+### Commit message: `Fixed a bug in the previous commit, _imports did not work at all; Added some tests; Added test base;`
 
 ## LAST: 08d3d467182dfb959d3fabf9701493b164247277
 ~ Improved A LOT the test script
@@ -49,3 +49,14 @@ Fixed a bug in server/src/protocol/agent.py:200 (After the fix, CPU usage decrea
   - test with multiple servers (with ip variable + changing ip so does the config)
 
 ### Commit message: `Improved test script; Added .agent_state file to agent; Fixed some bugs; Added tests for uservar and multiple servers. See CHANGELOG.md for more details.`
+
+## LAST: 64c4769d179dbd21b3024212989edb482eb54ba6
+~ Fixed a bug with config:reload (wasn't using jsonc + imports)
++ Added json5 dependency to tests
++ Added tests (for commands):
+  - config:reload
+  - config:regen
+  - config:runtime (full test of runtime.json config)
+~ Bugfixes + code improvements
+
+### Commit message: `Fixed a bug with config:reload; Added json5 dependency to tests; Added tests for config:reload, config:regen, and config:runtime, bugfixes & code improvements. See CHANGELOG.md for more details.`
