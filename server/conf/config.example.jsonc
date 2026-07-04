@@ -34,6 +34,7 @@
         "replaceFile": {
             "base": "bash",
             "run": "sed -i -e \"s/$ARG1/$ARG2/g\" $ARG3",
+            "timeout": 10 // in seconds
         },
         // Runs a nextcloud occ command (max. 5 values)
         "nextcloudOcc": {

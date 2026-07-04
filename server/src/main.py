@@ -64,7 +64,8 @@ class ServerApp:
                     server_service.unassign(cmd_context)
                 service.disabled = True
                 self.context.database.session.commit()
-                del self.services[service.id_str]
+                if service.id_str in self.services:
+                    del self.services[service.id_str]
 
     def reload_config(self, cmd_context: CommandContext | None) -> str:
         if cmd_context is None:
@@ -249,6 +250,7 @@ class ServerApp:
         logger.debug("Initializing file server...")
         self.file_server = FileServer(self.config_general.services_folder)
         self.file_server.start()
+        self.file_server.wait_until_started()
         logger.debug("File server initialized!")
 
     def init_services(self) -> None:

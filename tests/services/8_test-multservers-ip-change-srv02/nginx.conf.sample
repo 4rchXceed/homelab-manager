@@ -1,0 +1,12 @@
+events {}
+
+http {
+    server {
+        listen 80;
+        server_name _;
+
+        location / {
+            proxy_pass http://IP_ADDR:5001;
+        }
+    }
+}

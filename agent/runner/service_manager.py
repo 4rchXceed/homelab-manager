@@ -90,7 +90,7 @@ class ServiceManager:
             return True, result.stderr
         return True, f"Service {service_name} not found"
 
-    def list_services(self) -> list[ServiceStatus]|None:
+    def list_services(self) -> list[ServiceStatus]:
         try:
             services = []
             for service_name in os.listdir(self.services_folder):
@@ -98,6 +98,7 @@ class ServiceManager:
                 if os.path.exists(service_path) and os.path.isdir(service_path):
                     pwd = os.getcwd()
                     os.chdir(service_path)
+                    print(f"Listing services in {service_path}")
                     result = subprocess.run(
                         ["docker", "compose", "ps", "--format", "json"],
                         capture_output=True,

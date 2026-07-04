@@ -1,0 +1,45 @@
+{
+    "config": {
+        "_import": "../general"
+    },
+    "generators": {
+        "replaceFile": {
+            "_import": "../generators/replaceFile"
+        }
+    },
+    "services": {
+        "7_test-multservers-ip-srv01": {
+            "name": "Test Service",
+            "configFiles": [
+                {
+                    "path": "Dockerfile",
+                    "generators": [
+                        {
+                            "generator": "replaceFile",
+                            "generatorArgs": [
+                                "IP_ADDR",
+                                {
+                                    "type": "ip",
+                                    "get": "7_test-multservers-ip-srv02"
+                                },
+                                "Dockerfile"
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        "7_test-multservers-ip-srv02": {
+            "name": "Test Service",
+            "configFiles": []
+        }
+    },
+    "servers": [
+        {
+            "_import": "../servers/1",
+        },
+        {
+            "_import": "../servers/2",
+        }
+    ]
+}

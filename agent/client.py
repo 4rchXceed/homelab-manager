@@ -20,6 +20,8 @@ class Client:
     def __init__(
         self,
     ):
+        with open(".agent_state", "w") as f:
+            f.write("STARTING")
         if not AgentConfig.instance:
             raise RuntimeError("AgentConfig not initialized")
         self.config = AgentConfig.instance
@@ -86,6 +88,8 @@ class Client:
             for service in services:
                 self.database.ensure_service(service.name)
         threading.Thread(target=self.queue_processor).start()
+        with open(".agent_state", "w") as f:
+            f.write("RUNNING")
         while not self.stop:
             try:
                 data = self.client.recv(1024).decode()
@@ -138,23 +142,16 @@ class Client:
             if message.get("type") == "list_services":
                 services = self.service_manager.list_services()
                 return_datas = []
-                if services is not None:
-                    for service in services:
-                        return_datas.append(
-                            {
-                                "name": service.name,
-                                "is_running": service.running,
-                                "is_healthy": service.healthy,
-                                "raw_data": service.line_str,
-                            }
-                        )
-                        return {"type": "list_services_report", "services": return_datas}
-                else:
-                    return {
-                        "type": "error",
-                        "success": False,
-                        "message": f"Error while listing services...",
-                    }
+                for service in services:
+                    return_datas.append(
+                        {
+                            "name": service.name,
+                            "is_running": service.running,
+                            "is_healthy": service.healthy,
+                            "raw_data": service.line_str,
+                        }
+                    )
+                return {"type": "list_services_report", "services": return_datas}
             elif message.get("type") == "keepalive":
                 self.last_keepalive = time.time()
                 return {"type": "keepalive_report"}

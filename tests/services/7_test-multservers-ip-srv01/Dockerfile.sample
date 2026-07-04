@@ -4,4 +4,4 @@ RUN apk add --no-cache curl
 
 ENV NET_URL="notset"
 
-CMD ["sh", "-c", "curl -s http://192.168.239.10:5001/r/1/ok"]
+CMD ["sh", "-c", "curl -s http://IP_ADDR:5002/r/7/ok"]

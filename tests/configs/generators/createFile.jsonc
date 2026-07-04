@@ -1,4 +1,5 @@
 {
     "base": "bash",
     "run": "echo $ARG1 > $ARG2",
+    "timeout": 15
 }

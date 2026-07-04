@@ -1,0 +1,28 @@
+{
+    "config": {
+        "_import": "../general"
+    },
+    "generators": {
+        "createFile": {
+            "_import": "../generators/createFile"
+        }
+    },
+    "services": {
+        "6_test-multservers-basic-srv01": {
+            "name": "Test Service",
+            "configFiles": []
+        },
+        "6_test-multservers-basic-srv02": {
+            "name": "Test Service",
+            "configFiles": []
+        }
+    },
+    "servers": [
+        {
+            "_import": "../servers/1",
+        },
+        {
+            "_import": "../servers/2",
+        }
+    ]
+}

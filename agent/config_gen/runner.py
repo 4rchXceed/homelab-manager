@@ -19,8 +19,6 @@ def run_command(command: str, path: str) -> int:
         res = subprocess.Popen(
             command.split("::", 1)[1],
             shell=True,
-            stdout=open(os.devnull, "wb"),
-            stderr=open(os.devnull, "wb"),
         )
         res.wait()
         os.chdir(pwd)

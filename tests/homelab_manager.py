@@ -1,3 +1,5 @@
+import threading
+import sys
 import socket
 import shutil
 import subprocess
@@ -10,35 +12,50 @@ class HomelabManagerInstance:
     COPY_AGENT_EXCEPT = [".venv", "services", "_internal.db", "agent.log"]
     SERVER_CLI_UNIX_SOCKET = "tmp/homelabmanager.sock"
 
-    def __init__(self, test_nbr: str, servers: list[str], env:str=""):
+    def __init__(self, test_nbr: str, agents: list[str], env:str=""):
         # kill all "python3 main.py" processes
-        subprocess.run("pkill -f 'python3 main.py'", shell=True)
+        print("Killing all 'python3 main.py' processes... (use --no-kill to skip this step)")
+        if not "--no-kill" in sys.argv:
+            subprocess.run("pkill -f 'python3 main.py'", shell=True)
         self.env = env
         if not os.path.exists(os.path.join(self.HOMELAB_MANAGER_SERVER_PATH, "tests")):
             os.symlink(os.path.join(os.getcwd()), os.path.join(self.HOMELAB_MANAGER_SERVER_PATH, "tests"))
-        for server in servers:
-            self.create_agent(server)
+        print(f"Creating {len(agents)} agents... (copying code from ../agent)")
+        for agent in agents:
+            self.create_agent(agent)
         self.config_path = f"../tests/configs/tests/{test_nbr}.jsonc"
+        print(f"Starting server with config {self.config_path}...")
         self.start_server()
         self.wait_start()
+        print(f"Connecting to server CLI socket {self.SERVER_CLI_UNIX_SOCKET}...")
         self.connect_cli()
-        for server in servers:
-            self.send_command(f"server:add {server}")
-        for server in servers:
-            self.start_client(server)
-        time.sleep(4) # TODO: Find better method
-        for server in servers:
-            while not self.send_command(f"exec:raw service {server} list").strip().endswith("OK"):
+        for agent in agents:
+            print("Registering server " + agent + " on the server...")
+            self.send_command(f"server:add {agent}")
+        for agent in agents:
+            print(f"Starting client {agent}...")
+            self.start_client(agent)
+            time.sleep(1)  # Wait a bit for the agent to be fully started, maybe better method
+        for agent in agents:
+            print(f"Waiting for agent {agent} to be registered on the server.", end="", flush=True)
+            while not self.send_command(f"exec:raw service {agent} list").strip().endswith("OK"):
                 time.sleep(1)
+                print(".", end="", flush=True)
+            print("ok")
+        print("Waiting (1s)...")
+        time.sleep(1)  # Wait a bit for the agent to be fully registered, maybe better method
 
-    def send_command(self, command: str):
+    def send_command(self, command: str, inputs: list[str] = []):
         self.cli.sendall(command.encode())
-        print(f"Sent command: {command}")
         response_txt = ""
         while not response_txt.strip().endswith("OK") and not response_txt.strip().endswith("ERROR"):
             response = self.cli.recv(1024)
+            if response.decode().endswith("::INPUT"):
+                if len(inputs) == 0:
+                    raise Exception("Server requested input but no input was provided.")
+                self.cli.sendall((inputs.pop(0) + "\n").encode())
             response_txt += response.decode()
-            print(f"Received response: {response.decode()}")
+        time.sleep(0.5)
         return response_txt
 
     def create_agent(self, agent_name: str):
@@ -66,7 +83,7 @@ class HomelabManagerInstance:
             f'docker exec server-server-1 /bin/sh -c "CONFIG_FILE={self.config_path} {self.env} ./run.sh"'
         )
 
-        proc = subprocess.Popen(
+        subprocess.Popen(
             command,
             shell=True,
             cwd=self.HOMELAB_MANAGER_SERVER_PATH,
@@ -76,24 +93,39 @@ class HomelabManagerInstance:
         print("Server started.")
 
     def start_client(self, agent_name: str):
-        print(f"Starting client {agent_name}...")
         command = f". ../../../agent/.venv/bin/activate && CONFIG_FOLDER=../../configs/clients/{agent_name} python3 main.py"
+        state_path = os.path.join("tmp", agent_name, ".agent_state")
+        if os.path.exists(state_path):
+            os.unlink(state_path)
 
         with open(os.path.join("tmp", agent_name, "agent.log"), "w") as file:
-            process = subprocess.Popen(
+            subprocess.Popen(
                 command,
                 shell=True,
                 cwd=os.path.join("tmp", agent_name),
                 stdout=file,
                 stderr=subprocess.STDOUT,
             )
+        print(f"Waiting for agent {agent_name} to start", end="", flush=True)
+        t = time.time()
+        while not self.agent_started(state_path) or (time.time() - t) < 10:
+            print(".", end="", flush=True)
+            time.sleep(1)
+        print("ok")
 
-        print(f"Client {agent_name} started.")
+    def agent_started(self, state_path: str):
+        if os.path.exists(state_path):
+            with open(state_path, "r") as file:
+                state = file.read().strip()
+                return state == "RUNNING"
+        return False
 
     def wait_start(self):
+        print("Waiting for the server to start", end="", flush=True)
         while not os.path.exists(self.SERVER_CLI_UNIX_SOCKET):
-            print("Waiting for the server to start...")
             time.sleep(1)
+            print(".", end="", flush=True)
+        print("ok")
         print("Server 100% started.")
 
     def connect_cli(self):

@@ -1,3 +1,4 @@
+from asyncio import timeout
 import os
 from typing import TYPE_CHECKING
 
@@ -19,7 +20,7 @@ class ConfigFile:
         self.reload_commands = self.data.get("whenConfigUpdated", [])
         if len(self.reload_commands) == 0:
             self.reload_commands = ["docker compose down", "docker compose up -d"]
-        self.reload_timeout = self.data.get("reloadTimeout", 10)
+        self.reload_timeout = self.data.get("reloadTimeout", 20)
         if self.path is None:
             raise MissingConfigException("services.$.configFiles.$.path")
         self.generators_obj: list[dict] = self.data.get("generators", [])
@@ -71,7 +72,7 @@ class ConfigFile:
         self, cmd_context: CommandContext | None = None
     ) -> list[dict] | None:
         responses = []
-        response = self.context.send_from_service(
+        self.context.send_from_service(
             self.service.id,
             {
                 "type": "rewrite_config",

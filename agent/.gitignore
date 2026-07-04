@@ -80,3 +80,5 @@ agent.log
 .venv-agent
 
 _internal.db
+
+.agent_state

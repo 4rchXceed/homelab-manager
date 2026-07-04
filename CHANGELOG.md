@@ -37,3 +37,15 @@ Fixed a bug in server/src/protocol/agent.py:200 (After the fix, CPU usage decrea
 + Sleepy rn it's 2 am tired of doing unittests :(
 
 ### Commit message: `Fixed a bug in the previous commit, _imports did not work at all; Added some unittests; Added unittest base;`
+
+## LAST: 08d3d467182dfb959d3fabf9701493b164247277
+~ Improved A LOT the test script
++ Added a .agent_state (STARTING | RUNNING) file to the agent
+~ Fixed some bugs
++ Added tests:
+  - test uservar (with input)
+  - test with multiple servers (basic)
+  - test with multiple servers (with ip variable)
+  - test with multiple servers (with ip variable + changing ip so does the config)
+
+### Commit message: `Improved test script; Added .agent_state file to agent; Fixed some bugs; Added tests for uservar and multiple servers. See CHANGELOG.md for more details.`

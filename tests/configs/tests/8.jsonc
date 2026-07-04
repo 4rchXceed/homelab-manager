@@ -1,0 +1,62 @@
+{
+    "config": {
+        "_import": "../general"
+    },
+    "generators": {
+        "replaceFile": {
+            "_import": "../generators/replaceFile"
+        }
+    },
+    "services": {
+        "8_test-multservers-ip-change-srv01": {
+            "name": "Test Service",
+            "configFiles": [
+                {
+                    "path": "Dockerfile",
+                    "generators": [
+                        {
+                            "generator": "replaceFile",
+                            "generatorArgs": [
+                                "IP_ADDR",
+                                {
+                                    "type": "ip",
+                                    "get": "8_test-multservers-ip-change-srv02"
+                                },
+                                "Dockerfile"
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        "8_test-multservers-ip-change-srv02": {
+            "name": "Test Service",
+            "configFiles": [
+                {
+                    "path": "nginx.conf",
+                    "generators": [
+                        {
+                            "generator": "replaceFile",
+                            "generatorArgs": [
+                                "IP_ADDR",
+                                {
+                                    "type": "ip",
+                                    "get": "8_test-multservers-ip-change-srv01"
+                                },
+                                "nginx.conf"
+                            ]
+                        }
+                    ]
+                }
+            ]
+        }
+    },
+    "servers": [
+        {
+            "_import": "../servers/1",
+        },
+        {
+            "_import": "../servers/2",
+        }
+    ]
+}

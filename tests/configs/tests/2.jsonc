@@ -1,4 +1,3 @@
-// Basic example, just starts a service
 {
     "config": {
         "_import": "../general"
