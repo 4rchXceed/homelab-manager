@@ -4,7 +4,7 @@ WORKDIR /app
 
 RUN python3 -m venv /venv
 
-RUN apt-get update && apt-get install -y rclone curl # py-spy
+RUN apt-get update && apt-get install -y rclone curl openssl # py-spy
 
 COPY requirements.txt requirements.txt
 

@@ -1,3 +1,4 @@
+import signal
 import json5
 import json
 import traceback
@@ -417,6 +418,52 @@ class TestHomelabManager():
         self.ok(nbr)
 
 
+    # Tests the service:build command
+    def test_service_build(self):
+        nbr = "16"
+        set_test(nbr, 2, multiple_obj=True)
+        shutil.copyfile("./services/16_test-service-build/Dockerfile_bak", "./services/16_test-service-build/Dockerfile")
+        instance = HomelabManagerInstance(nbr,["agent01"])
+        service = "16_test-service-build"
+        instance.send_command(f"service:assign {service} agent01")
+        s = time.time()
+        print("Waiting for test result.", end="", flush=True)
+        while time.time() - s < 120 and not get_counter() == 1:
+            time.sleep(1)
+            print(".", end="", flush=True)
+        print("ok")
+        assert get_counter() == 1, "Test service:build part 1 failed"
+        shutil.copyfile("./services/16_test-service-build/Dockerfile_bak_2", "tmp/agent01/services/16_test-service-build/Dockerfile")
+        instance.send_command(f"service:build {service}")
+        s = time.time()
+        print("Waiting for test result.", end="", flush=True)
+        while time.time() - s < 120 and not get_counter() == 2:
+            time.sleep(1)
+            print(".", end="", flush=True)
+        print("ok")
+        assert get_counter() == 2, "Test service:build part 2 failed"
+        self.ok(nbr)
+
+
+    # Tests the security:regen-cert
+    def test_security_regen_cert(self):
+        nbr = "17"
+        instance = HomelabManagerInstance(nbr,["agent01"], do_not_connect_agents=True)
+        pid = instance.start_client("agent01")
+        s = time.time()
+        print("Waiting for test result.", end="", flush=True)
+        while time.time() - s < 120 and not instance.send_command(f"exec:raw service agent01 list").strip().endswith("OK"):
+            time.sleep(1)
+            print(".", end="", flush=True)
+        print("ok")
+        assert time.time() - s < 120, "Test security:regen-cert failed"
+        instance.send_command(f"security:regen-cert")
+        instance.restart_server()
+        os.kill(pid, signal.SIGTERM)
+        instance.start_client("agent01", do_not_copy_cert=True)
+        assert instance.agent_started(os.path.join("tmp", "agent01", ".agent_state")) == 1, "Agent did not crash after security:regen-cert but no cert update on clients"
+        self.ok(nbr)
+
     def ok(self, n):
         print(f"\033[92mTest {n} passed\033[0m")
         self.nbr_success += 1
@@ -443,11 +490,13 @@ def main():
         print("13: test_services_sync")
         print("14: test_var_set")
         print("15: test_emergency_proc")
+        print("16: test_service_build")
+        print("17: test_security_regen_cert")
         print("all: run all tests")
         print("logs: print logs from the previous test run (requires the cache to be present)")
         print("clear: clear the test cache")
         sys.exit(1)
-    all_args = [str(i) for i in range(1, 15+1)]
+    all_args = [str(i) for i in range(1, 17 + 1)]
     if args[0] == "all":
         args = all_args
     if args[0] == "logs":
@@ -590,6 +639,20 @@ def main():
             test.test_emergency_proc()
         except Exception as e:
             print(f"\033[91mTest 15 failed: {e}\033[0m")
+            print(traceback.format_exc())
+            all_ok = False
+    if "16" in args:
+        try:
+            test.test_service_build()
+        except Exception as e:
+            print(f"\033[91mTest 16 failed: {e}\033[0m")
+            print(traceback.format_exc())
+            all_ok = False
+    if "17" in args:
+        try:
+            test.test_security_regen_cert()
+        except Exception as e:
+            print(f"\033[91mTest 17 failed: {e}\033[0m")
             print(traceback.format_exc())
             all_ok = False
     if all_ok:

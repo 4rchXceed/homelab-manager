@@ -1,8 +1,9 @@
 import os
 import shlex
 import socket
+import ssl
+import subprocess
 import threading
-import time
 import traceback
 from queue import Queue
 from typing import Callable
@@ -27,7 +28,8 @@ from plugins.variable_providers.library import VARIABLE_PROVIDERS
 from protocol.agent import Agent
 from services.service import ServerService
 from sqlalchemy.orm import Session
-
+import os
+import subprocess
 
 class ServerApp:
     def __init__(self) -> None:
@@ -35,10 +37,17 @@ class ServerApp:
         self.config_raw = config_raw
         self.config_raw_str = config_raw_str
         self.config_general = GeneralConfig(self.config_raw)
+        if not os.path.exists("server.crt") or not os.path.exists("server.key"):
+            logger.info("Generating SSL certificate...")
+            self.generate_cert()
+            logger.info("SSL certificate generated successfully")
         self.config_servers = ConfigServers(self.config_raw)
         self.socket_comm_host = socket.gethostname()
         self.socket_comm_port = self.config_general.server_port
-        self.server_socket_comm = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.socket_socket_comm_raw = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.ssl_ctx = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+        self.ssl_ctx.load_cert_chain("../server.crt", "../server.key")
+        self.server_socket_comm = self.ssl_ctx.wrap_socket(self.socket_socket_comm_raw, server_side=True)
         self.server_socket_comm.bind((self.socket_comm_host, self.socket_comm_port))
         self.agents_message_queue = Queue()
         self.agents: list[Agent] = []
@@ -47,6 +56,28 @@ class ServerApp:
         self.init_thread = None
         self.emergency_procedure_config = None
         self.apprise_client = apprise.Apprise()
+
+    def generate_cert(self) -> None:
+        ips = self.config_general.binds
+
+        san = ",".join(f"IP:{ip}" for ip in ips)
+
+        proc = subprocess.run([
+            "openssl", "req",
+            "-new",
+            "-newkey", "rsa:3072",
+            "-x509",
+            "-days", "10000",
+            "-noenc",
+            "-subj", f"/CN={ips[0]}",
+            "-addext", f"subjectAltName={san}",
+            "-keyout", "server.key",
+            "-out", "server.crt",
+        ], cwd="../")
+        if proc.returncode != 0:
+            logger.error("Failed to generate SSL certificate")
+            raise RuntimeError("Failed to generate SSL certificate")
+
 
     def check_deleted_services(self, cmd_context: CommandContext | None = None) -> None:
         services = (

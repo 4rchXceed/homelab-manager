@@ -7,12 +7,13 @@ import apprise
 class AgentConfig:
     instance = None
 
-    def __init__(self, configs_path: str):
+    def __init__(self, configs_path: str, cert_path: str):
         if AgentConfig.instance is not None:
             raise RuntimeError("AgentConfig is a singleton")
         AgentConfig.instance = self
 
         self.configs_path = configs_path
+        self.cert_path = cert_path
         server_config_path = os.path.join(configs_path, "server.json")
         report_notif_path = os.path.join(configs_path, "report.json")
         self.apobj = apprise.Apprise()
@@ -46,3 +47,4 @@ class AgentConfig:
 
         self.id = self.server_config["this_id"]
         self.name = self.server_config["this"]
+        self.fileserver_auth = self.server_config.get("fileserver_auth", None)

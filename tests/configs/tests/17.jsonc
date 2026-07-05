@@ -1,0 +1,13 @@
+// Basic example, just starts a service
+{
+    "config": {
+        "_import": "../general",
+    },
+    "generators": {},
+    "services": {},
+    "servers": [
+        {
+            "_import": "../servers/1",
+        },
+    ],
+}

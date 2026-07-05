@@ -25,6 +25,7 @@ CREATE TABLE public.server (
                 ip VARCHAR(15) NOT NULL,
                 api_key VARCHAR(36),
                 disabled BOOLEAN NOT NULL,
+                reverse_api_key VARCHAR(36),
                 CONSTRAINT server_pk PRIMARY KEY (id)
 );
 

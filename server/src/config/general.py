@@ -52,3 +52,15 @@ class GeneralConfig:
             "notifications",
             [],
         )
+        if self.dict.get("binds") is None:
+            raise MissingConfigException("config.binds")
+        self.binds = self.dict.get(
+            "binds",
+            [],
+        )
+        if self.dict.get("fileserverAuth") is None:
+            raise MissingConfigException("config.fileserverAuth")
+        self.fileserver_auth = self.dict.get(
+            "fileserverAuth",
+            "admin:pass",
+        )

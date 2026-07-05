@@ -2,7 +2,7 @@
     // This is a jsonc file, you can write comments
     // First off, you can put anywhere in your config something like this:
     "key": {
-        "_import": "file/relative/to/this/file.jsonc" // It'll replace the value of "key" with the content of the file
+        "_import": "file/relative/to/this/file.jsonc", // It'll replace the value of "key" with the content of the file
     },
     // Here you have the "generic config". You need to restart the server to apply it
     "config": {
@@ -27,6 +27,17 @@
         "startupTimeout": 120,
         // Keepalive interval (with agents)
         "keepaliveInterval": 5,
+        // Bind addresses of the server.
+        // Here you can specify multiple bind addresses, separated by commas.
+        // This will be used to generate the server's SSL certificate.
+        // If you edit this, you need to run security:generate-certificate AND then copy the new certificate to all agents.
+        "binds": [
+            "192.168.1.249",
+            "192.168.239.10",
+            "192.168.239.11",
+            "127.0.0.1",
+        ],
+	"fileserverAuth": "admin:pass", // Mandatory: user-password for the fs server, the client's "fileserver_auth" must match this value
     },
     // "templates" commands to generate/update configurations
     "generators": {
@@ -34,7 +45,7 @@
         "replaceFile": {
             "base": "bash",
             "run": "sed -i -e \"s/$ARG1/$ARG2/g\" $ARG3",
-            "timeout": 10 // in seconds
+            "timeout": 10, // in seconds
         },
         // Runs a nextcloud occ command (max. 5 values)
         "nextcloudOcc": {
@@ -49,10 +60,7 @@
             // "Human" name
             "name": "Main Website (WebDash)",
             // Folders/files that holds the datas (for backups)
-            "data": [
-                "./server/db",
-                "./server/config"
-            ],
+            "data": ["./server/db", "./server/config"],
             // All the configuration files
             "configFiles": [
                 {
@@ -85,10 +93,7 @@
         },
         "nextcloud": {
             "name": "Cloud (nextcloud)",
-            "data": [
-                "./cloud-data",
-                "./db"
-            ],
+            "data": ["./cloud-data", "./db"],
             "configFiles": [
                 {
                     "path": ".env",
@@ -248,9 +253,7 @@
                     "path": "nginx.conf",
                     // Run these commands when the config is updated (like userVar changed, or IP changed)
                     // By default: docker compose down && docker compose up -d
-                    "whenConfigUpdated": [
-                        "docker compose restart"
-                    ],
+                    "whenConfigUpdated": ["docker compose restart"],
                     // Timeout in seconds to wait for the service to reload after the config is updated, if the service doesn't reload in time, an error will be thrown
                     "reloadTimeout": 5,
                     "generators": [

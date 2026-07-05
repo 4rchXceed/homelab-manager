@@ -1,5 +1,6 @@
 import json
 import os
+import ssl
 import threading
 import time
 import traceback
@@ -20,8 +21,6 @@ class Client:
     def __init__(
         self,
     ):
-        with open(".agent_state", "w") as f:
-            f.write("STARTING")
         if not AgentConfig.instance:
             raise RuntimeError("AgentConfig not initialized")
         self.config = AgentConfig.instance
@@ -56,9 +55,24 @@ class Client:
         host = self.config.server["host"]
         port = self.config.server["port"]
         api_key = self.config.server["api_key"]
-        self.client = socket()
+        self.ssl_context = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
+        try:
+            self.ssl_context.load_verify_locations(self.config.cert_path)
+        except Exception as e:
+            print(f"Invalid certificate at {self.config.cert_path}")
+            print(f"Error: {e}")
+            exit(1)
+
+        self.client = self.ssl_context.wrap_socket(socket(), server_hostname=host)
         try:
             self.client.connect((host, port))
+        except ssl.SSLCertVerificationError:
+            report_error(
+                "SSL CERTIFICATE VERIFICATION FAILED",
+                "The server's SSL certificate could not be verified. All future requests will fail.",
+                3,
+            )
+            raise ConnectionError(f"Failed to connect: SSL certificate verification failed. Please ensure the file {self.config.cert_path} is up to date")
         except Exception as e:
             report_error(
                 "HOMELAB-MGR SERVER DOWN/CAN'T CONNECT",
@@ -68,13 +82,25 @@ class Client:
             raise ConnectionError(f"Failed to connect: {str(e)}")
         self.client.send(api_key.encode())
         data = self.client.recv(1024).decode()
-        if data != "OK":
+        if len(data) != 2+1+36 or data[:3] != "OK:": # 2: OK, 1: :, 36: reverse_api_key
             report_error(
                 f"Homelab-MGR: Client {self.config.id} ({self.config.name}): connection issue",
                 f"Failed to connect: {data}. Probably due to wrong API key. This instance will not receive any commands.",
                 2,
             )
             raise ConnectionError(f"Failed to connect: {data}")
+        local_api_key = self.database.get_local_setting("reverse_api_key")
+        if not local_api_key:
+            # First time connection: set the reverse API key
+            self.database.set_local_setting("reverse_api_key", data[3:])
+            local_api_key = data[3:]
+        if local_api_key != data[3:]:
+            report_error(
+                f"Homelab-MGR: Client {self.config.id} ({self.config.name}): API key mismatch (A: Server got reset, B: You got hacked, C: Other reason)",
+                "2",
+            )
+            raise ConnectionError("API key mismatch")
+
         self.stop = False
         info("Connected to server.")
         info(
@@ -108,6 +134,7 @@ class Client:
         sync(
             f"{self.config.server['host']}:{self.config.server['fsport']}",
             self.config.services_folder,
+            self.config.fileserver_auth,
         )
 
     def queue_processor(self):

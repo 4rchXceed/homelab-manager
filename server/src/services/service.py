@@ -148,3 +148,19 @@ class ServerService:
             if service.db_element.id_str == service_id:
                 return service
         return None
+
+    def build_service(self) -> bool:
+        agent = self.get_agent()
+        if agent:
+            response = agent.send_pingpong({
+                "type": "run_service_command",
+                "service": self.id,
+                "commands": [
+                    "FREE::docker compose build",
+                    "FREE::docker compose down",
+                    "FREE::docker compose up"
+                ]
+            }, timeout=120)
+            if response:
+                return True
+        return False

@@ -5,16 +5,16 @@
         "postgresPort": "5432",
         "postgresDbName": "homelabmanager",
         "postgresUsername": "postgres",
-        "postgresPassword": "Passw0rd"
+        "postgresPassword": "Passw0rd",
     },
     "net": {
         "serverPort": 4398,
-        "fileServerPort": 4399
+        "fileServerPort": 4399,
     },
     "unixSocketPath": "/tmp/homelabmanager.sock",
     "startupTimeout": 120,
     "keepaliveInterval": 5,
-    "notifications": [
-        "ntfy://test-39393939"
-    ]
+    "notifications": ["ntfy://test-39393939"],
+    "binds": ["192.168.1.249", "192.168.239.10", "192.168.239.11", "127.0.0.1"],
+    "fileserverAuth": "admin:pass",
 }

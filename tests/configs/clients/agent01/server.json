@@ -7,5 +7,6 @@
     "services_folder": "./services",
     "file_server_port": 4399,
     "keepalive_interval": 10,
-    "db_path": "_internal.db"
+    "db_path": "_internal.db",
+    "fileserver_auth": "admin:pass"
 }

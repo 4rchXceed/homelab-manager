@@ -79,3 +79,8 @@ services-compose/
 logs/
 profile.svg
 tests
+
+server.crt
+server.key
+server.crt.bak
+server.key.bak

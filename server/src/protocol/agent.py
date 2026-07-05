@@ -116,7 +116,7 @@ class Agent:
         process_thread = threading.Thread(target=self.process_queue)
         process_thread.start()
 
-    def check_api_key(self, api_key: str) -> dict | None:
+    def check_api_key(self, api_key: str) -> tuple[dict, str]|None:
         server = (
             self.context.database.session.query(Server)
             .filter_by(api_key=api_key)
@@ -125,7 +125,13 @@ class Agent:
         if server:
             for server_obj in self.context.config_servers.servers:
                 if server_obj["id"] == server.id_str:
-                    return server_obj
+                    rev_api_key = server.reverse_api_key
+                    if rev_api_key is None:
+                        rev_api_key = str(uuid.uuid4())
+                        server.reverse_api_key = rev_api_key
+                        self.context.database.session.commit()
+
+                    return server_obj, rev_api_key
         return None
 
     # @staticmethod
@@ -138,9 +144,10 @@ class Agent:
         try:
             data = self.socket.recv(1024).decode()
             if data:
-                self.server = self.check_api_key(data)
-                if self.server:
-                    self.socket.sendall(b"OK")
+                datas = self.check_api_key(data)
+                if datas:
+                    self.server, reverse_api_key = datas
+                    self.socket.sendall(("OK:"+reverse_api_key).encode())
                     return True
                 else:
                     self.socket.sendall(b"ERROR")

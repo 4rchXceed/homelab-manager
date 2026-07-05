@@ -21,6 +21,7 @@ class Server(Base):
     ip: Mapped[str] = mapped_column(String(15), nullable=False)
     disabled: Mapped[bool] = mapped_column(Boolean, nullable=False)
     api_key: Mapped[Optional[str]] = mapped_column(String(36))
+    reverse_api_key: Mapped[Optional[str]] = mapped_column(String(36))
 
     service: Mapped[list['Service']] = relationship('Service', back_populates='server')
 

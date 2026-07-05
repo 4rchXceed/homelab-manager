@@ -20,12 +20,19 @@ class HomelabManagerInstance:
         if not "--no-kill" in sys.argv:
             subprocess.run("pkill -f 'python3 main.py'", shell=True)
         self.env = env
+        print("Removing old certificates...")
+        if os.path.exists("../server/server.crt"):
+            os.remove("../server/server.crt")
+        if os.path.exists("../server/server.key"):
+            os.remove("../server/server.key")
         if not os.path.exists(os.path.join(self.HOMELAB_MANAGER_SERVER_PATH, "tests")):
             os.symlink(os.path.join(os.getcwd()), os.path.join(self.HOMELAB_MANAGER_SERVER_PATH, "tests"))
         print(f"Creating {len(agents)} agents... (copying code from ../agent)")
         for agent in agents:
             self.create_agent(agent)
         self.config_path = f"../tests/configs/tests/{test_path}.jsonc"
+        if os.path.exists(self.config_path + ".donottouch.internal"):
+            os.unlink(self.config_path + ".donottouch.internal")
         print(f"Starting server with config {self.config_path}...")
         self.start_server()
         self.wait_start()
@@ -49,6 +56,11 @@ class HomelabManagerInstance:
             print("ok")
         print("Waiting (1s)...")
         time.sleep(1)  # Wait a bit for the agent to be fully registered, maybe better method
+
+    def restart_server(self):
+        proc = subprocess.run(["docker compose restart"], cwd=self.HOMELAB_MANAGER_SERVER_PATH, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        if proc.returncode != 0:
+            raise RuntimeError("Failed to restart server")
 
     def send_command(self, command: str, inputs: list[str] = []):
         self.cli.sendall(command.encode())
@@ -101,14 +113,16 @@ class HomelabManagerInstance:
         )
         print("Server started.")
 
-    def start_client(self, agent_name: str):
+    def start_client(self, agent_name: str, do_not_copy_cert: bool = False):
+        if not do_not_copy_cert:
+            shutil.copyfile("../server/server.crt", os.path.join("tmp", agent_name, "etc", "server.crt"))
         command = f". ../../../agent/.venv/bin/activate && CONFIG_FOLDER=../../configs/clients/{agent_name} python3 main.py"
         state_path = os.path.join("tmp", agent_name, ".agent_state")
         if os.path.exists(state_path):
             os.unlink(state_path)
 
         with open(os.path.join("tmp", agent_name, "agent.log"), "w") as file:
-            subprocess.Popen(
+            proc = subprocess.Popen(
                 command,
                 shell=True,
                 cwd=os.path.join("tmp", agent_name),
@@ -117,17 +131,21 @@ class HomelabManagerInstance:
             )
         print(f"Waiting for agent {agent_name} to start", end="", flush=True)
         t = time.time()
-        while not self.agent_started(state_path) or (time.time() - t) < 10:
+        while self.agent_started(state_path) == -1 or (time.time() - t) < 10:
             print(".", end="", flush=True)
             time.sleep(1)
         print("ok")
+        return proc.pid
 
-    def agent_started(self, state_path: str):
+    def agent_started(self, state_path: str) -> int:
         if os.path.exists(state_path):
             with open(state_path, "r") as file:
                 state = file.read().strip()
-                return state == "RUNNING"
-        return False
+                if state == "RUNNING":
+                    return 0
+                elif state == "FAILED":
+                    return 1
+        return -1
 
     def wait_start(self):
         print("Waiting for the server to start", end="", flush=True)

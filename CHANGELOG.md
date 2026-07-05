@@ -74,3 +74,30 @@ Fixed a bug in server/src/protocol/agent.py:200 (After the fix, CPU usage decrea
 ! Finished tests (for now)
 
 ### Commit message: `~ Fixed a bug with list_services - Removed unused .gitkeep files + Added tests (for commands):   - exec:raw service <agent> restart   - services:sync   - config:emergency_proc reload (tests the emergency procedures system) !! only the shell action, but the 2 listeners ~ Improved test script + Switched server's docker image to python (*debian*) ~ Few other improvements / bugfixes / code improvements`
+
+## LAST: 371e0d77af6535b7b4dcee50631a53be52f03012
++ Switched protocol from Socket to SSL Sockets
++ Added new client check: reverse_api_key, so the agent can verify the server's identity
++ Added new certificate file (server.crt) and key file (server.key) for the server (mandatory, and server.crt needs to be passed to the client)
++ Added new commands:
+  - service:build -> `docker compose build` for a service
+  - security:regen-cert -> regenerates the SSL certificate
++ Added new tests:
+  - 16: test_service_build
+  - 17: test_security_regen_cert
+~ Small bugfixes
+~ Updated diagrams to match new DB architecture
++ Added fileserverAuth / fileserver_auth config for client+server so the file server can be behind a password (TODO: make the fileserver https)
+
+
+### Tests report:
+Test 17 passed
+Passed: 16/17
+Failed: 1/17
+Some tests failed
+After bugfix:
+Test 15 passed
+Passed: 1/1
+All tests passed
+
+### Commit message: `New SSL security for socket communication, added certificate generation and client's server identity verification, added new commands: service:build, security:regen-cert, added new tests: test_service_build, test_security_regen_cert, small bugfixes, updated diagrams, Added fileserverAuth / fileserver_auth config for client+server, so the file server can be behind a password`
