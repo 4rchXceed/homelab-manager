@@ -131,11 +131,13 @@ class Client:
                 self.stop = True
 
     def sync_services(self):
-        sync(
-            f"{self.config.server['host']}:{self.config.server['fsport']}",
-            self.config.services_folder,
-            self.config.fileserver_auth,
-        )
+        if AgentConfig.instance:
+            sync(
+                f"{self.config.server['host']}:{self.config.server['fsport']}",
+                self.config.services_folder,
+                self.config.fileserver_auth,
+                AgentConfig.instance.cert_path
+            )
 
     def queue_processor(self):
         while not self.stop:

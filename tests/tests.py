@@ -422,9 +422,12 @@ class TestHomelabManager():
     def test_service_build(self):
         nbr = "16"
         set_test(nbr, 2, multiple_obj=True)
+        if os.path.exists("./services/16_test-service-build/Dockerfile"):
+            os.unlink("./services/16_test-service-build/Dockerfile")
         shutil.copyfile("./services/16_test-service-build/Dockerfile_bak", "./services/16_test-service-build/Dockerfile")
         instance = HomelabManagerInstance(nbr,["agent01"])
         service = "16_test-service-build"
+        instance.send_command(f"service:build {service}")
         instance.send_command(f"service:assign {service} agent01")
         s = time.time()
         print("Waiting for test result.", end="", flush=True)

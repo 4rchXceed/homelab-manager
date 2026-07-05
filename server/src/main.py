@@ -37,7 +37,7 @@ class ServerApp:
         self.config_raw = config_raw
         self.config_raw_str = config_raw_str
         self.config_general = GeneralConfig(self.config_raw)
-        if not os.path.exists("server.crt") or not os.path.exists("server.key"):
+        if not os.path.exists("../server.crt") or not os.path.exists("../server.key"):
             logger.info("Generating SSL certificate...")
             self.generate_cert()
             logger.info("SSL certificate generated successfully")

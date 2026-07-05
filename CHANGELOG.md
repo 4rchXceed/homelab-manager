@@ -95,9 +95,16 @@ Test 17 passed
 Passed: 16/17
 Failed: 1/17
 Some tests failed
-After bugfix:
+#### After bugfix:
 Test 15 passed
 Passed: 1/1
 All tests passed
 
 ### Commit message: `New SSL security for socket communication, added certificate generation and client's server identity verification, added new commands: service:build, security:regen-cert, added new tests: test_service_build, test_security_regen_cert, small bugfixes, updated diagrams, Added fileserverAuth / fileserver_auth config for client+server, so the file server can be behind a password`
+
+## LAST: 45febb8d41bbcdc299f5cb5581a7960e249d3687
+~ Switched the file server to use HTTPS (via a reverse proxy written in pure Python)
+~ Fixed a bug on cert check
+- Removed static TODO list, and added a link to my Nextcloud shared folder
+
+### Commit message: `~ Switched the file server to use HTTPS (via a reverse proxy written in pure Python) ~ Fixed a bug on cert check - Removed static TODO list, and added a link to my Nextcloud shared folder`
