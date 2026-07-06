@@ -12,6 +12,24 @@ class HttpToHttpsReverse(SimpleHTTPRequestHandler):
         self.context = get_current_context()
         super().__init__(*args, **kwargs)
 
+    def do_HEAD(self) -> None:
+        try:
+            r = urlopen(Request("http://localhost:5554" + self.path, headers={"Authorization": self.headers.get("Authorization", "")}), timeout=5)
+        except Exception as e:
+            if "401" in str(e):
+                self.send_response(401)
+                self.send_header("WWW-Authenticate", "Basic realm=\"Restricted\"")
+                self.end_headers()
+                print(f"Unauthorized access attempt to {self.path}")
+                return
+            self.send_response(500)
+            logger.error(f"Error fetching resource: {e}")
+            self.end_headers()
+            return
+        self.send_response(r.status)
+        self.send_header("Content-type", r.headers.get_content_type())
+        self.end_headers()
+
     def do_GET(self) -> None:
         try:
             r = urlopen(Request("http://localhost:5554" + self.path, headers={"Authorization": self.headers.get("Authorization", "")}), timeout=5)
@@ -21,6 +39,7 @@ class HttpToHttpsReverse(SimpleHTTPRequestHandler):
                 self.send_header("WWW-Authenticate", "Basic realm=\"Restricted\"")
                 self.end_headers()
                 self.wfile.write(b"Unauthorized")
+                print(f"Unauthorized access attempt to {self.path}")
                 self.end_headers()
                 return
             self.send_response(500)
@@ -28,6 +47,7 @@ class HttpToHttpsReverse(SimpleHTTPRequestHandler):
             self.end_headers()
             return
         self.send_response(r.status)
+        self.send_header("Content-type", r.headers.get_content_type())
         self.end_headers()
         self.wfile.write(r.read())
 

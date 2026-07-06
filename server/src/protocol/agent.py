@@ -10,6 +10,7 @@ from database.models import Server
 from error.exceptions import MissingConfigException, ProgramStateError, TimeoutException
 from helpers import get_current_context
 from logger import logger
+from protocol.storage import ServerStorage
 
 
 class Agent:
@@ -21,6 +22,8 @@ class Agent:
         self.requests = {}
         self.server = None
         self.keepalive_thread = None
+        self.storages_cfg = {}
+        self.storages: list[ServerStorage] = []
 
         # FXXX circular imports
         from services.service import ServerService
@@ -37,7 +40,31 @@ class Agent:
         )
 
     def reload(self, _):
+        for server in self.context.config_servers.servers:
+            if server["id"] == self.id:
+                self.server = server
+                break
+        self.init_server_storage()
         self.sync_to_db()
+
+    def init_server_storage(self) -> None:
+        if self.server:
+            self.storages_cfg = self.server.get("storages", {})
+            self.storages.clear()
+            for id, cfg in self.storages_cfg.items():
+                self.storages.append(ServerStorage(id=id, config=cfg, agent=self))
+
+
+    def resolve_storage(self, storage: str) -> ServerStorage|None:
+        for s in self.storages:
+            if s.id == storage:
+                if s.is_invalid:
+                    return self.resolve_storage(s.fallback)
+                else:
+                    return s
+        if storage != "fallback":
+            return self.resolve_storage("fallback")
+        return None
 
     def init(self) -> None:
         connected = self.init_connection()
@@ -45,6 +72,7 @@ class Agent:
             self.sync_to_db()
             self.start_receiving()
             self.start_processing()
+            self.init_server_storage()
             self.context.event_manager.register_event("config_reload", self.reload)
             self.keepalive_thread = threading.Thread(target=self.keepalive)
             self.keepalive_thread.start()

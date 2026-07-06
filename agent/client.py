@@ -15,6 +15,7 @@ from localdb.database import Database
 from messaging.log import debug, info
 from messaging.report_error import log_error, report_error
 from runner.service_manager import ServiceManager
+from backup.manager import BackupManager
 
 
 class Client:
@@ -30,6 +31,7 @@ class Client:
         self.keepalive_thread = None
         self.thread_pool = []
         self.database = Database(self.config.server["db_path"])
+        self.backup_manager = BackupManager()
 
     def keepalive_check(self):
         stop = False
@@ -263,6 +265,29 @@ class Client:
                     "return_codes": return_codes,
                     "success": success,
                 }
+            elif message.get("type", "") == "init_backup_as_sender":
+                service = message.get("service", "")
+                datas = message.get("datas", [])
+                config = message.get("config", {})
+                type = message.get("b_type", "")
+                transaction_id = message.get("transaction_id", "")
+                success = self.backup_manager.init_backup_as_sender(service, datas, type, config, transaction_id, self.ssl_context)
+                return {
+                    "type": "init_backup_as_sender_report",
+                    "success": success,
+                }
+            elif message.get("type", "") == "init_backup_as_receiver":
+                path = message.get("path", "")
+                service = message.get("service", "")
+                type = message.get("b_type", "")
+                config = message.get("config", {})
+                transaction_id = message.get("transaction_id", "")
+                self.backup_manager.init_backup_as_storage(path, service, type, config, transaction_id, self.ssl_context)
+                return {
+                    "type": "init_backup_as_receiver_report",
+                    "success": True,
+                }
+
             elif message.get("type", "") == "gen_config":
                 path = os.path.join(
                     self.config.services_folder, message.get("service", "")
@@ -302,6 +327,19 @@ class Client:
                         "return_codes": return_codes,
                         "success": success,
                     }
+            elif message["type"] == "check_storage":
+                if message.get("path") is None:
+                    return {
+                        "type": "check_storage",
+                        "success": False,
+                        "invalid": True,
+                    }
+                valid = self.backup_manager.verify_path(message.get("path", ""), message.get("can_create", True))
+                return {
+                    "type": "check_storage",
+                    "success": True,
+                    "invalid": not valid,
+                }
             else:
                 return {
                     "type": "error",

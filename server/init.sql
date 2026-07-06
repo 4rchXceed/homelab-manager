@@ -55,6 +55,20 @@ CREATE UNIQUE INDEX service_id_str_unique
  ON public.service
  ( id_str );
 
+CREATE SEQUENCE public.backup_config_id_seq;
+
+CREATE TABLE public.backup_config (
+                id INTEGER NOT NULL DEFAULT nextval('public.backup_config_id_seq'),
+                service_id INTEGER NOT NULL,
+                id_str VARCHAR(100) NOT NULL,
+                last TIMESTAMP,
+                disabled BOOLEAN NOT NULL,
+                CONSTRAINT backup_config_pk PRIMARY KEY (id)
+);
+
+
+ALTER SEQUENCE public.backup_config_id_seq OWNED BY public.backup_config.id;
+
 CREATE SEQUENCE public.user_var_needs_update_id_seq;
 
 CREATE TABLE public.user_var_needs_update (
@@ -110,6 +124,13 @@ ON UPDATE NO ACTION
 NOT DEFERRABLE;
 
 ALTER TABLE public.user_var_needs_update ADD CONSTRAINT service_user_var_needs_update_fk
+FOREIGN KEY (service_id)
+REFERENCES public.service (id)
+ON DELETE NO ACTION
+ON UPDATE NO ACTION
+NOT DEFERRABLE;
+
+ALTER TABLE public.backup_config ADD CONSTRAINT service_backup_config_fk
 FOREIGN KEY (service_id)
 REFERENCES public.service (id)
 ON DELETE NO ACTION

@@ -2,6 +2,9 @@
     "assignments": {
         "main-website": "main",
         "nextcloud": "main",
-        "reverse-proxy": "main"
-    }
+        "reverse-proxy": "main",
+    },
+    "backupAssignments": {
+        "main-website": {},
+    },
 }

@@ -19,4 +19,5 @@
     ],
     "binds": ["192.168.239.10", "192.168.239.11"],
     "fileserverAuth": "admin:pass",
+    "backupCheckInterval": 5,
 }

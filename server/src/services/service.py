@@ -1,3 +1,4 @@
+import threading
 import json
 from collections import Counter
 
@@ -8,7 +9,8 @@ from helpers import get_current_context
 from logger import logger
 from protocol.agent import Agent
 from services.config_file import ConfigFile
-
+from services.backup_config import ServiceBackupConfig
+from protocol.storage import ServerStorage
 
 class ServerService:
     def __init__(self, id: str, config: dict) -> None:
@@ -50,6 +52,36 @@ class ServerService:
                 self.context.database.session.commit()
             db_element = db_element
         self.db_element_id = db_element.id
+        # Backups
+        self.backup_configs = []
+        for backup_config in self.config.get("backups", []):
+            self.backup_configs.append(ServiceBackupConfig(backup_config, self))
+
+    def check_backups(self) -> None:
+        for backup_config in self.backup_configs:
+            if backup_config.needs_backup():
+                for backup_target in backup_config.targets:
+                    agent = Agent.get_from_id_str(backup_target.get("server"))
+                    if agent:
+                        storage = agent.resolve_storage(backup_target.get("storage"))
+                        if storage:
+                            logger.info(
+                                f"Running backup for service {self.name} on server {agent.name}"
+                            )
+                            th = threading.Thread(target=self.run_backup, args=(backup_config, storage))
+                            th.start()
+                        else:
+                            logger.critical(
+                                f"Backup target storage {backup_target.get('storage')} not found for service {self.name} on server {agent.name}!!!!"
+                            )
+                    else:
+                        logger.critical(
+                            f"Backup target server {backup_target.get('server')} not found for service {self.name}!!!!"
+                        )
+
+    def run_backup(self, backup_config: ServiceBackupConfig, backup_storage: ServerStorage) -> bool:
+        return self.context.app.backup_manager.issue_backup(backup_config, backup_storage)
+
 
     # This is a shared resource between threads, and since every thread has it's own db session, this will f- up everything
     @property

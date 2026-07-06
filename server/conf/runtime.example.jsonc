@@ -1,0 +1,29 @@
+{
+    // Assignments define which services are running on which servers
+    "assignments": {
+        // service id: Server id
+        "main-website": "main",
+        "nextcloud": "main",
+        "reverse-proxy": "main",
+    },
+    // Backup assignments define which services are backed up on which servers
+    // Be very careful with these assignments, as they can disable backups for services.
+    // This is why, when you write the configuration, you *NEED* to enumerate all backup IDs (defined in config.jsonc), even the one with no targets.
+    // Small talk about the protocol
+    // Agents never communicate directly with each other, they all go through the server. (simpler for security)
+    "backupAssignments": {
+        // Service id: Backups assignments config
+        "main-website": {
+            // Backup ID: Backup assignments config
+            "website_bak": [
+                // The backup storage to use for this backup
+                // You can put multiple targets here, each with a different server and storage
+                // Important: all backups will be done asynchronously, so if you put the same server AND storage here multiple times, it'll probably be corrupted or something.
+                {
+                    "server": "main",
+                    "storage": "storage2",
+                },
+            ],
+        },
+    },
+}

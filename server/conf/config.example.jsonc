@@ -18,8 +18,12 @@
         },
         // Listening ports
         "net": {
+            // Main server socket port (socket/ssl)
             "serverPort": 4398,
+            // File server port (serving the services) (https)
             "fileServerPort": 4399,
+            // Backup transfer port (socket/ssl)
+            "backupTransferPort": 4397,
         },
         // Unix socket path for the cli
         "unixSocketPath": "/tmp/homelabmanager.sock",
@@ -37,7 +41,8 @@
             "192.168.239.11",
             "127.0.0.1",
         ],
-	"fileserverAuth": "admin:pass", // Mandatory: user-password for the fs server, the client's "fileserver_auth" must match this value
+        "fileserverAuth": "admin:pass", // Mandatory: user-password for the fs server, the client's "fileserver_auth" must match this value
+        "backupCheckInterval": 1, // Every 1 minute, check if a backup needs to be performed
     },
     // "templates" commands to generate/update configurations
     "generators": {
@@ -60,7 +65,32 @@
             // "Human" name
             "name": "Main Website (WebDash)",
             // Folders/files that holds the datas (for backups)
-            "data": ["./server/db", "./server/config"],
+            "data": ["./server/db", "./server/config", "!./server/db/temp"], // To exclude a folder/file from the backup, use !path/subpath
+            // Backup configuration
+            "backups": [
+                {
+                    // Id of the backup (to work with it in commands)
+                    // It needs to be unique across it's service (can be duplicated across different services)
+                    "id": "website_bak",
+                    // Type of the backup (full or incremental)
+                    "type": "full",
+                    // Maximum size of the backup in megabytes
+                    "maxSize": "2000", // In megabytes
+                    // Maximum age of the backup in days/weeks/months/years
+                    "maxAge": "1y",
+                    // Every X hours/days/weeks/months/years/minutes a backup is performed
+                    "schedule": "12h", // Supports: Xh, Xd, Xw, Xm, Xy, Xmin
+                    // Where to backup is stored in runtime.json config
+                    // Note: See infos about communication for backups in runtime.example.jsonc
+                },
+                {
+                    "id": "website_inc",
+                    "type": "incremental",
+                    "maxSize": "5000",
+                    "maxAge": "1d",
+                    "schedule": "1h",
+                },
+            ],
             // All the configuration files
             "configFiles": [
                 {
@@ -393,6 +423,28 @@
             "description": "...",
             // Their IP (used for IP variable_provider)
             "ip": "192.168.1.249",
+            // Pre-defined API key
+            // If there's no API key set, the server will auto-generate one
+            "api_key": "super-secret-api-key",
+            // Storages
+            "storages": {
+                "default": {
+                    "path": "./storage/storage_01", // For now, we don't support remote storages
+                    // The key named "fallback", which is used as a fallback storage
+                    // It'll be called when:
+                    // - The storage path is not found, and cannot be created
+                    // - The storage path is not writable
+                    "fallback": "storage2",
+                    "doNotCreate": false, // put this at true if you want to disable automatic storage creation
+                    // For example, if you have an external drive and don't want to create the storage automatically (since the mount point may not be available at startup)
+                },
+                "storage2": {
+                    "path": "./storage/storage_02",
+                    // When there's no "fallback" key, the storage will not have a fallback storage, and if it does not exist, the data will not be saved
+                },
+                // The storage named fallback is used as default fallback storage
+                "fallback": "./storage/storage_fallback",
+            },
         },
     ],
 }

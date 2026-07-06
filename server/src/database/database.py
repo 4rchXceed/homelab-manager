@@ -16,7 +16,7 @@ class DatabaseEngine:
         self.engine = create_engine(
             f"postgresql://{self.username}:{self.password}@{self.host}:{self.port}/{self.database}"
         )
-        self.SessionLocal = sessionmaker(self.engine)
+        self.SessionLocal = sessionmaker(self.engine, autocommit=False, autoflush=False)
         self.thread_data = threading.local()
 
     @property

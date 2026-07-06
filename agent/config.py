@@ -5,7 +5,7 @@ import apprise
 
 
 class AgentConfig:
-    instance = None
+    instance: "AgentConfig|None" = None
 
     def __init__(self, configs_path: str, cert_path: str):
         if AgentConfig.instance is not None:
@@ -48,3 +48,4 @@ class AgentConfig:
         self.id = self.server_config["this_id"]
         self.name = self.server_config["this"]
         self.fileserver_auth = self.server_config.get("fileserver_auth", None)
+        self.backup_relay_port = self.server_config.get("backup_relay_port", 4397)

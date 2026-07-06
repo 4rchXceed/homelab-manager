@@ -29,12 +29,16 @@ class GeneralConfig:
         }
         self.server_port = 4398
         self.file_server_port = 4399
+        self.backup_transfer_port = 4397
         if self.dict.get("net") is not None:
             self.server_port = self.dict.get("net", {}).get(
                 "serverPort", self.server_port
             )
             self.file_server_port = self.dict.get("net", {}).get(
                 "fileServerPort", self.file_server_port
+            )
+            self.backup_transfer_port = self.dict.get("net", {}).get(
+                "backupTransferPort", self.backup_transfer_port
             )
         self.unix_socket_path = self.dict.get(
             "unixSocketPath",
@@ -63,4 +67,8 @@ class GeneralConfig:
         self.fileserver_auth = self.dict.get(
             "fileserverAuth",
             "admin:pass",
+        )
+        self.backup_check_interval = self.dict.get(
+            "backupCheckInterval",
+            1,
         )

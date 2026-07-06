@@ -467,6 +467,28 @@ class TestHomelabManager():
         assert instance.agent_started(os.path.join("tmp", "agent01", ".agent_state")) == 1, "Agent did not crash after security:regen-cert but no cert update on clients"
         self.ok(nbr)
 
+    # Tests the full backup (auto)
+    def test_backup_full(self):
+        nbr = "18"
+        instance = HomelabManagerInstance(nbr,["agent01", "agent02"], env="RUNTIME_CONFIG_FILE=../tests/configs/runtime/18.jsonc")
+        instance.send_command("config:runtime reload")
+        s = time.time()
+        print("Waiting for test result.", end="", flush=True)
+        while time.time() - s < 120 and not self.folder_size("tmp/agent01/test-storage") == 25:
+            time.sleep(1)
+            print(".", end="", flush=True)
+        print("ok")
+        assert self.folder_size("tmp/agent01/test-storage") == 25, "Test backup full failed: folder size is not 25 bytes"
+        self.ok(nbr)
+
+    def folder_size(self, folder: str) -> int:
+        total_size = 0
+        for dirpath, _, filenames in os.walk(folder):
+            for f in filenames:
+                fp = os.path.join(dirpath, f)
+                total_size += os.path.getsize(fp)
+        return total_size
+
     def ok(self, n):
         print(f"\033[92mTest {n} passed\033[0m")
         self.nbr_success += 1
@@ -495,11 +517,12 @@ def main():
         print("15: test_emergency_proc")
         print("16: test_service_build")
         print("17: test_security_regen_cert")
+        print("18: test_backup_full")
         print("all: run all tests")
         print("logs: print logs from the previous test run (requires the cache to be present)")
         print("clear: clear the test cache")
         sys.exit(1)
-    all_args = [str(i) for i in range(1, 17 + 1)]
+    all_args = [str(i) for i in range(1, 18 + 1)]
     if args[0] == "all":
         args = all_args
     if args[0] == "logs":
@@ -656,6 +679,13 @@ def main():
             test.test_security_regen_cert()
         except Exception as e:
             print(f"\033[91mTest 17 failed: {e}\033[0m")
+            print(traceback.format_exc())
+            all_ok = False
+    if "18" in args:
+        try:
+            test.test_backup_full()
+        except Exception as e:
+            print(f"\033[91mTest 18 failed: {e}\033[0m")
             print(traceback.format_exc())
             all_ok = False
     if all_ok:

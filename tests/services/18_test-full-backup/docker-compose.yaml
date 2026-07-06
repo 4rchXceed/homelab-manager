@@ -1,0 +1,7 @@
+services:
+    app:
+        image: debian:bookworm
+        volumes:
+            - .:/app
+        working_dir: /app
+        command: bash -c "mkdir -p datas/subdir && echo 'DATA_BACKUP' > data.txt && echo 'DATA_BACKUP2' > datas/data.txt && echo 'DATA_BACKUP3' > datas/subdir/backup.txt && sleep 3600"

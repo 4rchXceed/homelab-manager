@@ -38,6 +38,7 @@ services:
         ports:
             - 4398:4398
             - 4399:4399
+            - 4397:4397
         volumes:
             - .:/app
             - ../tests:/app/tests

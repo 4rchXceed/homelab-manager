@@ -1,6 +1,7 @@
 from typing import Optional
+import datetime
 
-from sqlalchemy import Boolean, ForeignKeyConstraint, Index, Integer, PrimaryKeyConstraint, String, text
+from sqlalchemy import Boolean, DateTime, ForeignKeyConstraint, Index, Integer, PrimaryKeyConstraint, String, text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 class Base(DeclarativeBase):
@@ -56,9 +57,26 @@ class Service(Base):
     last_config: Mapped[Optional[str]] = mapped_column(String)
 
     server: Mapped[Optional['Server']] = relationship('Server', back_populates='service')
+    backup_config: Mapped[list['BackupConfig']] = relationship('BackupConfig', back_populates='service')
     ip_needs_update_service_trigger: Mapped[list['IpNeedsUpdate']] = relationship('IpNeedsUpdate', foreign_keys='[IpNeedsUpdate.service_trigger_id]', back_populates='service_trigger')
     ip_needs_update_service_updated: Mapped[list['IpNeedsUpdate']] = relationship('IpNeedsUpdate', foreign_keys='[IpNeedsUpdate.service_updated_id]', back_populates='service_updated')
     user_var_needs_update: Mapped[list['UserVarNeedsUpdate']] = relationship('UserVarNeedsUpdate', back_populates='service')
+
+
+class BackupConfig(Base):
+    __tablename__ = 'backup_config'
+    __table_args__ = (
+        ForeignKeyConstraint(['service_id'], ['service.id'], name='service_backup_config_fk'),
+        PrimaryKeyConstraint('id', name='backup_config_pk')
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    service_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    id_str: Mapped[str] = mapped_column(String(100), nullable=False)
+    disabled: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    last: Mapped[Optional[datetime.datetime]] = mapped_column(DateTime)
+
+    service: Mapped['Service'] = relationship('Service', back_populates='backup_config')
 
 
 class IpNeedsUpdate(Base):

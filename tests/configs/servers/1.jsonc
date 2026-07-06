@@ -3,5 +3,10 @@
     "name": "Test Server nb 1",
     "description": "",
     "ip": "192.168.239.10",
-    "apiKey": "test-api-key-agent01"
+    "apiKey": "test-api-key-agent01",
+    "storages": {
+        "test-storage": {
+            "path": "./test-storage",
+        },
+    },
 }

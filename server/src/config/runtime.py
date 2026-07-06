@@ -1,3 +1,4 @@
+import threading
 import json
 import os
 
@@ -8,6 +9,7 @@ from logger import logger
 from protocol.agent import Agent
 from services.service import ServerService
 from config.parser import parse_json_file
+from error.exceptions import GenericConfigException
 
 class RuntimeConfig:
     def init(self) -> None:
@@ -17,6 +19,7 @@ class RuntimeConfig:
     def reload(self, cmd_context: CommandContext):
         self.load_config()
         # Check for modifications and additions on assignments
+        cmd_context.output_print("Checking for changes in service assignments...")
         for service_id, server_id in self.assignments.items():
             service = ServerService.get_from_id_str(service_id)
             agent = Agent.get_from_id_str(server_id)
@@ -46,8 +49,11 @@ class RuntimeConfig:
                         f"Stopping {service_id} on {service.db_element.server.id_str}..."
                     )
                     service.unassign(cmd_context)
+        cmd_context.output_print("Checking for changes in backup assignments...")
+        self.context.app.check_backups()
 
     def dump(self):
+        # TODO: Finish this
         # Dump the current config to the file !! it overwrites the file entirely
         self.assignments.clear()
         for service_id, service in self.context.app.services.items():
@@ -73,3 +79,17 @@ class RuntimeConfig:
 
         self.config_raw = parse_json_file(runtime_config)
         self.assignments: dict[str, str] = self.config_raw.get("assignments", {})
+        self.backup_assignments: dict = self.config_raw.get("backupAssignments", {})
+        for service_id, service in self.context.app.services.items():
+            err_message = f" For 'backup security' purposes all backup configs must have an entry in the runtime config (even if the service is not assigned to a server)"
+            if not service_id in self.assignments.keys() and len(service.backup_configs) > 0:
+                raise GenericConfigException(f"Service {service_id} has backup configs, but is not in the runtime config. {err_message}")
+            backup_assignment_service_config = self.backup_assignments.get(service_id, {})
+            for backup_config in service.backup_configs:
+                if not backup_config.id_str in backup_assignment_service_config.keys():
+                    raise GenericConfigException(f"Backup config {backup_config.id_str} for service {service_id} is not in the runtime config. {err_message}")
+                backup_assignments: list[dict] = backup_assignment_service_config.get(backup_config.id_str, [])
+                for backup_assignment in backup_assignments:
+                    if backup_assignment.get("server") is None or backup_assignment.get("storage") is None:
+                        raise GenericConfigException("Backup assignment is missing required fields: 'server' and 'storage'")
+                backup_config.targets = backup_assignments

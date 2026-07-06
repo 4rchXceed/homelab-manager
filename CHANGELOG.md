@@ -108,3 +108,21 @@ All tests passed
 - Removed static TODO list, and added a link to my Nextcloud shared folder
 
 ### Commit message: `~ Switched the file server to use HTTPS (via a reverse proxy written in pure Python) ~ Fixed a bug on cert check - Removed static TODO list, and added a link to my Nextcloud shared folder`
+
+## LAST: a49e5aa652eb5e0e8fd4337a9974027d2e502740
+~ Fixed file server, it was broken (the reverse proxy was not working properly)
++ Added new config: backups (in services, in config.jsonc)
++ Added new config: backupAssignments (in runtime.jsonc)
++ Added new backup system, which allows to backup files from the server to an agent
++ Added new config: storages (in servers, in config.jsonc)
++ Added new test:
+- test-full-backup (tests the backup system) on "full" mode
+
+### Disclaimer
+The backup system is not finished. I'm going to work on it tomorrow. Here what's not implemented yet:
+- Incremental backups TESTS (implemented, never tested, probably broken)
+- Restoring
+- Commands
+- A few other things
+
+### Commit message: `~ Fixed file server, it was broken (the reverse proxy was not working properly) + Added new config: backups (in services, in config.jsonc) + Added new config: backupAssignments (in runtime.jsonc) + Added new backup system, which allows to backup files from the server to an agent + Added new config: storages (in servers, in config.jsonc) + Added new test: - test-full-backup (tests the backup system) on "full" mode`

@@ -1,3 +1,4 @@
+import time
 import os
 import shlex
 import socket
@@ -28,6 +29,7 @@ from plugins.variable_providers.library import VARIABLE_PROVIDERS
 from protocol.agent import Agent
 from services.service import ServerService
 from sqlalchemy.orm import Session
+from backups.backup_manager import BackupManager
 import os
 import subprocess
 
@@ -136,6 +138,15 @@ class ServerApp:
 
         return "Reload DONE"
 
+    def check_backups_thread(self) -> None:
+        while not self.context.kill_switch:
+            self.check_backups()
+            time.sleep(self.config_general.backup_check_interval * 60)
+
+    def check_backups(self) -> None:
+        for service in self.services.values():
+            service.check_backups()
+
     def check_inner_deps_updates(
         self,
         restrict_to: None | Agent = None,
@@ -196,6 +207,7 @@ class ServerApp:
             self,
         )
         set_current_context(self.context)
+        self.backup_manager = BackupManager()
         for db_server in (
             self.context.database.session.query(Server).filter_by(disabled=False).all()
         ):
@@ -225,6 +237,8 @@ class ServerApp:
         self.init_communication_socket()
         self.runtime_config.init()
         self.check_inner_deps_updates()
+        self.check_backups_thread_instance = threading.Thread(target=self.check_backups_thread)
+        self.check_backups_thread_instance.start()
         self.unix_socket_server()  # WARNING: THIS FUNCTION NEVER ENDS (it's a server), DO NOT PUT ANYTHING AFTER THAT
 
     def temp_thread_wrapper(self, target: Callable) -> None:
