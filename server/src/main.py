@@ -176,6 +176,8 @@ class ServerApp:
                                     needs_update.service_updated_id, self.context
                                 )
                                 if service_updated_class is not None:
+                                    for config_file in service_updated_class.config_files:
+                                        config_file.before_regenerate()
                                     for (
                                         config_file
                                     ) in service_updated_class.config_files:
@@ -231,7 +233,7 @@ class ServerApp:
             "config_synced", self.on_config_synced
         )
         self.context.event_manager.register_event(
-            "service_updated", lambda a: self.check_inner_deps_updates(None, a)
+            "service_update", lambda a: self.check_inner_deps_updates(None, a)
         )
         self.init_services()
         self.init_file_server()
@@ -385,7 +387,7 @@ class ServerApp:
                                     != agent.db_server.id
                                 ):
                                     log_warning(
-                                        f"Service {name} is supposed to be running on server {agent.db_server.name}, but is running on server {server_service.db_element.server.name}. (Did you start it manually? If so, please use the manager...)"
+                                        f"Service {name} is supposed to be running on server {server_service.db_element.server}, but is running on server {agent.name}. (Did you start it manually? If so, please use the manager...)"
                                         + "Generating report of the issue..."
                                     )
                                     real_agent = server_service.get_agent()
@@ -394,7 +396,7 @@ class ServerApp:
                                         is_running = real_agent.is_service_running(name)
                                         if is_running:
                                             log_error(
-                                                "Two instances of the server daemon are running on the same server! PANIC! IDK WHAT TO DO!!!! "
+                                                "Two instances of a service are running on two different servers! PANIC! IDK WHAT TO DO!!!! "
                                                 + "Try running: agent:stop agent_id service_id"
                                             )
                                             errors += 1

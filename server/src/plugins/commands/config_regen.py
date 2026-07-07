@@ -21,6 +21,8 @@ class RegenConfigCommand(CommandBase):
                             f"Regenerating configs for {service_id}"
                         )
                         for config_file in service.config_files:
+                            config_file.before_regenerate()
+                        for config_file in service.config_files:
                             cmd_context.output_print(
                                 f"Regenerating config file: {config_file.path}"
                             )
@@ -39,6 +41,8 @@ class RegenConfigCommand(CommandBase):
         if not service:
             cmd_context.output_print(f"Service with id {service_id} not found")
             return False
+        for config_file in service.config_files:
+            config_file.before_regenerate()
         for config_file in service.config_files:
             cmd_context.output_print(f"Regenerating config file: {config_file.path}")
             config_file.regenerate(cmd_context)

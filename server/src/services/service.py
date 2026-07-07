@@ -140,6 +140,8 @@ class ServerService:
             != json.dumps(self.config_files_obj)
         ):
             for config_file in self.config_files:
+                config_file.before_regenerate()
+            for config_file in self.config_files:
                 response = config_file.regenerate(cmd_context)
                 if response:
                     responses.extend(response)
@@ -158,17 +160,17 @@ class ServerService:
         self.context.database.session.commit()
         self.need_update = True
         self.finish_init(cmd_context)
+        self.context.event_manager.trigger_event("service_update", cmd_context)
         is_error, error_message = agent.start_service(self.id)
-        self.context.event_manager.trigger_event("service_updated", cmd_context)
         return is_error, error_message
 
     def unassign(self, cmd_context: CommandContext | None = None) -> None:
         agent = self.get_agent()
+        self.context.event_manager.trigger_event("service_update", cmd_context)
         if agent:
             agent.stop_service(self.id)
         self.db_element.server = None
         self.context.database.session.commit()
-        self.context.event_manager.trigger_event("service_updated", cmd_context)
 
     def get_agent(self) -> Agent | None:
         for agent in self.context.app.agents:

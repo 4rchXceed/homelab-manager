@@ -40,6 +40,8 @@ class AgentConfig:
         self.services_folder: str = self.server_config.get(
             "services_folder", "./services"
         ).removeprefix("./")
+        if not os.path.exists(self.services_folder):
+            os.makedirs(self.services_folder)
 
         self.apprise_urls = self.report_notif["apprise_url"]
         for url in self.apprise_urls:

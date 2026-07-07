@@ -194,8 +194,7 @@ class TestHomelabManager():
         service2 = "8_test-multservers-ip-change-srv02"
         service1 = "8_test-multservers-ip-change-srv01"
         instance.send_command(f"service:assign {service2} agent02")
-        th = threading.Thread(target=launch_service, args=(service1, instance, [], "agent01"))
-        th.start()
+        instance.send_command(f"service:assign {service1} agent01")
         s = time.time()
         print("Waiting for test result.", end="", flush=True)
         while time.time() - s < 120 and not is_success():
@@ -206,7 +205,6 @@ class TestHomelabManager():
         print("Removing old services...")
         instance.send_command(f"service:unassign {service1}")
         instance.send_command(f"service:unassign {service2}")
-        th.join(0.1)
         self.ok(nbr)
 
     # Tests updating the configuration and reloading it
@@ -753,6 +751,7 @@ def main():
     print("Running tests...")
     print("\033[91m !! DISCLAIMER !! \033[00m")
     print("\033[91m IF YOU THINK THE TEST IS STUCK, OPEN ANOTHER SHELL AND TYPE `python3 tests.py logs` TO SEE THE AGENT + SERVER LOGS \033[00m")
+    print("\033[91m ALSO IF YOU HAVE DOCKER IN ROOT MODE, YOU NEED TO RUN THIS AS ROOT, SINCE THE SOCKET AUTH IS ROOT-ONLY (FOR NOW) \033[00m")
     test = TestHomelabManager()
     if "1" in args:
         try:

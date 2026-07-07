@@ -171,13 +171,13 @@ def oldest_folder(backup_folder: str) -> str:
     return all_folders[0]
 
 def do_folder_needs_deletion(folder: str, max_age: int, max_size: int, folder_container: str) -> bool:
-    return os.path.getctime(folder) < time.time() - max_age or folder_size(folder_container, all_versions_folders(folder_container)[-1]) > max_size # TODO: folder_size can take a verrry long time
+    return os.path.getctime(folder) < time.time() - max_age or folder_size(folder_container) > max_size # TODO: folder_size can take a verrry long time
 
 def after_full_cleanup(backups_folder: str, service: str, max_size: int, max_age: int):
     backups_folder = backups_folder.removesuffix(os.sep)  # Remove trailing slash if present
     backup_folder = os.path.join(backups_folder, service, "full")
 
-    if len(all_versions_folders(backup_folder)) <= 1:  # ALWAYS keep at least one backup
+    if len(all_versions_folders(backup_folder)) == 0:  # ALWAYS keep at least one backup
         return
     last = os.path.join(backup_folder, oldest_folder(backup_folder))
 
@@ -187,10 +187,10 @@ def after_full_cleanup(backups_folder: str, service: str, max_size: int, max_age
 
         if os.path.exists(oldest_folder_path) and os.path.isdir(oldest_folder_path):
             try:
-                shutil.rmtree(oldest_folder_path)
+                shutil.rmtree(os.path.join(backup_folder, "base"))
             except OSError as e:
                 debug(f"Error deleting folder {oldest_folder_path}: {e}")
-
+            shutil.move(oldest_folder_path, os.path.join(backup_folder, "base"))  # Move the oldest folder to the base folder
         last = os.path.join(backup_folder, oldest_folder(backup_folder))
 
 
@@ -213,26 +213,41 @@ def recv_file(sock: SSLSocket, save_path: str) -> bool:
         return False
     if not file_infos.count("?") == 2:
         debug(f"Invalid file info received: {file_infos}. Protocol violation!")
-        return False
+        return True
     fsize_str, file_path, mod_date = file_infos.split("?", 2)
     fsize = int(fsize_str)
     full_save_path = os.path.join(save_path, file_path)
-    os.makedirs(os.path.dirname(full_save_path), exist_ok=True)
-    with open(full_save_path, "wb") as f:
+    try:
         bytes_received = 0
+        os.makedirs(os.path.dirname(full_save_path), exist_ok=True)
+        with open(full_save_path, "wb") as f:
+            while bytes_received < fsize:
+                chunk = sock.recv(min(4096, fsize - bytes_received))
+                if not chunk:
+                    break
+                f.write(chunk)
+                bytes_received += len(chunk)
+    except Exception as e:
+        debug(f"Error while writing to {full_save_path}: {e}")
+        # If we can't write to the file, we still need to read the incoming data to avoid breaking the protocol
         while bytes_received < fsize:
             chunk = sock.recv(min(4096, fsize - bytes_received))
             if not chunk:
                 break
-            f.write(chunk)
             bytes_received += len(chunk)
-    os.utime(full_save_path, (float(mod_date), float(mod_date)))
+    try:
+        os.utime(full_save_path, (float(mod_date), float(mod_date)))
+    except Exception as e:
+        debug(f"Error setting modification time for {full_save_path}: {e}")
     return False
 
-def restore_files(files: list, base_path: str, client: SSLSocket) -> str:
+def restore_files(files: list, base_path: str, client: SSLSocket, is_incremental: bool = False) -> str:
     messages = ""
     for file_info in files:
-        file_path = os.path.join(base_path, file_info["path"])
+        if is_incremental:
+            file_path = os.path.join(base_path, file_info["folder"], file_info["path"])
+        else:
+            file_path = os.path.join(base_path, file_info["path"])
         if os.path.exists(file_path) and os.path.isfile(file_path):
             send_file(client, file_path, file_info["path"])
         else:
@@ -276,11 +291,11 @@ def get_restore_needs(files_to_check: list, restore_path: str) -> list:
             files_changed.append(file_info)
     return files_changed
 
-def is_not_deleted(path: str, undeleted_files: list) -> bool:
+def is_deleted(path: str, undeleted_files: list) -> bool:
     i = 0
     immune = False
     while i < len(undeleted_files) and not immune: # So we don't delete files that haven't changed.
         if path == undeleted_files[i]["path"]:
             immune = True
         i += 1
-    return immune
+    return not immune

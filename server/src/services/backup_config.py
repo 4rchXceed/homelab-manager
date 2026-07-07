@@ -1,3 +1,4 @@
+import datetime
 import time
 from typing import TYPE_CHECKING
 from error.exceptions import MissingConfigException, GenericConfigException
@@ -31,9 +32,12 @@ class ServiceBackupConfig:
         else:
             self.schedule = None
         context = get_current_context()
+        self.no_backup_on_creation = config.get("noBackupOnCreation", False)
         db_element = context.database.session.query(BackupConfig).filter_by(id_str=self.id_str).first()
         if db_element is None:
             db_element = BackupConfig(id_str=self.id_str, service_id=self.service.db_element.id, last=None, disabled=False) # TODO: disabled is never used
+            if self.no_backup_on_creation:
+                db_element.last = datetime.datetime.now()
             context.database.session.add(db_element)
         self.last = db_element.last
         self.db_element_id = db_element.id

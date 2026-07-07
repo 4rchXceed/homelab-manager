@@ -80,6 +80,8 @@
                     "maxAge": "1y",
                     // Every X hours/days/weeks/months/years/minutes a backup is performed
                     "schedule": "12h", // Supports: Xh, Xd, Xw, Xm, Xy, Xmin
+                    // If true, the backup will wait `schedule` time before creating the first backup, if false, the backup will be created immediately on backup creation
+                    "noBackupOnCreation": false,
                     // Where to backup is stored in runtime.json config
                     // Note: See infos about communication for backups in runtime.example.jsonc
                 },
@@ -425,7 +427,7 @@
             "ip": "192.168.1.249",
             // Pre-defined API key
             // If there's no API key set, the server will auto-generate one
-            "api_key": "super-secret-api-key",
+            "apiKey": "super-secret-api-key",
             // Storages
             "storages": {
                 "default": {

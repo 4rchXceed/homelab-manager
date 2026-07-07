@@ -92,6 +92,8 @@ class ServiceManager:
 
     def list_services(self) -> list[ServiceStatus]:
         services = []
+        if not os.path.exists(self.services_folder):
+            return services
         for service_name in os.listdir(self.services_folder):
             service_path = os.path.join(self.services_folder, service_name)
             if os.path.exists(service_path) and os.path.isdir(service_path):

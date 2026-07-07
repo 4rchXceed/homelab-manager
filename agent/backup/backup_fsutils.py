@@ -8,10 +8,10 @@ def hash_file(file_path: str) -> str:
         return ""
 
 def hashes_neq(hash1: str, hash2: str) -> bool:
-    if len(hash1) != len(hash2):
-        smallest = min(len(hash1), len(hash2))
+    if len(hash1) != len(hash2): # If the hashes are of different lengths, we compare them up to the smallest length minus 1 to avoid problems with rounding
+        smallest = min(len(hash1), len(hash2)) - 1 # To avoid problems with rounding, we compare the hashes up to the smallest length minus 1
         return hash1[0:smallest] != hash2[0:smallest]
-    return hash1 != hash2
+    return hash1[0:len(hash1)-1] != hash2[0:len(hash2)-1]
 
 
 def is_path_part_of(path: str, parent_path: str) -> bool:
@@ -33,10 +33,10 @@ def all_versions_folders(backup_folder: str) -> list[str]: # Returns folder in o
     all_versions_folders.sort(key=lambda x: int(x))
     return all_versions_folders
 
-def folder_size(path: str, except_folder: str) -> float:
+def folder_size(path: str) -> float:
     total_size = 0
     for folder in os.listdir(path):
-        if folder != except_folder:
+        # if folder != except_folder:
             for dirpath, _, filenames in os.walk(os.path.join(path, folder)):
                 for f in filenames:
                     fp = os.path.join(dirpath, f)

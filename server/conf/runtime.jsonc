@@ -5,6 +5,19 @@
         "reverse-proxy": "main",
     },
     "backupAssignments": {
-        "main-website": {},
+        "nextcloud": {
+            "monthly-could-bak": [
+                {
+                    "server": "storage",
+                    "storage": "default",
+                },
+            ],
+            "daily-cloud-bak": [
+                {
+                    "server": "storage",
+                    "storage": "default",
+                },
+            ],
+        },
     },
 }

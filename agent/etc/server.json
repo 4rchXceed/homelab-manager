@@ -1,12 +1,13 @@
 {
-    "host": "192.168.1.26",
+    "host": "192.168.1.249",
     "port": 4398,
-    "api_key": "454d2ef9-d6f8-4a35-9e40-c17a928fdf6c",
+    "api_key": "super-secret",
     "this": "Server-01-Debian",
     "this_id": "srv01-debian",
     "services_folder": "./services",
     "file_server_port": 4399,
     "backup_relay_port": 4397,
     "keepalive_interval": 10,
-    "db_path": "_internal.db"
+    "db_path": "_internal.db",
+    "fileserver_auth": "admin:pass"
 }

@@ -35,6 +35,9 @@ class BackupManager:
     def send_request(self, is_restore: bool, from_config: ServiceBackupConfig, to_storage: ServerStorage, connect_timeout, cmd_context: CommandContext, backup_id: str | None = None) -> bool:
         transaction_id = self.create_transaction()
         service_agent = from_config.service.get_agent()
+        # TODO : better handling
+        if is_restore:
+            from_config.service.unassign(cmd_context)
         backup_agent = to_storage.agent
         if not service_agent or not backup_agent:
             logger.error(f"service or backup agent not found: {service_agent}, {backup_agent}")
@@ -74,7 +77,10 @@ class BackupManager:
         s = time.time()
         while not self.context.kill_switch and time.time() - s < connect_timeout and len(self.backups[transaction_id]["clients"]) < 2:
             time.sleep(0.5)
-        return self.handle_request(is_restore, from_config, transaction_id, r_service, r_reciver, cmd_context)
+        r = self.handle_request(is_restore, from_config, transaction_id, r_service, r_reciver, cmd_context)
+        if is_restore:
+            from_config.service.start_on(service_agent, cmd_context)
+        return r
 
     def handle_request(self, is_restore: bool, from_config: ServiceBackupConfig, transaction_id: str, r_service, r_reciver, cmd_context: CommandContext) -> bool:
         cmd_context.output_print(f"{'Restore' if is_restore else 'Backup'} initiated for {from_config.service.id} with transaction ID {transaction_id}. Waiting for clients to connect...")

@@ -7,7 +7,7 @@ from config import AgentConfig
 import os
 from messaging.log import debug
 from backup.backup_fsutils import strip_path, all_versions_folders, folder_size, hash_file, hashes_neq, is_path_part_of
-from backup.backup_utils import after_full_cleanup, after_incremential_cleanup, all_versions_folders, buffered_recv, connect_as, get_index, incremental_check_for_changes, recv_file, restore_files, send_file, set_index, create_backup_summary_client, get_restore_needs, is_not_deleted
+from backup.backup_utils import after_full_cleanup, after_incremential_cleanup, all_versions_folders, buffered_recv, connect_as, get_index, incremental_check_for_changes, recv_file, restore_files, send_file, set_index, create_backup_summary_client, get_restore_needs, is_deleted
 
 class BackupManager:
     def verify_path(self, path: str, can_create: bool) -> bool:
@@ -37,10 +37,12 @@ class BackupManager:
             ready_response = client.recv(1024).decode()
             if ready_response == "START":
                 if type == "incremental":
+                    debug(f"Starting incremental backup for service {service}: generating summary and sending to client...")
                     summary = create_backup_summary_client(os.path.join(services_folder, service), datas)
                     client.sendall(f"{json.dumps(summary)}\n".encode())
-
+                    debug(f"Summary sent to client: waiting for changes...")
                     changes = json.loads(buffered_recv(client))
+                    debug(f"Changes received: starting to send files...")
                     for change in changes:
                             file_path = os.path.join(backup_from_path, change)
                             try:
@@ -52,6 +54,10 @@ class BackupManager:
                             except Exception as e:
                                 debug(f"Error sending file {file_path}: {e}")
                                 all_ok = False
+                    if all_ok:
+                        debug(f"All files sent successfully")
+                    else:
+                        debug(f"Some files failed to send")
                 if type == "full":
                     exclude_paths = []
                     for data in datas:
@@ -162,17 +168,25 @@ class BackupManager:
                     for dir, _, files in os.walk(data_dir):
                         for file in files:
                             file_path = os.path.join(dir, file)
-                            if not is_not_deleted(strip_path(file_path, restore_path).removeprefix("/").removeprefix("./"), files_to_check): # We want to remove files that are not deleted in the incremental backup
+                            if is_deleted(strip_path(file_path, restore_path).removeprefix("/").removeprefix("./"), files_to_check): # We want to remove files that are not deleted in the backup
                                 file_target = os.path.join(target, file_folder.removeprefix("./"), file_path)
                                 if not os.path.exists(os.path.dirname(file_target)):
                                     os.makedirs(os.path.dirname(file_target), exist_ok=True)
                                 shutil.move(file_path, file_target)
                 else:
-                    if not is_not_deleted(file_folder.removeprefix("./").removesuffix("/"), files_to_check):
+                    if is_deleted(file_folder.removeprefix("./").removesuffix("/"), files_to_check):
                         target = os.path.join(target, file_folder.removeprefix("./"))
                         if not os.path.exists(os.path.dirname(target)):
                             os.makedirs(os.path.dirname(target), exist_ok=True)
                         shutil.move(data_dir, target)
+            if os.getenv("BACKUP_DUMP") is not None:
+                if not os.path.exists("logs"):
+                    os.makedirs("logs", exist_ok=True)
+                with open(f"logs/debug_restore_{int(time.time())}.json", "w") as f:
+                    json.dump({
+                        "files_total": files_to_check,
+                        "restoring_files": files_changed
+                    }, f, indent=4)
 
             client.sendall(f"{json.dumps(files_changed)}\n".encode())
             while ok:
@@ -223,12 +237,13 @@ class BackupManager:
                                 file_path = os.path.join(root, file)
                                 relative_path = strip_path(file_path, folder_path).removeprefix(os.sep)
                                 try:
-                                    files_to_check.append({"path": relative_path, "hash": hash_file(file_path)})
+                                    files_to_check.append({"path": relative_path, "hash": hash_file(file_path), "folder": folder})
                                 except OSError:
                                     continue
                     client.sendall(f"{json.dumps(files_to_check)}\n".encode())
                     files_to_restore = json.loads(buffered_recv(client))
-                    messages += restore_files(files_to_restore, full_path, client)
+
+                    messages += restore_files(files_to_restore, base_path, client, is_incremental=True)
 
                 if type == "full":
                     files_to_check: list[dict[str,str]] = [] # List of dicts with keys "path", "hash"
@@ -249,7 +264,7 @@ class BackupManager:
             client.close()
         return True, messages
 
-    def list_backups(self, path: str) -> dict:
+    def list_backups(self, path: str, with_size: bool) -> dict:
         backups = {}
         services = os.listdir(path)
         for service in services:
@@ -261,5 +276,17 @@ class BackupManager:
                     if os.path.exists(type_path):
                         all = all_versions_folders(type_path)
                         all.insert(0, "base")
-                        backups[service][backup_type] = all
+                        if with_size:
+                            total = 0
+                            backups[service][backup_type] = []
+                            for folder in all:
+                                folder_path = os.path.join(type_path, folder)
+                                size = folder_size(folder_path)
+                                total += size
+                                backups[service][backup_type].append({"folder": folder, "size": size})
+                            backups[service][backup_type].append({"total_size": total})
+                        else:
+                            backups[service][backup_type] = []
+                            for folder in all:
+                                backups[service][backup_type].append({"folder": folder})
         return backups

@@ -21,7 +21,7 @@ class ConfigFile:
         self.rebuild = self.data.get("rebuild", False)
         if len(self.reload_commands) == 0:
             self.reload_commands = ["docker compose down", "docker compose up -d"]
-        self.reload_timeout = self.data.get("reloadTimeout", 20)
+        self.reload_timeout = self.data.get("reloadTimeout", 40)
         if self.path is None:
             raise MissingConfigException("services.$.configFiles.$.path")
         self.generators_obj: list[dict] = self.data.get("generators", [])
@@ -69,10 +69,8 @@ class ConfigFile:
         else:
             return provider.backend_process(provider_datas, None, config_file=self)
 
-    def regenerate(
-        self, cmd_context: CommandContext | None = None
-    ) -> list[dict] | None:
-        responses = []
+    def before_regenerate(self):
+        # Always run it BEFORE, else docker might create a folder instead of the file if the file doesn't exist yet
         self.context.send_from_service(
             self.service.id,
             {
@@ -81,6 +79,12 @@ class ConfigFile:
                 "path": self.path,
             },
         )
+
+    def regenerate(
+        self, cmd_context: CommandContext | None = None
+    ) -> list[dict] | None:
+        responses = []
+
         for generator in self.generators_obj:
             generator_name = generator.get("generator")
             generator_arguments = generator.get("generatorArgs", [])

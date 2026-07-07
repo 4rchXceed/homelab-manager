@@ -14,14 +14,12 @@ def run_command(command: str, path: str) -> int:
         warning(
             f"Running command unsandboxed! Please, do not install anything!! Running on path {path}"
         )
-        pwd = os.getcwd()
-        os.chdir(path)
         res = subprocess.Popen(
             command.split("::", 1)[1],
             shell=True,
+            cwd=path,
         )
         res.wait()
-        os.chdir(pwd)
         return res.returncode
     elif command.startswith("SANDBOX::"):
         image = "debian:bookworm"
@@ -30,6 +28,7 @@ def run_command(command: str, path: str) -> int:
         os.makedirs(tmp_dir, exist_ok=True)
         with open(f"{tmp_dir}/commands.sh", "w") as f:
             f.write("#!/bin/bash\ncd /mnt/workdir\n" + command.split("::", 1)[1])
+        flogs = os.open(f"{tmp_dir}/logs.txt", os.O_CREAT | os.O_WRONLY)
         result = subprocess.run(
             [
                 "docker",
@@ -38,14 +37,16 @@ def run_command(command: str, path: str) -> int:
                 "-v",
                 f"{tmp_dir}/commands.sh:/commands.sh",
                 "-v",
-                f"./{path.removeprefix('./')}:/mnt/workdir",
+                f"./:/mnt/workdir",
                 image,
                 "/bin/bash",
                 "/commands.sh",
             ],
-            stdout=open(os.devnull, "wb"),
-            stderr=open(os.devnull, "wb"),
+            stdout=flogs,
+            stderr=flogs,
+            cwd=path
         )
+        debug(f"Logs are available at {tmp_dir}/logs.txt")
         return result.returncode
     else:
         warning(f"Unknown running mode {command.split('::')[0]}")

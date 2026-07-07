@@ -1,3 +1,4 @@
+import shutil
 import json
 import os
 import ssl
@@ -101,7 +102,7 @@ class Client:
                 f"Homelab-MGR: Client {self.config.id} ({self.config.name}): API key mismatch (A: Server got reset, B: You got hacked, C: Other reason)",
                 "2",
             )
-            raise ConnectionError("API key mismatch")
+            raise ConnectionError(f"Server-side API key mismatch, cannot determine if the server is the same as before. Please check your server and agent configuration. (easy fix: delete agent's db file)")
 
         self.stop = False
         info("Connected to server.")
@@ -157,6 +158,7 @@ class Client:
                     threading.Thread(
                         target=handle_response,
                         args=(message.get("r_uuid", uuid.uuid4()),),
+                        daemon=True
                     )
                 )
                 self.thread_pool[-1].start()
@@ -239,11 +241,15 @@ class Client:
                 else:
                     cfg_original_path = message.get("path", "") + ".sample"
                     cfg_new_path = message.get("path", "")
-                    command_copy = f"FREE::cp {cfg_original_path} {cfg_new_path}\n"
-                    return_code = run_command(command_copy, path)
+                    success = True
+                    try:
+                        shutil.copyfile(os.path.join(path, cfg_original_path), os.path.join(path, cfg_new_path))
+                    except Exception as e:
+                        log_error(f"Error occurred while copying config file: {e}")
+                        success = False
                     return {
                         "type": "rewrite_config_report",
-                        "success": True,
+                        "success": success,
                     }
             elif message.get("type", "") == "run_service_command":
                 path = os.path.join(
@@ -309,7 +315,8 @@ class Client:
                 }
             elif message.get("type", "") == "list_available_backups":
                 path = message.get("path", "")
-                backups = self.backup_manager.list_backups(path)
+                with_size = message.get("size", False)
+                backups = self.backup_manager.list_backups(path, with_size)
                 return {
                     "type": "list_available_backups_report",
                     "success": True,

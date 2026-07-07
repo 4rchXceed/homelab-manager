@@ -35,6 +35,8 @@ class SetUserVarCommand(CommandBase):
             if service is not None:
                 print(f"Marking service \"{service.name}\" for update due to variable \"{var_id}\" change.")
                 for config_file in service.config_files:
+                    config_file.before_regenerate()
+                for config_file in service.config_files:
                     print(f"Regenerating config file \"{config_file.path}\" for service \"{service.name}\" due to variable update.")
                     config_file.regenerate(cmd_context)
 

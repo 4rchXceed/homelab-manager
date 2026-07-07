@@ -82,3 +82,5 @@ agent.log
 _internal.db
 
 .agent_state
+storage/
+logs/

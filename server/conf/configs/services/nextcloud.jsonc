@@ -1,8 +1,23 @@
 {
     "name": "Cloud (nextcloud)",
-    "data": [
-        "./cloud-data",
-        "./db"
+    "data": ["./cloud-data", "./db"],
+    "backups": [
+        {
+            "id": "monthly-could-bak",
+            "type": "full",
+            "maxSize": "3GB",
+            "maxAge": "1y",
+            "schedule": "30d",
+            "noBackupOnCreation": true,
+        },
+        {
+            "id": "daily-cloud-bak",
+            "type": "incremental",
+            "maxSize": "3GB",
+            "maxAge": "30d",
+            "schedule": "1d",
+            "noBackupOnCreation": true,
+        },
     ],
     "configFiles": [
         {
@@ -15,10 +30,10 @@
                         {
                             "type": "userVar",
                             "name": "Nextcloud db password",
-                            "id": "cloud_db_password"
+                            "id": "cloud_db_password",
                         },
-                        ".env"
-                    ]
+                        ".env",
+                    ],
                 },
                 {
                     "generator": "replaceFile",
@@ -27,10 +42,10 @@
                         {
                             "type": "userVar",
                             "name": "Nextcloud admin username",
-                            "id": "cloud_admin_user"
+                            "id": "cloud_admin_user",
                         },
-                        ".env"
-                    ]
+                        ".env",
+                    ],
                 },
                 {
                     "generator": "replaceFile",
@@ -39,10 +54,10 @@
                         {
                             "type": "userVar",
                             "name": "Nextcloud admin password",
-                            "id": "cloud_admin_password"
+                            "id": "cloud_admin_password",
                         },
-                        ".env"
-                    ]
+                        ".env",
+                    ],
                 },
                 {
                     "generator": "replaceFile",
@@ -51,10 +66,10 @@
                         {
                             "type": "userVar",
                             "name": "Nextcloud *ROOT* db password",
-                            "id": "cloud_root_db_password"
+                            "id": "cloud_root_db_password",
                         },
-                        ".env"
-                    ]
+                        ".env",
+                    ],
                 },
                 {
                     "generator": "replaceFile",
@@ -63,10 +78,10 @@
                         {
                             "type": "userVar",
                             "name": "Cloud port (example: 3939)",
-                            "id": "cloud_port"
+                            "id": "cloud_port",
                         },
-                        ".env"
-                    ]
+                        ".env",
+                    ],
                 },
                 {
                     "generator": "replaceFile",
@@ -75,10 +90,10 @@
                         {
                             "type": "userVar",
                             "name": "Cloud subpath (example: cloud)",
-                            "id": "cloud_subpath"
+                            "id": "cloud_subpath",
                         },
-                        ".env"
-                    ]
+                        ".env",
+                    ],
                 },
                 {
                     "generator": "nextcloudOcc",
@@ -87,10 +102,10 @@
                         "config:system:set trusted_domains 0 --value=",
                         {
                             "type": "ip",
-                            "get": "nextcloud"
+                            "get": "nextcloud",
                         },
-                        ""
-                    ]
+                        "",
+                    ],
                 },
                 {
                     "generator": "nextcloudOcc",
@@ -98,8 +113,8 @@
                         "app",
                         "config:system:set overwriteprotocol --value=",
                         "http://",
-                        ""
-                    ]
+                        "",
+                    ],
                 },
                 {
                     "generator": "nextcloudOcc",
@@ -109,10 +124,10 @@
                         {
                             "type": "userVar",
                             "name": "Cloud subpath (example: cloud)",
-                            "id": "cloud_subpath"
+                            "id": "cloud_subpath",
                         },
-                        ""
-                    ]
+                        "",
+                    ],
                 },
                 {
                     "generator": "nextcloudOcc",
@@ -121,17 +136,17 @@
                         "config:system:set overwritehost --value=",
                         {
                             "type": "ip",
-                            "get": "reverse-proxy"
+                            "get": "reverse-proxy",
                         },
                         ":",
                         {
                             "type": "userVar",
                             "name": "Reverse proxy port",
-                            "id": "reverse_proxy_port"
-                        }
-                    ]
-                }
-            ]
-        }
-    ]
+                            "id": "reverse_proxy_port",
+                        },
+                    ],
+                },
+            ],
+        },
+    ],
 }

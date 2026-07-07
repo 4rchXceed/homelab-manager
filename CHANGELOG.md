@@ -142,3 +142,17 @@ The backup system is not finished. I'm going to work on it tomorrow. Here what's
 ~ Few other things
 
 ### Commit message: `Added tests: 21_test-full-backup-restore, 22_test-incremental-backup-restore, 19_test-incr-backup, 20_test-incr-backup-2. Fixed A LOT of bugs in the backup system. Added new commands: backup:create, backup:restore, backup:list. Rewrote a big part of the backup system code. See CHANGELOG.md for more details.`
+
+## LAST: 3bab629f99a1ed17d7f935d3c8745819e6ae6b82
++ New option: noBackupOnCreation
+~ Bugfixes in backup
+~ Tested (in private) a backup of entire nextcloud instance (with ~1GB of data). Worked
++ Added with_size option to backup:list command, so it will show the size of each backup
+~ Fixed a bug in the config file generation (see before_regenerate in server/src/services/config_file.py)
+~ Some other small bugfixes
+
+### Backups TODO:
+- Files permission
+- Sync "backup" type
+
+### Commit message: `New backup cfg option + bugfixes in backup system + with_size option t backup:osit + Fixed a bug in config file generation + Some other small bugfixes. See CHANGELOG.md for more details.`

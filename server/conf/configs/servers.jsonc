@@ -3,6 +3,22 @@
         "id": "main",
         "name": "Main Server",
         "description": "...",
-        "ip": "192.168.1.26"
-    }
+        "ip": "192.168.1.249",
+        "apiKey": "super-secret",
+    },
+    {
+        "id": "storage",
+        "name": "Storage Server",
+        "description": "...",
+        "ip": "192.168.239.10",
+        "apiKey": "super-secret2",
+        "storages": {
+            "default": {
+                "path": "./storage/bucket_big",
+            },
+            "fallback": {
+                "path": "./fallback",
+            },
+        },
+    },
 ]

@@ -90,3 +90,18 @@ def parse_fsize(fsize_str: str) -> float:
             if is_float(number_str):
                 total = float(number_str) * multiplier
     return total
+
+def format_size(size: float) -> str:
+    """
+    size: in bytes
+    """
+    if size < 1024:
+        return f"{size} B"
+    elif size < 1024**2:
+        return f"{size / 1024:.2f} KB"
+    elif size < 1024**3:
+        return f"{size / 1024**2:.2f} MB"
+    elif size < 1024**4:
+        return f"{size / 1024**3:.2f} GB"
+    else:
+        return f"{size / 1024**4:.2f} TB"
