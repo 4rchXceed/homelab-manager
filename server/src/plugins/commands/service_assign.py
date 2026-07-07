@@ -35,7 +35,7 @@ class ServiceAssignCommand(CommandBase):
                 cmd_context.output_print(
                     f"Service {service_id} found, assigning to server {server_to_assign}"
                 )
-                service.start_on(agent, cmd_context)
+                service.start_on(agent, cmd_context, do_not_sync_restore="do_not_sync" in arguments[2:] if len(arguments) > 2 else False)
                 return True
 
         cmd_context.output_print(f"Service {service_needed} not found")
@@ -43,4 +43,4 @@ class ServiceAssignCommand(CommandBase):
 
     @staticmethod
     def get_help() -> str:
-        return f"Assign and start a service in a specific server. Usage: {ServiceAssignCommand.NAME} <service_id> <server_id>"
+        return f"Assign and start a service in a specific server. Usage: {ServiceAssignCommand.NAME} <service_id> <server_id> [do_not_sync]\ndo_not_sync: optional, if provided, the service will not be synced to his sync storage"

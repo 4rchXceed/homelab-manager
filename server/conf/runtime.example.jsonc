@@ -5,7 +5,18 @@
         // service id: Server id
         "main-website": "main",
         "nextcloud": "main",
-        "reverse-proxy": "main",
+        // You can also put an object here, to define more options for the assignment
+        "reverse-proxy": {
+            // server will be like the "assignments" above
+            "server": "main",
+            // And here's the options you can set for the assignment
+            // By default, if a sync is found for the service, it'll be synced to the new server/owner of the service
+            // Note the sync doesn't delete the data from the old server
+            // If you want to disable this, you can set "doNotSync" to true
+            // This is useful if you want to move the service to another server, but you don't want to sync the data to the new server
+            // You'll still be able to force-sync it with: sync:restore <service_id> <server_id> <storage_id>
+            "doNotSync": true,
+        },
     },
     // ! Reloaded only when config:runtime reload is called
     // Sync configuration (to sync the service's data to another server)

@@ -66,7 +66,17 @@ class BackupListCommand(CommandBase):
                         cmd_context.output_print(f"  Total backups size: {format_size(total_size)}\n")
                 else:
                     cmd_context.output_print(f"  No {type} backups found.\n")
-
+            if backup_list.get("sync") and len(backup_list["sync"]) > 0:
+                cmd_context.output_print(f"  Sync Backup:\n")
+                sync_backup = backup_list["sync"][0]
+                if with_size:
+                    sync_size = sync_backup.get("size", None)
+                    sync_size_str = f"Size: {format_size(sync_size)}" if sync_size is not None else "Size: Unknown"
+                else:
+                    sync_size_str = "None"
+                cmd_context.output_print(f"    - Sync size: {sync_size_str}\n")
+            else:
+                cmd_context.output_print(f"  No sync backups found.\n")
         return True
 
     @staticmethod

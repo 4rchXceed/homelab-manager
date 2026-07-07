@@ -17,6 +17,9 @@ from plugins.commands.backup_create import BackupServiceCommand
 from plugins.commands.backup_list import BackupListCommand
 from plugins.commands.backup_restore import BackupRestoreCommand
 from plugins.commands.sync_full import SyncFullCommand
+from plugins.commands.backup_delete import BackupDeleteCommand
+from plugins.commands.list_variables import VarListCommand
+from plugins.commands.get_variable import VarGetCommand
 
 COMMANDS: list[type[CommandBase]] = [
     ConfigSyncCommand,
@@ -37,4 +40,7 @@ COMMANDS: list[type[CommandBase]] = [
     BackupListCommand,
     BackupRestoreCommand,
     SyncFullCommand,
+    BackupDeleteCommand,
+    VarListCommand,
+    VarGetCommand,
 ]

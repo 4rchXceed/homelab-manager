@@ -79,7 +79,6 @@ class ServerService:
     def full_sync(self) -> None:
         self.context.app.backup_manager.issue_full_sync(self)
 
-
     def backup(self, backup_config: ServiceBackupConfig, nothread=False) -> None:
         for backup_target in backup_config.targets:
             agent = Agent.get_from_id_str(backup_target.get("server",""))
@@ -165,17 +164,25 @@ class ServerService:
         return responses
 
     def start_on(
-        self, agent: Agent, cmd_context: CommandContext | None = None
+        self, agent: Agent, cmd_context: CommandContext | None = None, do_not_sync_restore = False
     ) -> tuple[bool, str]:
         if not agent.db_server:
             raise RuntimeError(f"Agent {agent.name} not initialized")
+        if self.db_element.server and self.db_element.server.id == agent.db_server.id:
+            return False, "Service already running on this server"
         self.db_element.server = agent.db_server
         self.context.database.session.commit()
+        if not do_not_sync_restore:
+            self.restore_sync()
         self.need_update = True
         self.finish_init(cmd_context)
         self.context.event_manager.trigger_event("service_update", cmd_context)
         is_error, error_message = agent.start_service(self.id)
         return is_error, error_message
+
+    def restore_sync(self) -> None:
+        if self.sync_storage:
+            self.context.app.backup_manager.issue_sync_restore(self, self.sync_storage)
 
     def unassign(self, cmd_context: CommandContext | None = None) -> None:
         agent = self.get_agent()

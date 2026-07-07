@@ -1,4 +1,3 @@
-from doctest import debug
 from ssl import SSLSocket
 import traceback
 import threading
@@ -36,39 +35,53 @@ class BackupManager:
 
     def issue_full_sync(self, service: ServerService, connect_timeout=20) -> bool:
         if service.sync_storage:
-            transaction_id = self.create_transaction()
-            service_agent = service.get_agent()
-            backup_agent = service.sync_storage.agent
-            path = service.sync_storage.path
-            if not service_agent or not backup_agent:
-                logger.error(f"service or backup agent not found: {service_agent}, {backup_agent}")
-                return False
-            r_service = []
-            r_reciver = []
-            def _t1(r_reciver):
-                r_reciver.append(backup_agent.send_pingpong({
-                    "type": "init_sync_as_storage",
-                    "service": service.id,
-                    "transaction_id": transaction_id,
-                    "datas": service.datas,
-                    "path": path
-                }, timeout=3600))
-            def _t2(r_service):
-                r_service.append(service_agent.send_pingpong({
-                    "type": "init_sync_as_service",
-                    "service": service.id,
-                    "datas": service.datas,
-                    "transaction_id": transaction_id,
-                }, timeout=3600))
-            threading.Thread(target=_t1, args=(r_reciver,)).start()
-            threading.Thread(target=_t2, args=(r_service,)).start()
-            s = time.time()
-            while not self.context.kill_switch and time.time() - s < connect_timeout and len(self.backups[transaction_id]["clients"]) < 2:
-                time.sleep(0.5)
-            r = self.handle_request(True, None, transaction_id, r_service, r_reciver, CommandContext())
-            return r
+            return self.sync_request(False, service, service.sync_storage, connect_timeout)
         else:
+            logger.error(f"Service {service.id} does not have a sync storage configured. But tried to issue a full sync request.")
             return False
+
+    def issue_sync_restore(self, service: ServerService, from_storage: ServerStorage, connect_timeout=20) -> bool:
+        return self.sync_request(True, service, from_storage, connect_timeout)
+
+    def sync_request(self, is_restore: bool, service, storage: ServerStorage, connect_timeout: int) -> bool:
+        transaction_id = self.create_transaction()
+        if is_restore:
+            service_agent = storage.agent
+            backup_agent = service.get_agent()
+        else:
+            service_agent = service.get_agent()
+            backup_agent = storage.agent
+        path = storage.path
+        if not service_agent or not backup_agent:
+            logger.error(f"service or backup agent not found: {service_agent}, {backup_agent}")
+            return False
+        r_service = []
+        r_reciver = []
+        keyword = "init_sync"
+        if is_restore:
+            keyword = "init_sync_restore"
+        def _t1(r_reciver):
+            r_reciver.append(backup_agent.send_pingpong({
+                "type": f"{keyword}_as_storage",
+                "service": service.id,
+                "transaction_id": transaction_id,
+                "datas": service.datas,
+                "path": path
+            }, timeout=3600))
+        def _t2(r_service):
+            r_service.append(service_agent.send_pingpong({
+                "type": f"{keyword}_as_service",
+                "service": service.id,
+                "datas": service.datas,
+                "transaction_id": transaction_id,
+            }, timeout=3600))
+        threading.Thread(target=_t1, args=(r_reciver,)).start()
+        threading.Thread(target=_t2, args=(r_service,)).start()
+        s = time.time()
+        while not self.context.kill_switch and time.time() - s < connect_timeout and len(self.backups[transaction_id]["clients"]) < 2:
+            time.sleep(0.5)
+        r = self.handle_request(True, None, transaction_id, r_service, r_reciver, CommandContext())
+        return r
 
     def issue_backup(self, from_config: ServiceBackupConfig, to_storage: ServerStorage, connect_timeout=20) -> bool:
         return self.send_request(False, from_config, to_storage, connect_timeout, CommandContext())
@@ -120,7 +133,7 @@ class BackupManager:
             time.sleep(0.5)
         r = self.handle_request(is_restore, from_config, transaction_id, r_service, r_reciver, cmd_context)
         if is_restore:
-            from_config.service.start_on(service_agent, cmd_context)
+            from_config.service.start_on(service_agent, cmd_context, do_not_sync_restore=True)
         return r
 
     def handle_request(self, is_restore: bool, from_config: ServiceBackupConfig|None, transaction_id: str, r_service, r_reciver, cmd_context: CommandContext) -> bool:
@@ -180,29 +193,30 @@ class BackupManager:
 
     def handle_datas(self, datas, client: SSLSocket) -> None:
         parts = datas.split("?")
-        if len(parts) != 4:
+        if len(parts) != 5:
             client.sendall(b"ERROR")
         else:
             for_service = parts[0]
             file_length = parts[1]
             file_name = parts[2]
             mod_time = parts[3]
+            permissions = parts[4]
             service = self.context.app.services.get(for_service)
             if service and service.sync_storage:
                 to_agent = service.sync_storage.agent.id
                 if to_agent in self.full_time_clients.keys():
-                    while self.full_time_clients[to_agent]["lock"]:
+                    while self.full_time_clients[to_agent]["recv"]["lock"]:
                         logger.info(f"Waiting for lock to be released for agent {to_agent}")
                         time.sleep(0.1)
-                    self.full_time_clients[to_agent]["lock"] = True
+                    self.full_time_clients[to_agent]["recv"]["lock"] = True
                     try:
-                        socket = self.full_time_clients[to_agent]["socket"]
-                        payload = f"{service.id}?{service.sync_storage.path}?{file_length}?{file_name}?{mod_time}\n"
+                        socket = self.full_time_clients[to_agent]["recv"]["socket"]
+                        payload = f"{service.id}?{service.sync_storage.path}?{file_length}?{file_name}?{mod_time}?{permissions}\n"
                         socket.sendall(payload.encode())
                         self.relay_file(int(file_length), client, socket)
-                        self.full_time_clients[to_agent]["lock"] = False
+                        self.full_time_clients[to_agent]["recv"]["lock"] = False
                     except Exception as e:
-                        self.full_time_clients[to_agent]["lock"] = False
+                        self.full_time_clients[to_agent]["recv"]["lock"] = False
                         logger.info(f"Error relaying file: {e}")
                         client.sendall(b"ERROR")
                 else:
@@ -245,20 +259,29 @@ class BackupManager:
                         else:
                             client_socket.sendall(b"ERROR")
                     elif connection_type == "full":
-                        agent_api_key = parts[1]
-                        agent = Agent.check_api_key(agent_api_key)
-                        if agent:
-                            th = threading.Thread(target=self.handle_client, args=(client_socket,), daemon=True)
-                            th.start()
-                            self.full_time_clients[agent[0].get("id")] = {
-                                "socket": client_socket,
-                                "thread": th,
-                                "lock": False
-                            }
-                            client_socket.sendall(b"OK")
+                        role = parts[1]
+                        agent_api_key = parts[2]
+                        if role in ["recv", "send"]:
+                            agent = Agent.check_api_key(agent_api_key)
+                            if agent:
+                                element = {
+                                    "socket": client_socket,
+                                    "thread": None,
+                                    "lock": False
+                                }
+                                if role == "send": # If the role is "send", we need to start a thread to handle incoming data from this client
+                                    th = threading.Thread(target=self.handle_client, args=(client_socket,), daemon=True)
+                                    th.start()
+                                    element["thread"] = th
+                                if not self.full_time_clients.get(agent[0].get("id")):
+                                    self.full_time_clients[agent[0].get("id")] = {}
+                                self.full_time_clients[agent[0].get("id")][role] = element
+                                client_socket.sendall(b"OK")
+                            else:
+                                client_socket.sendall(b"ERROR")
                         else:
                             client_socket.sendall(b"ERROR")
                     else:
                         client_socket.sendall(b"ERROR")
             except Exception as e:
-                logger.info(e)
+                raise e

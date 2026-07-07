@@ -197,7 +197,8 @@ def after_full_cleanup(backups_folder: str, service: str, max_size: int, max_age
 def send_file(sock: SSLSocket, file_path: str, file_path_to_send: str):
     fsize = os.path.getsize(file_path)
     mtime = os.path.getmtime(file_path)
-    sock.sendall(f"{fsize}?{file_path_to_send}?{mtime}\n".encode())
+    permissions = oct(os.stat(file_path).st_mode)[-3:]
+    sock.sendall(f"{fsize}?{file_path_to_send}?{mtime}?{permissions}\n".encode())
     send_file_raw(file_path, sock)
 
 
@@ -215,15 +216,15 @@ def recv_file(sock: SSLSocket, save_path: str) -> bool:
         return True
     if not file_infos:
         return False
-    if not file_infos.count("?") == 2:
+    if not file_infos.count("?") == 3:
         debug(f"Invalid file info received: {file_infos}. Protocol violation!")
         return True
-    fsize_str, file_path, mod_date = file_infos.split("?", 2)
+    fsize_str, file_path, mod_date, permissions = file_infos.split("?", 3)
     fsize = int(fsize_str)
     full_save_path = os.path.join(save_path, file_path)
-    return recv_file_raw(full_save_path, sock, fsize, mod_date)
+    return recv_file_raw(full_save_path, sock, fsize, mod_date, permissions)
 
-def recv_file_raw(full_save_path: str, sock: SSLSocket, fsize: int, mod_date: str) -> bool:
+def recv_file_raw(full_save_path: str, sock: SSLSocket, fsize: int, mod_date: str, permissions: str) -> bool:
     try:
         bytes_received = 0
         os.makedirs(os.path.dirname(full_save_path), exist_ok=True)
@@ -244,8 +245,9 @@ def recv_file_raw(full_save_path: str, sock: SSLSocket, fsize: int, mod_date: st
             bytes_received += len(chunk)
     try:
         os.utime(full_save_path, (float(mod_date), float(mod_date)))
+        os.chmod(full_save_path, int(permissions, 8))
     except Exception as e:
-        debug(f"Error setting modification time for {full_save_path}: {e}")
+        debug(f"Error setting modification time & permissions for {full_save_path}: {e}")
     return False
 
 def restore_files(files: list, base_path: str, client: SSLSocket, is_incremental: bool = False) -> str:

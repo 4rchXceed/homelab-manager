@@ -108,8 +108,14 @@ class RuntimeConfig:
     def reload_assignments(self, cmd_context: CommandContext):
         # Check for modifications and additions on assignments
         cmd_context.output_print("Checking for changes in service assignments...")
-        for service_id, server_id in self.assignments.items():
+        for service_id, server_config in self.assignments.items():
             service = ServerService.get_from_id_str(service_id)
+            if isinstance(server_config, str):
+                server_id = server_config
+                do_not_sync = False
+            else:
+                server_id = server_config.get("server", "")
+                do_not_sync = server_config.get("doNotSync", False)
             agent = Agent.get_from_id_str(server_id)
             if not service or not agent or not agent.db_server:
                 cmd_context.output_print(
@@ -118,14 +124,14 @@ class RuntimeConfig:
             else:
                 if not service.db_element.server:
                     cmd_context.output_print(f"Starting {service_id} on {server_id}...")
-                    service.start_on(agent, cmd_context)
+                    service.start_on(agent, cmd_context, do_not_sync_restore=do_not_sync)
                 elif service.db_element.server.id != agent.db_server.id:
                     cmd_context.output_print(
                         f"Stopping {service_id} on {service.db_element.server.id_str}..."
                     )
                     service.unassign(cmd_context)
                     cmd_context.output_print(f"Starting {service_id} on {server_id}...")
-                    service.start_on(agent, cmd_context)
+                    service.start_on(agent, cmd_context, do_not_sync_restore=do_not_sync)
                 else:
                     cmd_context.output_print(
                         f"{service_id} is already on {server_id} -> no action required"
@@ -147,7 +153,7 @@ class RuntimeConfig:
         for service_id, service in self.context.app.services.items():
             if service.db_element.server:
                 self.assignments[service_id] = service.db_element.server.id_str
-        self.config_raw = {"assignments": self.assignments, "backupAssignments": self.backup_assignments}
+        self.config_raw = {"assignments": self.assignments, "backupAssignments": self.backup_assignments, "syncs": self.syncs}
         with open(self.config_path, "w", encoding="utf-8") as f_dst:
             json.dump(self.config_raw, f_dst, indent=4)
 
@@ -166,7 +172,7 @@ class RuntimeConfig:
                 f_dst.write("{}")
 
         self.config_raw = parse_json_file(runtime_config)
-        self.assignments: dict[str, str] = self.config_raw.get("assignments", {})
+        self.assignments: dict[str, str|dict] = self.config_raw.get("assignments", {})
         self.backup_assignments: dict = self.config_raw.get("backupAssignments", {})
         self.syncs = self.config_raw.get("syncs", {})
         self.reload_backup_assignments()

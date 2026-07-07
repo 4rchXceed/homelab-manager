@@ -168,3 +168,13 @@ The backup system is not finished. I'm going to work on it tomorrow. Here what's
 The sync system is here, but I still need to implement the core functionality: when assigning a service to a new agent, it should automatically sync the data from the service to the agent. This is not implemented yet
 
 ### Commit message: `New runtime config type: syncs, 2 new tests: 23_test-service-sync, 24_test-service-full-sync, new command: sync:full, fixed some bugs. See CHANGELOG.md for more details.`
+
+## LAST: ab2a6d5cf5a79c11625c30eb880c57abc996ff08
++ New commands:
+  - backup:delete -> deletes a backup (with alot of confirmations)
+  - var:get, var:list -> get a variable value, list all variables
++ Added file permission support to the backup system (so you can backup files with their permissions)
+~ Modified some tests to also test the file permissions (for backup system)
+~ Other small changes
+
+### Commit message: `New commands: backup:delete, var:get, var:list. Added file permission support to the backup system. Modified some tests to also test the file permissions. Other small changes. See CHANGELOG.md for more details.`

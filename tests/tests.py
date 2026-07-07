@@ -639,6 +639,9 @@ class TestHomelabManager():
         print("ok")
         size = self.folder_size("tmp/agent02/services/22_test-incremental-backup-restore/data", except_files=["index.json"])
         assert size == 2097138, f"Test incremental backup failed: folder size is {size}, not 2097138 bytes"
+        file_to_check = "tmp/agent02/services/22_test-incremental-backup-restore/data/sampledatas.pdf"
+        perms = oct(os.stat(file_to_check).st_mode & 0o777)
+        assert perms == "0o777", f"Test incremental backup failed: file permissions are {perms}, not 0o777"
         self.ok(nbr)
 
     # Tests the services sync
@@ -672,6 +675,8 @@ class TestHomelabManager():
         instance.send_command("config:runtime reload") # config:reload does a full sync of services. This is where we will test the full sync of services.
         shutil.copyfile("tmp/agent02/services/24_test-service-full-sync/sampledatas.pdf", os.path.join(base_data_path, "samplefile1.bin"))
         shutil.copyfile("tmp/agent02/services/24_test-service-full-sync/sampledatas.pdf", os.path.join(base_data_path, "samplefile2.bin"))
+        # Test permissions:
+        os.chmod(os.path.join(base_data_path, "samplefile1.bin"), 0o777)
         subprocess.run("./create_datas_stage1.sh", shell=True, check=True, cwd="tmp/agent02/services/24_test-service-full-sync")
         subprocess.run("./create_datas_stage2.sh", shell=True, check=True, cwd="tmp/agent02/services/24_test-service-full-sync")
         s = time.time()
@@ -681,6 +686,18 @@ class TestHomelabManager():
             print(".", end="", flush=True)
         print("ok")
         assert self.folder_size("tmp/agent01/test-storage/", except_files=["index.json"]) == 4194284, f"Test service sync failed: folder size is {self.folder_size('tmp/agent01/test-storage/', except_files=['index.json'])}, not 4194284 bytes"
+        instance.send_command("service:unassign 24_test-service-full-sync")
+        instance.send_command("service:assign 24_test-service-full-sync agent01") # Check the "auto-sync" feature of the service:assign command. It should sync the service's data to the agent01.
+        s = time.time()
+        path = "tmp/agent01/services/24_test-service-full-sync/data"
+        print("Waiting for test result.", end="", flush=True)
+        while time.time() - s < 5 and not self.folder_size(path, except_files=["index.json"]) == 4194284:
+            time.sleep(1)
+            print(".", end="", flush=True)
+        print("ok")
+        assert self.folder_size(path, except_files=["index.json"]) == 4194284, f"Test service sync failed: folder size is {self.folder_size(path, except_files=['index.json'])}, not 4194284 bytes"
+        file_perm = oct(os.stat(os.path.join(path, "samplefile1.bin")).st_mode & 0o777)
+        assert file_perm == "0o777", f"Test service sync failed: permissions of samplefile1.bin are {file_perm}, not 0o777"
         self.ok(nbr)
 
     def folder_size(self, folder: str, except_files: list[str] = []) -> int:

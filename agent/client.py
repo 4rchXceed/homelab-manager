@@ -115,7 +115,7 @@ class Client:
         self.keepalive_thread = threading.Thread(target=self.keepalive_check)
         self.keepalive_thread.start()
         self.sync_services()
-        self.connect_transfer_socket()
+        self.connect_transfer_sockets()
         self.file_queue_thread = threading.Thread(target=self.file_queue_processor)
         self.file_queue_thread.start()
         services = self.service_manager.list_services()
@@ -152,20 +152,27 @@ class Client:
         while not self.stop:
             entry = self.file_queue.get()
             if entry:
-                self.backup_manager.sync_file_to_storage(entry.service, entry.file_path, entry.file_name, self.transfer_socket)
+                self.backup_manager.sync_file_to_storage(entry.service, entry.file_path, entry.file_name, self.transfer_socket_send)
                 self.file_queue.task_done()
             time.sleep(0.1)
 
-    def connect_transfer_socket(self):
+    def connect_transfer_socket(self, role: str):
         if AgentConfig.instance:
-            self.transfer_socket = self.ssl_context.wrap_socket(socket.socket(socket.AF_INET, socket.SOCK_STREAM), server_hostname=AgentConfig.instance.server["host"])
-            self.transfer_socket.connect((AgentConfig.instance.server["host"], AgentConfig.instance.backup_relay_port))
-            payload = f"full:{self.config.server['api_key']}"
-            self.transfer_socket.send(payload.encode())
-            if self.transfer_socket.recv(1024).decode() != "OK":
+            transfer_socket = self.ssl_context.wrap_socket(socket.socket(socket.AF_INET, socket.SOCK_STREAM), server_hostname=AgentConfig.instance.server["host"])
+            transfer_socket.connect((AgentConfig.instance.server["host"], AgentConfig.instance.backup_relay_port))
+            payload = f"full:{role}:{self.config.server['api_key']}"
+            transfer_socket.send(payload.encode())
+            if transfer_socket.recv(1024).decode() != "OK":
                 raise ConnectionError("Failed to connect to transfer socket")
-            self.transfer_socket_thread = threading.Thread(target=self.backup_manager.handle_as_storage, args=(self.transfer_socket,))
-            self.transfer_socket_thread.start()
+            return transfer_socket
+        else:
+            raise RuntimeError("AgentConfig not initialized")
+
+    def connect_transfer_sockets(self):
+        self.transfer_socket_recv = self.connect_transfer_socket(role="recv")
+        self.transfer_socket_send = self.connect_transfer_socket(role="send")
+        self.transfer_socket_thread = threading.Thread(target=self.backup_manager.handle_as_storage, args=(self.transfer_socket_recv,))
+        self.transfer_socket_thread.start()
 
     def queue_processor(self):
         while not self.stop:
@@ -376,6 +383,33 @@ class Client:
                     "type": "list_available_backups_report",
                     "success": True,
                     "backups": backups,
+                }
+            elif message.get("type", "") == "init_sync_restore_as_storage":
+                service = message.get("service", "")
+                transaction_id = message.get("transaction_id", "")
+                path = message.get("path", "")
+                success = self.backup_manager.init_sync_restore_as_storage(service, path, transaction_id, self.ssl_context)
+                return {
+                    "type": "init_sync_restore_as_storage_report",
+                    "success": success,
+                }
+            elif message.get("type", "") == "init_sync_restore_as_service":
+                service = message.get("service", "")
+                transaction_id = message.get("transaction_id", "")
+                datas = message.get("datas", [])
+                success = self.backup_manager.init_restore_as_client(service, transaction_id, datas, self.ssl_context, os.path.join(self.config.services_folder, service))
+                return {
+                    "type": "init_sync_restore_as_service_report",
+                    "success": success,
+                }
+            elif message.get("type", "") == "delete_backups":
+                path = message.get("path", "")
+                service_id = message.get("service_id", "")
+                type = message.get("b_type", "")
+                success = self.backup_manager.delete_backups(path, service_id, type)
+                return {
+                    "type": "delete_backups_report",
+                    "success": success,
                 }
             elif message.get("type", "") == "gen_config":
                 path = os.path.join(

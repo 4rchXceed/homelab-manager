@@ -388,7 +388,7 @@ class ServerApp:
                                     != agent.db_server.id
                                 ):
                                     log_warning(
-                                        f"Service {name} is supposed to be running on server {server_service.db_element.server}, but is running on server {agent.name}. (Did you start it manually? If so, please use the manager...)"
+                                        f"Service {name} is supposed to be running on server {server_service.db_element.server.id_str}, but is running on server {agent.name}. (Did you start it manually? If so, please use the manager...)"
                                         + "Generating report of the issue..."
                                     )
                                     real_agent = server_service.get_agent()
@@ -542,7 +542,7 @@ class ServerApp:
         command_context = CommandContext()
 
         def output(msg: str):
-            socket.sendall(msg.encode())
+            socket.sendall((msg+"\n").encode())
 
         def input(msg: str):
             socket.sendall((msg + "::INPUT").encode())

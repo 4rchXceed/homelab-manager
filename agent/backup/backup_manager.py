@@ -40,49 +40,52 @@ class BackupManager:
         all_ok = True
         client = connect_as(transaction_id, "service", ssl_context)
         if client:
-            ready_response = client.recv(1024).decode()
-            if ready_response == "START":
-                if type == "incremental":
-                    debug(f"Starting incremental backup for service {service}: generating summary and sending to client...")
-                    summary = create_backup_summary_client(os.path.join(services_folder, service), datas)
-                    client.sendall(f"{json.dumps(summary)}\n".encode())
-                    debug(f"Summary sent to client: waiting for changes...")
-                    changes = json.loads(buffered_recv(client))
-                    debug(f"Changes received: starting to send files...")
-                    for change in changes:
-                        file_path = os.path.join(backup_from_path, change)
-                        try:
-                            if os.path.exists(file_path) and os.path.isfile(file_path):
-                                send_file(client, file_path, change.removeprefix(os.sep))
-                            else:
-                                debug(f"File {file_path} does not exist or is not a file.")
-                                all_ok = False
-                        except Exception as e:
-                            debug(f"Error sending file {file_path}: {e}")
+            start_msg = client.recv(1024).decode()
+            if start_msg != "START":
+                debug(f"Protocol error: expected START message, got {start_msg}")
+                client.close()
+                return False
+            if type == "incremental":
+                debug(f"Starting incremental backup for service {service}: generating summary and sending to client...")
+                summary = create_backup_summary_client(os.path.join(services_folder, service), datas)
+                client.sendall(f"{json.dumps(summary)}\n".encode())
+                debug(f"Summary sent to client: waiting for changes...")
+                changes = json.loads(buffered_recv(client))
+                debug(f"Changes received: starting to send files...")
+                for change in changes:
+                    file_path = os.path.join(backup_from_path, change)
+                    try:
+                        if os.path.exists(file_path) and os.path.isfile(file_path):
+                            send_file(client, file_path, change.removeprefix(os.sep))
+                        else:
+                            debug(f"File {file_path} does not exist or is not a file.")
                             all_ok = False
-                    if all_ok:
-                        debug(f"All files sent successfully")
-                    else:
-                        debug(f"Some files failed to send")
-                if type == "full":
-                    for data in [data for data in datas if not data.startswith("!")]:
-                        data_path = os.path.join(backup_from_path, data)
+                    except Exception as e:
+                        debug(f"Error sending file {file_path}: {e}")
+                        all_ok = False
+                if all_ok:
+                    debug(f"All files sent successfully")
+                else:
+                    debug(f"Some files failed to send")
+            if type == "full":
+                for data in [data for data in datas if not data.startswith("!")]:
+                    data_path = os.path.join(backup_from_path, data)
 
-                        if os.path.exists(data_path) and os.path.isdir(data_path):
-                            for root, _, files in os.walk(data_path):
-                                for file in files:
-                                    file_path = os.path.join(root, file)
-                                    try:
-                                        send_file(client, file_path, strip_path(file_path, backup_from_path).removeprefix(os.sep))
-                                    except Exception as e:
-                                        debug(f"Error sending file {file_path}: {e}")
-                                        all_ok = False
-                        elif os.path.isfile(data_path):
-                            try:
-                                send_file(client, data_path, strip_path(data_path, backup_from_path).removeprefix(os.sep))
-                            except Exception as e:
-                                debug(f"Error sending file {data_path}: {e}")
-                                all_ok = False
+                    if os.path.exists(data_path) and os.path.isdir(data_path):
+                        for root, _, files in os.walk(data_path):
+                            for file in files:
+                                file_path = os.path.join(root, file)
+                                try:
+                                    send_file(client, file_path, strip_path(file_path, backup_from_path).removeprefix(os.sep))
+                                except Exception as e:
+                                    debug(f"Error sending file {file_path}: {e}")
+                                    all_ok = False
+                    elif os.path.isfile(data_path):
+                        try:
+                            send_file(client, data_path, strip_path(data_path, backup_from_path).removeprefix(os.sep))
+                        except Exception as e:
+                            debug(f"Error sending file {data_path}: {e}")
+                            all_ok = False
 
             client.sendall(b"END\n")
             client.close() # Close signal announces the end of the transfer
@@ -183,11 +186,13 @@ class BackupManager:
                         "files_total": files_to_check,
                         "restoring_files": files_changed
                     }, f, indent=4)
-
+            # debug(f"Files start: {files_to_check}, Files to restore: {files_changed}")
             client.sendall(f"{json.dumps(files_changed)}\n".encode())
             while ok:
                 ok = not recv_file(client, restore_path)
             client.close()
+        else:
+            return False
         return True
 
     def init_full_sync_as_service(self, service: str, transaction_id: str, datas: list[str], ssl_context: SSLContext) -> bool:
@@ -197,36 +202,38 @@ class BackupManager:
         all_ok = True
         client = connect_as(transaction_id, "service", ssl_context)
         if client:
-            ready_response = client.recv(1024).decode()
-            if ready_response == "START":
-                services_folder = AgentConfig.instance.services_folder
-                sync_path = os.path.join(services_folder, service)
-                files_to_check: list[dict[str,str]] = [] # List of dicts with keys "path", "hash"
-                # Send only the datas
-                for data in datas:
-                    data_clean = data.removeprefix("./").removesuffix("/")
-                    data_path = os.path.join(sync_path, data_clean)
-                    if os.path.exists(data_path) and os.path.isdir(data_path):
-                        for root, _, files in os.walk(data_path):
-                            for file in files:
-                                file_path = os.path.join(root, file)
-                                relative_path = strip_path(file_path, sync_path).removeprefix(os.sep)
-                                try:
-                                    files_to_check.append({"path": relative_path, "hash": hash_file(file_path)})
-                                except OSError:
-                                    continue
-                    elif os.path.isfile(data_path):
-                        relative_path = strip_path(data_path, sync_path).removeprefix(os.sep)
-                        try:
-                            files_to_check.append({"path": relative_path, "hash": hash_file(data_path)})
-                        except OSError:
-                            continue
-                client.sendall(f"{json.dumps(files_to_check)}\n".encode())
-                r = buffered_recv(client)
-                files_to_restore = json.loads(r)
+            start_msg = client.recv(1024).decode()
+            if start_msg != "START":
+                debug(f"Protocol error: expected START message, got {start_msg}")
+                client.close()
+                return False
+            services_folder = AgentConfig.instance.services_folder
+            sync_path = os.path.join(services_folder, service)
+            files_to_check: list[dict[str,str]] = [] # List of dicts with keys "path", "hash"
+            # Send only the datas
+            for data in datas:
+                data_clean = data.removeprefix("./").removesuffix("/")
+                data_path = os.path.join(sync_path, data_clean)
+                if os.path.exists(data_path) and os.path.isdir(data_path):
+                    for root, _, files in os.walk(data_path):
+                        for file in files:
+                            file_path = os.path.join(root, file)
+                            relative_path = strip_path(file_path, sync_path).removeprefix(os.sep)
+                            try:
+                                files_to_check.append({"path": relative_path, "hash": hash_file(file_path)})
+                            except OSError:
+                                continue
+                elif os.path.isfile(data_path):
+                    relative_path = strip_path(data_path, sync_path).removeprefix(os.sep)
+                    try:
+                        files_to_check.append({"path": relative_path, "hash": hash_file(data_path)})
+                    except OSError:
+                        continue
+            client.sendall(f"{json.dumps(files_to_check)}\n".encode())
+            r = buffered_recv(client)
+            files_to_restore = json.loads(r)
 
-                restore_files(files_to_restore, sync_path, client)
-
+            restore_files(files_to_restore, sync_path, client)
 
             client.sendall(b"END\n")
             client.close() # Close signal announces the end of the transfer
@@ -254,69 +261,116 @@ class BackupManager:
         client = connect_as(transaction_id, "service", ssl_context) # "services" is the first connection, "backup" is the second connection
         if client:
             start_msg = client.recv(1024).decode()
-            if start_msg == "START":
-                if type == "incremental":
-                    base_path = os.path.join(path, service, "incremental")
+            if start_msg != "START":
+                debug(f"Protocol error: expected START message, got {start_msg}")
+                client.close()
+                return False, f"Protocol error: expected START message, got {start_msg}"
+            if type == "incremental":
+                base_path = os.path.join(path, service, "incremental")
 
-                    # Get all folders from the base to the restore_path
-                    if restore_path == "base":
-                        current_folders = ["base"]
-                    else:
-                        all_folders = all_versions_folders(base_path)
-                        all_folders.insert(0, "base")  # We add the base folder to the list of folders to check
-                        current_index = all_folders.index(restore_path)
-                        current_folders = all_folders[:current_index + 1]
-                    files_to_check: list[dict[str,str]] = [] # List of dicts with keys "path", "hash"
-                    for folder in current_folders:
-                        folder_path = os.path.join(base_path, folder)
-                        for root, _, files in os.walk(folder_path):
-                            for file in files:
-                                file_path = os.path.join(root, file)
-                                relative_path = strip_path(file_path, folder_path).removeprefix(os.sep)
-                                try:
-                                    files_to_check.append({"path": relative_path, "hash": hash_file(file_path), "folder": folder})
-                                except OSError:
-                                    continue
-                    client.sendall(f"{json.dumps(files_to_check)}\n".encode())
-                    files_to_restore = json.loads(buffered_recv(client))
-
-                    messages += restore_files(files_to_restore, base_path, client, is_incremental=True)
-
-                if type == "full":
-                    files_to_check: list[dict[str,str]] = [] # List of dicts with keys "path", "hash"
-                    for root, _, files in os.walk(full_path):
+                # Get all folders from the base to the restore_path
+                if restore_path == "base":
+                    current_folders = ["base"]
+                else:
+                    all_folders = all_versions_folders(base_path)
+                    all_folders.insert(0, "base")  # We add the base folder to the list of folders to check
+                    current_index = all_folders.index(restore_path)
+                    current_folders = all_folders[:current_index + 1]
+                files_to_check: list[dict[str,str]] = [] # List of dicts with keys "path", "hash"
+                for folder in current_folders:
+                    folder_path = os.path.join(base_path, folder)
+                    for root, _, files in os.walk(folder_path):
                         for file in files:
                             file_path = os.path.join(root, file)
-                            relative_path = strip_path(file_path, full_path).removeprefix(os.sep)
+                            relative_path = strip_path(file_path, folder_path).removeprefix(os.sep)
                             try:
-                                files_to_check.append({"path": relative_path, "hash": hash_file(file_path)})
+                                files_to_check.append({"path": relative_path, "hash": hash_file(file_path), "folder": folder})
                             except OSError:
                                 continue
+                client.sendall(f"{json.dumps(files_to_check)}\n".encode())
+                files_to_restore = json.loads(buffered_recv(client))
 
-                    client.sendall(f"{json.dumps(files_to_check)}\n".encode())
-                    files_to_restore = json.loads(buffered_recv(client))
+                messages += restore_files(files_to_restore, base_path, client, is_incremental=True)
 
-                    messages += restore_files(files_to_restore, full_path, client)
+            if type == "full":
+                files_to_check: list[dict[str,str]] = [] # List of dicts with keys "path", "hash"
+                for root, _, files in os.walk(full_path):
+                    for file in files:
+                        file_path = os.path.join(root, file)
+                        relative_path = strip_path(file_path, full_path).removeprefix(os.sep)
+                        try:
+                            files_to_check.append({"path": relative_path, "hash": hash_file(file_path)})
+                        except OSError:
+                            continue
+
+                client.sendall(f"{json.dumps(files_to_check)}\n".encode())
+                files_to_restore = json.loads(buffered_recv(client))
+
+                messages += restore_files(files_to_restore, full_path, client)
             client.sendall("END\n".encode())
             client.close()
         return True, messages
 
+    def init_sync_restore_as_storage(self, service: str, path: str, transaction_id: str, ssl_context: SSLContext) -> bool:
+        full_path = os.path.join(path, service, "sync")
+        if not os.path.exists(full_path):
+            os.makedirs(full_path, exist_ok=True)
+        client = connect_as(transaction_id, "service", ssl_context)
+        if client:
+            start_msg = client.recv(1024).decode()
+            if start_msg != "START":
+                debug(f"Protocol error: expected START message, got {start_msg}")
+                client.close()
+                return False
+            files_to_check: list[dict[str,str]] = [] # List of dicts with keys "path", "hash"
+            for root, _, files in os.walk(full_path):
+                for file in files:
+                    file_path = os.path.join(root, file)
+                    relative_path = strip_path(file_path, full_path).removeprefix(os.sep)
+                    try:
+                        files_to_check.append({"path": relative_path, "hash": hash_file(file_path)})
+                    except OSError:
+                        continue
+
+            client.sendall(f"{json.dumps(files_to_check)}\n".encode())
+            files_to_restore = json.loads(buffered_recv(client))
+            restore_files(files_to_restore, full_path, client)
+            client.sendall("END\n".encode())
+            client.close()
+            return True
+        else:
+            return False
+
     def sync_file_to_storage(self, service: str, file_path: str, file_name: str, transfer_socket: SSLSocket) -> None:
         file_size = os.path.getsize(file_path)
         modification_time = os.path.getmtime(file_path)
-        payload = f"{service}?{file_size}?{file_name}?{modification_time}\n"
+        permissions = oct(os.stat(file_path).st_mode)[-3:]
+        payload = f"{service}?{file_size}?{file_name}?{modification_time}?{permissions}\n"
         transfer_socket.sendall(payload.encode())
         send_file_raw(file_path, transfer_socket)
+
+    def delete_backups(self, path: str, service: str, type: str) -> bool:
+        backup_path = os.path.join(path, service, type)
+        if os.path.exists(backup_path):
+            try:
+                shutil.rmtree(backup_path)
+                debug(f"Deleted backups for service {service} of type {type} at {backup_path}.")
+                return True
+            except Exception as e:
+                debug(f"Error deleting backups for service {service} of type {type} at {backup_path}: {e}")
+                return False
+        else:
+            debug(f"No backups found for service {service} of type {type} at {backup_path}.")
+            return False
 
     def handle_as_storage(self, sock: SSLSocket):
         stop = False
         while not stop:
             datas = buffered_recv(sock)
-            if datas.count("?") == 4:
+            if datas.count("?") == 5:
                 parts = datas.split("?")
                 service = parts[0]
                 path = parts[1]
-                debug(f"RECEIVING FILE FOR SERVICE {service} IN PATH {path}")
                 try:
                     file_size = int(parts[2])
                 except:
@@ -324,9 +378,10 @@ class BackupManager:
                     continue
                 file_name = parts[3]
                 modification_time = parts[4]
+                permissions = parts[5].strip()
                 parent_path = os.path.join(path, service, "sync")
                 full_path = os.path.join(parent_path, file_name)
-                recv_file_raw(full_path, sock, file_size, modification_time)
+                recv_file_raw(full_path, sock, file_size, modification_time, permissions)
             else:
                 debug(f"PROTOCOL ERROR: INVALID HEADER: {datas}")
                 if not datas:
@@ -357,4 +412,10 @@ class BackupManager:
                             backups[service][backup_type] = []
                             for folder in all:
                                 backups[service][backup_type].append({"folder": folder})
+                if os.path.exists(os.path.join(service_path, "sync")):
+                    backups[service]["sync"] = []
+                    if with_size:
+                        backups[service]["sync"].append({"folder": "sync", "size": folder_size(os.path.join(service_path, "sync"))})
+                    else:
+                        backups[service]["sync"].append({"folder": "sync"})
         return backups
