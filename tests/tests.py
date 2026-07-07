@@ -1,3 +1,4 @@
+import subprocess
 import signal
 import json5
 import json
@@ -481,10 +482,173 @@ class TestHomelabManager():
         assert self.folder_size("tmp/agent01/test-storage") == 25, "Test backup full failed: folder size is not 25 bytes"
         self.ok(nbr)
 
-    def folder_size(self, folder: str) -> int:
+    # Tests the incremental backup (with commands)
+    def test_incremental_backup_1(self):
+        nbr = "19"
+        instance = HomelabManagerInstance(nbr,["agent01", "agent02"], env="RUNTIME_CONFIG_FILE=../tests/configs/runtime/19.jsonc BACKUP_DUMP=yes")
+        print("Reloading runtime config...")
+        instance.send_command("config:runtime reload no_backup_check")
+        service = "19_test-incr-backup"
+        print("Backup: stage init")
+        time.sleep(1) # 2 backups are not supposed to be at the same second, since it's classed by timestamps. You cannot define an auto backup at less than 1 minute of interval, so it's fine
+        instance.send_command(f"backup:create {service} incr_bak")
+        subprocess.run("./create_datas_stage1.sh", shell=True, check=True, cwd="tmp/agent02/services/19_test-incr-backup")
+        print("Backup: stage 1")
+        time.sleep(1)
+        instance.send_command(f"backup:create {service} incr_bak")
+        subprocess.run("./create_datas_stage2.sh", shell=True, check=True, cwd="tmp/agent02/services/19_test-incr-backup")
+        print("Backup: stage 2")
+        time.sleep(1)
+        instance.send_command(f"backup:create {service} incr_bak")
+        subprocess.run("./create_datas_stage3.sh", shell=True, check=True, cwd="tmp/agent02/services/19_test-incr-backup")
+        print("Backup: stage 3")
+        time.sleep(1)
+        instance.send_command(f"backup:create {service} incr_bak")
+        s = time.time()
+        print("Waiting for test result.", end="", flush=True)
+        while time.time() - s < 5 and not self.folder_size("tmp/agent01/test-storage", except_files=["index.json"]) == 2097164:
+            time.sleep(1)
+            print(".", end="", flush=True)
+        print("ok")
+        size = self.folder_size("tmp/agent01/test-storage", except_files=["index.json"])
+        assert size == 2097164, f"Test incremental backup failed: folder size is {size}, not 2097164 bytes"
+        self.ok(nbr)
+
+    # Tests the incremental backup (2, more "edge" cases) (with commands)
+    def test_incremental_backup_2(self):
+        nbr = "20"
+        if os.path.exists("configs/tests/20.jsonc"):
+            os.unlink("configs/tests/20.jsonc")
+        shutil.copyfile("configs/tests/20_bak.jsonc", "configs/tests/20.jsonc")
+        instance = HomelabManagerInstance(nbr,["agent01", "agent02"], env="RUNTIME_CONFIG_FILE=../tests/configs/runtime/20.jsonc BACKUP_DUMP=yes")
+        print("Reloading runtime config...")
+        instance.send_command("config:runtime reload no_backup_check")
+        service = "20_test-incr-backup-2"
+        print("Backup: stage init")
+        time.sleep(1) # 2 backups are not supposed to be at the same second, since it's classed by timestamps. You cannot define an auto backup at less than 1 minute of interval, so it's fine
+        instance.send_command(f"backup:create {service} incr_bak")
+        subprocess.run("./create_datas_stage1.sh", shell=True, check=True, cwd="tmp/agent02/services/20_test-incr-backup-2")
+        print("Backup: stage 1")
+        time.sleep(1)
+        instance.send_command(f"backup:create {service} incr_bak")
+        subprocess.run("./create_datas_stage2.sh", shell=True, check=True, cwd="tmp/agent02/services/20_test-incr-backup-2")
+        print("Backup: stage 2")
+        time.sleep(1)
+        instance.send_command(f"backup:create {service} incr_bak")
+        subprocess.run("./create_datas_stage3.sh", shell=True, check=True, cwd="tmp/agent02/services/20_test-incr-backup-2")
+        print("Backup: stage 3")
+        time.sleep(1)
+        instance.send_command(f"backup:create {service} incr_bak")
+        s = time.time()
+        print("Waiting for test result.", end="", flush=True)
+        while time.time() - s < 5 and not self.folder_size("tmp/agent01/test-storage", except_files=["index.json"]) == 38:
+            time.sleep(1)
+            print(".", end="", flush=True)
+        print("ok")
+        size = self.folder_size("tmp/agent01/test-storage", except_files=["index.json"])
+        assert size == 38, f"Test incremental backup failed: folder size is {size}, not 38 bytes"
+        if os.path.exists("configs/tests/20.jsonc"):
+            os.unlink("configs/tests/20.jsonc")
+        shutil.copyfile("configs/tests/20_bak_2.jsonc", "configs/tests/20.jsonc")
+        print("Reloading config...")
+        instance.send_command("config:reload")
+        print("Backup: stage 4")
+        time.sleep(1)
+        instance.send_command(f"backup:create {service} incr_bak")
+        s = time.time()
+        print("Waiting for test result.", end="", flush=True)
+        while time.time() - s < 5 and not self.folder_size("tmp/agent01/test-storage", except_files=["index.json"]) == 10:
+            time.sleep(1)
+            print(".", end="", flush=True)
+        print("ok")
+        size = self.folder_size("tmp/agent01/test-storage", except_files=["index.json"])
+        assert size == 10, f"Test incremental backup failed: folder size is {size}, not 10 bytes"
+        self.ok(nbr)
+
+    # Tests the full backup and restore (with commands)
+    def test_full_backup_restore(self):
+        nbr = "21"
+        instance = HomelabManagerInstance(nbr,["agent01", "agent02"], env="RUNTIME_CONFIG_FILE=../tests/configs/runtime/21.jsonc BACKUP_DUMP=yes")
+        print("Reloading runtime config...")
+        instance.send_command("config:runtime reload no_backup_check")
+        service = "21_test-full-backup-restore"
+        print("Backup: stage init")
+        time.sleep(1) # 2 backups are not supposed to be at the same second, since it's classed by timestamps. You cannot define an auto backup at less than 1 minute of interval, so it's fine
+        instance.send_command(f"backup:create {service} full_bak")
+        subprocess.run("./create_datas_stage1.sh", shell=True, check=True, cwd="tmp/agent02/services/21_test-full-backup-restore")
+        print("Backup: stage 1")
+        time.sleep(1)
+        instance.send_command(f"backup:create {service} full_bak")
+        subprocess.run("./create_datas_stage2.sh", shell=True, check=True, cwd="tmp/agent02/services/21_test-full-backup-restore")
+        print("Backup: stage 2")
+        time.sleep(1)
+        instance.send_command(f"backup:create {service} full_bak")
+        all_baks = os.listdir("tmp/agent01/test-storage/21_test-full-backup-restore/full/")
+        all_baks = [bak for bak in all_baks if bak != "index.json" and bak != "base"]
+        assert len(all_baks) > 0, "No incremental backups found"
+        all_baks = sorted(all_baks, key=lambda x: int(x))
+        print(f"Found backups: {all_baks}")
+        first = all_baks[0]
+        print(f"Restoring first backup: {first}")
+        instance.send_command(f"backup:restore {service} full_bak agent01 test-storage {first}")
+        print("Backup: stage 3")
+        time.sleep(1)
+        instance.send_command(f"backup:create {service} full_bak")
+        s = time.time()
+        print("Waiting for test result.", end="", flush=True)
+        while time.time() - s < 5 and not self.folder_size("tmp/agent01/test-storage", except_files=["index.json"]) == 7339991:
+            time.sleep(1)
+            print(".", end="", flush=True)
+        print("ok")
+        size = self.folder_size("tmp/agent01/test-storage", except_files=["index.json"])
+        assert size == 7339991, f"Test incremental backup failed: folder size is {size}, not 7339991 bytes"
+        self.ok(nbr)
+
+    # Tests the incremental backup and restore (with commands)
+    def test_incremental_backup_restore(self):
+        nbr = "22"
+        instance = HomelabManagerInstance(nbr,["agent01", "agent02"], env="RUNTIME_CONFIG_FILE=../tests/configs/runtime/22.jsonc BACKUP_DUMP=yes")
+        print("Reloading runtime config...")
+        instance.send_command("config:runtime reload no_backup_check")
+        service = "22_test-incremental-backup-restore"
+        print("Backup: stage init")
+        time.sleep(1) # 2 backups are not supposed to be at the same second, since it's classed by timestamps. You cannot define an auto backup at less than 1 minute of interval, so it's fine
+        instance.send_command(f"backup:create {service} incr_bak")
+        subprocess.run("./create_datas_stage1.sh", shell=True, check=True, cwd="tmp/agent02/services/22_test-incremental-backup-restore")
+        print("Backup: stage 1")
+        time.sleep(1)
+        instance.send_command(f"backup:create {service} incr_bak")
+        subprocess.run("./create_datas_stage2.sh", shell=True, check=True, cwd="tmp/agent02/services/22_test-incremental-backup-restore")
+        print("Backup: stage 2")
+        time.sleep(1)
+        instance.send_command(f"backup:create {service} incr_bak")
+        all_baks = os.listdir("tmp/agent01/test-storage/22_test-incremental-backup-restore/incremental/")
+        all_baks = [bak for bak in all_baks if bak != "index.json" and bak != "base"]
+        assert len(all_baks) > 0, "No incremental backups found"
+        all_baks = sorted(all_baks, key=lambda x: int(x))
+        print(f"Found backups: {all_baks}")
+        first = all_baks[0]
+        print(f"Restoring first backup: {first}")
+        instance.send_command(f"backup:restore {service} incr_bak agent01 test-storage {first}")
+        print("Backup: stage 3")
+        time.sleep(1)
+        instance.send_command(f"backup:create {service} incr_bak")
+        s = time.time()
+        print("Waiting for test result.", end="", flush=True)
+        while time.time() - s < 5 and not self.folder_size("tmp/agent02/services/22_test-incremental-backup-restore/data", except_files=["index.json"]) == 2097138:
+            time.sleep(1)
+            print(".", end="", flush=True)
+        print("ok")
+        size = self.folder_size("tmp/agent02/services/22_test-incremental-backup-restore/data", except_files=["index.json"])
+        assert size == 2097138, f"Test incremental backup failed: folder size is {size}, not 2097138 bytes"
+        self.ok(nbr)
+
+    def folder_size(self, folder: str, except_files: list[str] = []) -> int:
         total_size = 0
         for dirpath, _, filenames in os.walk(folder):
             for f in filenames:
+                if f in except_files:
+                    continue
                 fp = os.path.join(dirpath, f)
                 total_size += os.path.getsize(fp)
         return total_size
@@ -498,7 +662,7 @@ def main():
     args = sys.argv[1:]
     if len(args) == 0:
         print("Disclaimer: PLEASE RUN ./test_up.sh AFTER A REBOOT AND BEFORE RUNNING THIS TEST SCRIPT!")
-        print("Usage: python test_homelab_manager.py [test_number|all|logs|clear]")
+        print("Usage: python test_homelab_manager.py [test_numbers|all|logs|clear]")
         print("Available tests:")
         print("1: test_service_basic")
         print("2: test_generator_1")
@@ -518,13 +682,41 @@ def main():
         print("16: test_service_build")
         print("17: test_security_regen_cert")
         print("18: test_backup_full")
+        print("19: test_incremental_backup")
+        print("20: test_incremental_backup_2")
+        print("21: test_full_backup_restore")
+        print("22: test_incremental_backup_restore")
         print("all: run all tests")
         print("logs: print logs from the previous test run (requires the cache to be present)")
+        print("logs:reload [agentX|server]: shows the logs of the specified agent or server and auto reloads the logs every 0.5s")
         print("clear: clear the test cache")
         sys.exit(1)
-    all_args = [str(i) for i in range(1, 18 + 1)]
+    all_args = [str(i) for i in range(1, 22 + 1)]
     if args[0] == "all":
         args = all_args
+    if args[0] == "logs:reload":
+        if len(args) < 2:
+            print("Please specify the agent or server to show logs for (e.g. `python3 tests.py logs:reload agent01`)")
+            sys.exit(1)
+        target = args[1]
+        while True:
+            subprocess.run("clear", shell=True)
+            if target.startswith("agent"):
+                if os.path.exists(f"tmp/{target}/agent.log"):
+                    with open(f"tmp/{target}/agent.log", "r") as log_file:
+                        print(log_file.read())
+                else:
+                    print(f"No log file found for {target}")
+            elif target == "server":
+                if os.path.exists("test-server-logs.txt"):
+                    with open("test-server-logs.txt", "r") as log_file:
+                        print(log_file.read())
+                else:
+                    print("No log file found for server")
+            else:
+                print(f"Invalid target: {target}")
+                sys.exit(1)
+            time.sleep(0.5)
     if args[0] == "logs":
         print("Clients:")
         for f in os.listdir("tmp"):
@@ -686,6 +878,34 @@ def main():
             test.test_backup_full()
         except Exception as e:
             print(f"\033[91mTest 18 failed: {e}\033[0m")
+            print(traceback.format_exc())
+            all_ok = False
+    if "19" in args:
+        try:
+            test.test_incremental_backup_1()
+        except Exception as e:
+            print(f"\033[91mTest 19 failed: {e}\033[0m")
+            print(traceback.format_exc())
+            all_ok = False
+    if "20" in args:
+        try:
+            test.test_incremental_backup_2()
+        except Exception as e:
+            print(f"\033[91mTest 20 failed: {e}\033[0m")
+            print(traceback.format_exc())
+            all_ok = False
+    if "21" in args:
+        try:
+            test.test_full_backup_restore()
+        except Exception as e:
+            print(f"\033[91mTest 21 failed: {e}\033[0m")
+            print(traceback.format_exc())
+            all_ok = False
+    if "22" in args:
+        try:
+            test.test_incremental_backup_restore()
+        except Exception as e:
+            print(f"\033[91mTest 22 failed: {e}\033[0m")
             print(traceback.format_exc())
             all_ok = False
     if all_ok:

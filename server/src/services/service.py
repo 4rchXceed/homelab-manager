@@ -1,9 +1,10 @@
+from datetime import datetime
 import threading
 import json
 from collections import Counter
 
 from command_context import CommandContext
-from database.models import Service
+from database.models import BackupConfig, Service
 from error.exceptions import MissingConfigException, ProgramStateError
 from helpers import get_current_context
 from logger import logger
@@ -53,31 +54,43 @@ class ServerService:
             db_element = db_element
         self.db_element_id = db_element.id
         # Backups
-        self.backup_configs = []
+        self.backup_configs: list[ServiceBackupConfig] = []
         for backup_config in self.config.get("backups", []):
             self.backup_configs.append(ServiceBackupConfig(backup_config, self))
 
     def check_backups(self) -> None:
         for backup_config in self.backup_configs:
             if backup_config.needs_backup():
-                for backup_target in backup_config.targets:
-                    agent = Agent.get_from_id_str(backup_target.get("server"))
-                    if agent:
-                        storage = agent.resolve_storage(backup_target.get("storage"))
-                        if storage:
-                            logger.info(
-                                f"Running backup for service {self.name} on server {agent.name}"
-                            )
-                            th = threading.Thread(target=self.run_backup, args=(backup_config, storage))
-                            th.start()
-                        else:
-                            logger.critical(
-                                f"Backup target storage {backup_target.get('storage')} not found for service {self.name} on server {agent.name}!!!!"
-                            )
+                self.backup(backup_config)
+                db_element = self.context.database.session.query(BackupConfig).filter_by(id=backup_config.db_element_id).first()
+                if db_element:
+                    db_element.last = datetime.now()
+
+    def backup(self, backup_config: ServiceBackupConfig, nothread=False) -> None:
+        for backup_target in backup_config.targets:
+            agent = Agent.get_from_id_str(backup_target.get("server",""))
+            if agent:
+                storage = agent.resolve_storage(backup_target.get("storage",""))
+                if storage:
+                    logger.info(
+                        f"Running backup for service {self.name} on server {agent.name}"
+                    )
+                    if nothread:
+                        self.run_backup(backup_config, storage)
                     else:
-                        logger.critical(
-                            f"Backup target server {backup_target.get('server')} not found for service {self.name}!!!!"
-                        )
+                        th = threading.Thread(target=self.run_backup, args=(backup_config, storage))
+                        th.start()
+                else:
+                    logger.critical(
+                        f"Backup target storage {backup_target.get('storage')} not found for service {self.name} on server {agent.name}!!!!"
+                    )
+            else:
+                logger.critical(
+                    f"Backup target server {backup_target.get('server')} not found for service {self.name}!!!!"
+                )
+
+    def restore(self, backup_config: ServiceBackupConfig, backup_storage: ServerStorage, cmd_context: CommandContext, backup_id: None = None) -> bool:
+        return self.context.app.backup_manager.issue_restore(backup_config, backup_storage, cmd_context, backup_id)
 
     def run_backup(self, backup_config: ServiceBackupConfig, backup_storage: ServerStorage) -> bool:
         return self.context.app.backup_manager.issue_backup(backup_config, backup_storage)

@@ -13,6 +13,9 @@ from plugins.commands.emergency_procedure import EmergencyProcedureCommand
 from plugins.commands.set_variable import SetUserVarCommand
 from plugins.commands.service_build import ServiceBuildCommand
 from plugins.commands.security_regenerate_certificate import SecurityRegenerateCertificateCommand
+from plugins.commands.backup_create import BackupServiceCommand
+from plugins.commands.backup_list import BackupListCommand
+from plugins.commands.backup_restore import BackupRestoreCommand
 
 COMMANDS: list[type[CommandBase]] = [
     ConfigSyncCommand,
@@ -28,5 +31,8 @@ COMMANDS: list[type[CommandBase]] = [
     EmergencyProcedureCommand,
     SetUserVarCommand,
     ServiceBuildCommand,
-    SecurityRegenerateCertificateCommand
+    SecurityRegenerateCertificateCommand,
+    BackupServiceCommand,
+    BackupListCommand,
+    BackupRestoreCommand
 ]

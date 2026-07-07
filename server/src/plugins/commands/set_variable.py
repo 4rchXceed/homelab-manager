@@ -19,11 +19,11 @@ class SetUserVarCommand(CommandBase):
         db_element = context.database.session.query(UserVariable).filter_by(id_str=var_id).first()
 
         if db_element is None:
-            cmd_context.output_print(f"Variable '{var_id}' does not exist. Please add it to your configuration.")
+            cmd_context.output_print(f"Variable \"{var_id}\" does not exist. Please add it to your configuration.")
             return False
 
         if len(arguments) < 2:
-            value = cmd_context.output_input(f"Enter the value for '{var_id}': ")
+            value = cmd_context.output_input(f"Enter the value for \"{var_id}\": ")
         else:
             value = arguments[1]
 
@@ -33,9 +33,9 @@ class SetUserVarCommand(CommandBase):
         for dependency in dependencies:
             service = ServerService.get_from_id(dependency.service_id, context)
             if service is not None:
-                print(f"Marking service '{service.name}' for update due to variable '{var_id}' change.")
+                print(f"Marking service \"{service.name}\" for update due to variable \"{var_id}\" change.")
                 for config_file in service.config_files:
-                    print(f"Regenerating config file '{config_file.path}' for service '{service.name}' due to variable update.")
+                    print(f"Regenerating config file \"{config_file.path}\" for service \"{service.name}\" due to variable update.")
                     config_file.regenerate(cmd_context)
 
         return True

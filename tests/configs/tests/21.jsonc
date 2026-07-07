@@ -1,0 +1,30 @@
+// Basic example, just starts a service
+{
+    "config": {
+        "_import": "../general",
+    },
+    "generators": {},
+    "services": {
+        "21_test-full-backup-restore": {
+            "name": "Test service",
+            "data": ["./data/"],
+            "backups": [
+                {
+                    "id": "full_bak",
+                    "type": "full",
+                    "maxSize": "10MB",
+                    "maxAge": "365y",
+                    "schedule": "1h",
+                },
+            ],
+        },
+    },
+    "servers": [
+        {
+            "_import": "../servers/1",
+        },
+        {
+            "_import": "../servers/2",
+        },
+    ],
+}

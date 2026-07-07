@@ -1,7 +1,7 @@
 import time
 from typing import TYPE_CHECKING
 from error.exceptions import MissingConfigException, GenericConfigException
-from helpers import parse_time, get_current_context
+from helpers import parse_time, get_current_context, parse_fsize
 from database.models import BackupConfig
 
 if TYPE_CHECKING:
@@ -24,7 +24,7 @@ class ServiceBackupConfig:
         if not config.get("type") in ["full", "incremental"]:
             raise GenericConfigException(f"services.{self.service.id}.backups.$.type: Invalid backup type, must be one of: full, incremental")
         self.type = config.get("type","")
-        self.max_size = config.get("maxSize", 0)
+        self.max_size = parse_fsize(config.get("maxSize", "0B"))
         self.max_age = parse_time(config.get("maxAge", "300y")) # We have a little bit of time I guess :)
         if config.get("schedule") is not None:
             self.schedule = parse_time(config.get("schedule", 0))
@@ -33,9 +33,10 @@ class ServiceBackupConfig:
         context = get_current_context()
         db_element = context.database.session.query(BackupConfig).filter_by(id_str=self.id_str).first()
         if db_element is None:
-            db_element = BackupConfig(id=self.id_str, service_id=self.service.id, last=None, disabled=False) # TODO: disabled is never used
+            db_element = BackupConfig(id_str=self.id_str, service_id=self.service.db_element.id, last=None, disabled=False) # TODO: disabled is never used
             context.database.session.add(db_element)
         self.last = db_element.last
+        self.db_element_id = db_element.id
         self.targets = [] # Will be set by runtime config
 
     def needs_backup(self) -> bool:

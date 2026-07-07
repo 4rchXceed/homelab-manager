@@ -1,0 +1,7 @@
+services:
+    app:
+        image: debian:bookworm
+        volumes:
+            - .:/app
+        working_dir: /app
+        command: ./create_datas.sh

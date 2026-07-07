@@ -15,7 +15,7 @@ from localdb.database import Database
 from messaging.log import debug, info
 from messaging.report_error import log_error, report_error
 from runner.service_manager import ServiceManager
-from backup.manager import BackupManager
+from backup.backup_manager import BackupManager
 
 
 class Client:
@@ -145,13 +145,11 @@ class Client:
         while not self.stop:
             message = self.message_queue.get()
             if message:
-
                 def handle_response(uuid):
                     response = self.handle_message(message)
                     if response:
                         if not response.get("r_uuid"):
                             response["r_uuid"] = uuid
-                            print(f"Sending message: {json.dumps(response)}")
                             self.client.sendall((json.dumps(response) + "\n").encode())
                     self.thread_pool.remove(threading.current_thread())
 
@@ -265,18 +263,17 @@ class Client:
                     "return_codes": return_codes,
                     "success": success,
                 }
-            elif message.get("type", "") == "init_backup_as_sender":
+            elif message.get("type", "") == "init_backup_as_service":
                 service = message.get("service", "")
                 datas = message.get("datas", [])
-                config = message.get("config", {})
                 type = message.get("b_type", "")
                 transaction_id = message.get("transaction_id", "")
-                success = self.backup_manager.init_backup_as_sender(service, datas, type, config, transaction_id, self.ssl_context)
+                success = self.backup_manager.init_backup_as_service(service, datas, type, transaction_id, self.ssl_context)
                 return {
                     "type": "init_backup_as_sender_report",
                     "success": success,
                 }
-            elif message.get("type", "") == "init_backup_as_receiver":
+            elif message.get("type", "") == "init_backup_as_storage":
                 path = message.get("path", "")
                 service = message.get("service", "")
                 type = message.get("b_type", "")
@@ -287,7 +284,37 @@ class Client:
                     "type": "init_backup_as_receiver_report",
                     "success": True,
                 }
-
+            elif message.get("type", "") == "init_restore_as_service":
+                service = message.get("service", "")
+                datas = message.get("datas", [])
+                transaction_id = message.get("transaction_id", "")
+                success = self.backup_manager.init_restore_as_service(service, transaction_id, datas, self.ssl_context)
+                return {
+                    "type": "init_restore_as_sender_report",
+                    "success": success,
+                }
+            elif message.get("type", "") == "init_restore_as_storage":
+                path = message.get("path", "")
+                service = message.get("service", "")
+                type = message.get("b_type", "")
+                config = message.get("config", {})
+                transaction_id = message.get("transaction_id", "")
+                backup_id = config.get("backup_id", None)
+                success, response = self.backup_manager.init_restore_as_storage(path, service, type, config, transaction_id, self.ssl_context, backup_id)
+                debug(f"Restore finished: {response}")
+                return {
+                    "type": "init_restore_as_receiver_report",
+                    "success": success,
+                    "message": response,
+                }
+            elif message.get("type", "") == "list_available_backups":
+                path = message.get("path", "")
+                backups = self.backup_manager.list_backups(path)
+                return {
+                    "type": "list_available_backups_report",
+                    "success": True,
+                    "backups": backups,
+                }
             elif message.get("type", "") == "gen_config":
                 path = os.path.join(
                     self.config.services_folder, message.get("service", "")

@@ -15,11 +15,11 @@ class ServiceUnassignCommand(CommandBase):
         service_name = arguments[0]
         context = get_current_context()
         if service_name not in context.app.services.keys():
-            cmd_context.output_print(f"Service '{service_name}' not found")
+            cmd_context.output_print(f"Service \"{service_name}\" not found")
             return False
         service = context.app.services[service_name]
         service.unassign(cmd_context)
-        cmd_context.output_print(f"Service '{service_name}' unassigned")
+        cmd_context.output_print(f"Service \"{service_name}\" unassigned")
         return True
 
     @staticmethod

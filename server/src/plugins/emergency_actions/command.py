@@ -25,7 +25,7 @@ class CommandEmergencyAction(EmergencyActionTemplate):
                 command_handler = cmd
                 break
         if not command_handler:
-            logger.warning(f"Command '{command}' not found")
+            logger.warning(f"Command \"{command}\" not found")
             return
         def custom_print(msg: str):
             logger.info(msg)

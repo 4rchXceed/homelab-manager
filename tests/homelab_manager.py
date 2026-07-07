@@ -116,7 +116,7 @@ class HomelabManagerInstance:
     def start_client(self, agent_name: str, do_not_copy_cert: bool = False):
         if not do_not_copy_cert:
             shutil.copyfile("../server/server.crt", os.path.join("tmp", agent_name, "etc", "server.crt"))
-        command = f". ../../../agent/.venv/bin/activate && CONFIG_FOLDER=../../configs/clients/{agent_name} python3 main.py"
+        command = f". ../../../agent/.venv/bin/activate && CONFIG_FOLDER=../../configs/clients/{agent_name} BACKUP_DUMP=1 python3 main.py"
         state_path = os.path.join("tmp", agent_name, ".agent_state")
         if os.path.exists(state_path):
             os.unlink(state_path)

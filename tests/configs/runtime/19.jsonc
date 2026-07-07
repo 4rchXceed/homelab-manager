@@ -1,0 +1,15 @@
+{
+    "assignments": {
+        "19_test-incr-backup": "agent02",
+    },
+    "backupAssignments": {
+        "19_test-incr-backup": {
+            "incr_bak": [
+                {
+                    "server": "agent01",
+                    "storage": "test-storage",
+                },
+            ],
+        },
+    },
+}

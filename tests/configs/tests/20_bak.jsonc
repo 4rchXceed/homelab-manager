@@ -1,0 +1,30 @@
+// Basic example, just starts a service
+{
+    "config": {
+        "_import": "../general",
+    },
+    "generators": {},
+    "services": {
+        "20_test-incr-backup-2": {
+            "name": "Test service",
+            "data": ["./datas.txt", "./datas.txt.sampled"],
+            "backups": [
+                {
+                    "id": "incr_bak",
+                    "type": "incremental",
+                    "maxSize": "1MB",
+                    "maxAge": "1y",
+                    "schedule": "1h",
+                },
+            ],
+        },
+    },
+    "servers": [
+        {
+            "_import": "../servers/1",
+        },
+        {
+            "_import": "../servers/2",
+        },
+    ],
+}

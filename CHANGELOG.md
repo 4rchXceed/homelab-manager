@@ -116,7 +116,7 @@ All tests passed
 + Added new backup system, which allows to backup files from the server to an agent
 + Added new config: storages (in servers, in config.jsonc)
 + Added new test:
-- test-full-backup (tests the backup system) on "full" mode
+  - test-full-backup (tests the backup system) on "full" mode
 
 ### Disclaimer
 The backup system is not finished. I'm going to work on it tomorrow. Here what's not implemented yet:
@@ -126,3 +126,19 @@ The backup system is not finished. I'm going to work on it tomorrow. Here what's
 - A few other things
 
 ### Commit message: `~ Fixed file server, it was broken (the reverse proxy was not working properly) + Added new config: backups (in services, in config.jsonc) + Added new config: backupAssignments (in runtime.jsonc) + Added new backup system, which allows to backup files from the server to an agent + Added new config: storages (in servers, in config.jsonc) + Added new test: - test-full-backup (tests the backup system) on "full" mode`
+
+## LAST: d99cdb307f0949980f3e60f20b7c9731efd13942
++ Added tests for incremental backups (test-incremental-backup)
++ Fixed A LOT of bugs in the backup system (incremental backups, full backups, etc)
++ Rewrote a lot of the backup system code, now it's way easier to read and understand
++ Added new commaand: `backup:create` to force-create a backup (full or incremental)
++ Added new command: `backup:restore` to restore a backup (full or incremental)
++ Added new command: `backup:list` to list all backups from a storage (full and incremental)
++ Added 4 tests: 
+  - 21_test-full-backup-restore
+  - 22_test-incremental-backup-restore
+  - 19_test-incr-backup
+  - 20_test-incr-backup-2
+~ Few other things
+
+### Commit message: `Added tests: 21_test-full-backup-restore, 22_test-incremental-backup-restore, 19_test-incr-backup, 20_test-incr-backup-2. Fixed A LOT of bugs in the backup system. Added new commands: backup:create, backup:restore, backup:list. Rewrote a big part of the backup system code. See CHANGELOG.md for more details.`

@@ -75,7 +75,7 @@
                     // Type of the backup (full or incremental)
                     "type": "full",
                     // Maximum size of the backup in megabytes
-                    "maxSize": "2000", // In megabytes
+                    "maxSize": "2GB", // In megabytes, supports: B, KB, MB, GB, TB
                     // Maximum age of the backup in days/weeks/months/years
                     "maxAge": "1y",
                     // Every X hours/days/weeks/months/years/minutes a backup is performed

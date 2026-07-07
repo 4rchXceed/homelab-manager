@@ -1,0 +1,15 @@
+{
+    "assignments": {
+        "21_test-full-backup-restore": "agent02",
+    },
+    "backupAssignments": {
+        "21_test-full-backup-restore": {
+            "full_bak": [
+                {
+                    "server": "agent01",
+                    "storage": "test-storage",
+                },
+            ],
+        },
+    },
+}

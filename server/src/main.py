@@ -135,6 +135,7 @@ class ServerApp:
         self.check_deleted_services(cmd_context)
         self.context.event_manager.trigger_event("config_synced")
         self.check_inner_deps_updates(cmd_context=cmd_context)
+        self.context.event_manager.trigger_event("config_reloaded", self.config_raw)
 
         return "Reload DONE"
 
@@ -517,7 +518,7 @@ class ServerApp:
                     break
             if not command_handler:
                 socket.sendall(
-                    f"Error: Unknown command '{parts[1]}'. Cannot give help for unknown commands".encode()
+                    f"Error: Unknown command \"{parts[1]}\". Cannot give help for unknown commands".encode()
                 )
                 return False
             socket.sendall(command_handler.get_help().encode())
@@ -533,7 +534,7 @@ class ServerApp:
                 break
 
         if not command_handler:
-            socket.sendall(f"Error: Unknown command '{action}'".encode())
+            socket.sendall(f"Error: Unknown command \"{action}\"".encode())
             return False
         command_context = CommandContext()
 

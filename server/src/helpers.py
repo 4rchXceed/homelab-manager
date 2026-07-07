@@ -1,4 +1,5 @@
 from context import HLMContext
+from logger import logger
 
 current_context = None
 
@@ -55,3 +56,37 @@ def parse_time(time_str: str) -> int:
                     current = s_chars[j]
                 total += int(total_str) * value
     return int(total)
+
+def is_float(value: str) -> bool:
+    try:
+        float(value)
+        return True
+    except ValueError:
+        return False
+
+def parse_fsize(fsize_str: str) -> float:
+    """
+    fsize_str: example: 12GB
+    Support:
+        - B (bytes)
+        - KB (kilobytes)
+        - MB (megabytes)
+        - GB (gigabytes)
+        - TB (terabytes)
+    """
+    fsize_str = fsize_str.strip().lower()
+    size_map = {
+        "b": 1,
+        "kb": 1024,
+        "mb": 1024 * 1024,
+        "gb": 1024 * 1024 * 1024,
+        "tb": 1024 * 1024 * 1024 * 1024,
+    }
+    total = 0
+    fsize_str = fsize_str.lower()
+    for unit, multiplier in size_map.items():
+        if fsize_str.endswith(unit):
+            number_str = fsize_str[: -len(unit)].strip()
+            if is_float(number_str):
+                total = float(number_str) * multiplier
+    return total

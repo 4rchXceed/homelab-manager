@@ -12,7 +12,7 @@
                 {
                     "id": "full_bak",
                     "type": "full",
-                    "maxSize": "1",
+                    "maxSize": "1MB",
                     "maxAge": "1y",
                     "schedule": "1h",
                 },

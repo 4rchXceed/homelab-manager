@@ -1,0 +1,15 @@
+{
+    "assignments": {
+        "22_test-incremental-backup-restore": "agent02",
+    },
+    "backupAssignments": {
+        "22_test-incremental-backup-restore": {
+            "incr_bak": [
+                {
+                    "server": "agent01",
+                    "storage": "test-storage",
+                },
+            ],
+        },
+    },
+}

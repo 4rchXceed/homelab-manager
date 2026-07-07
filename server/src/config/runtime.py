@@ -14,9 +14,11 @@ from error.exceptions import GenericConfigException
 class RuntimeConfig:
     def init(self) -> None:
         self.context = get_current_context()
+        self.context.event_manager.register_event("config_reloaded", self.reload_backup_assignments)
         self.load_config()
 
-    def reload(self, cmd_context: CommandContext):
+    # do_not_check_backups is used (mainly) for tests
+    def reload(self, cmd_context: CommandContext, no_backup_check = False):
         self.load_config()
         # Check for modifications and additions on assignments
         cmd_context.output_print("Checking for changes in service assignments...")
@@ -50,7 +52,8 @@ class RuntimeConfig:
                     )
                     service.unassign(cmd_context)
         cmd_context.output_print("Checking for changes in backup assignments...")
-        self.context.app.check_backups()
+        if not no_backup_check:
+            self.context.app.check_backups()
 
     def dump(self):
         # TODO: Finish this
@@ -80,6 +83,9 @@ class RuntimeConfig:
         self.config_raw = parse_json_file(runtime_config)
         self.assignments: dict[str, str] = self.config_raw.get("assignments", {})
         self.backup_assignments: dict = self.config_raw.get("backupAssignments", {})
+        self.reload_backup_assignments()
+
+    def reload_backup_assignments(self, _=None):
         for service_id, service in self.context.app.services.items():
             err_message = f" For 'backup security' purposes all backup configs must have an entry in the runtime config (even if the service is not assigned to a server)"
             if not service_id in self.assignments.keys() and len(service.backup_configs) > 0:
