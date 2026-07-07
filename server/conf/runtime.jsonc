@@ -20,4 +20,10 @@
             ],
         },
     },
+    "syncs": {
+        "main-website": {
+            "server": "storage",
+            "storage": "syncs",
+        },
+    },
 }

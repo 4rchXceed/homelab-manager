@@ -32,6 +32,7 @@ def parse_time(time_str: str) -> int:
         - d (days)
         - h (hours)
         - m (minutes)
+    Returns: total minutes
     """
     time_str = time_str.strip().lower()
     time_map = {

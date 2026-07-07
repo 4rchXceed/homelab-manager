@@ -1,0 +1,21 @@
+// Basic example, just starts a service
+{
+    "config": {
+        "_import": "../general",
+    },
+    "generators": {},
+    "services": {
+        "24_test-service-full-sync": {
+            "name": "Test service",
+            "data": ["./data/"],
+        },
+    },
+    "servers": [
+        {
+            "_import": "../servers/1",
+        },
+        {
+            "_import": "../servers/2",
+        },
+    ],
+}

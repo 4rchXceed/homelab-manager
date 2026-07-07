@@ -22,3 +22,4 @@ urllib3==2.7.0
 python-dotenv==1.2.2
 py-spy==0.4.2
 json5==0.15.0
+watchfiles==1.2.0

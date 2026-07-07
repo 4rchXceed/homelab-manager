@@ -156,3 +156,15 @@ The backup system is not finished. I'm going to work on it tomorrow. Here what's
 - Sync "backup" type
 
 ### Commit message: `New backup cfg option + bugfixes in backup system + with_size option t backup:osit + Fixed a bug in config file generation + Some other small bugfixes. See CHANGELOG.md for more details.`
+
+## LAST: d1bf372c49032dca381e733808aa6bde079994fd
++ New config type (runtime.jsonc): syncs: allows to sync datas from a service to an agent
++ New tests: 23_test-service-sync, 24_test-service-full-sync
+- Removed tests/configs/backups folder (was test datas)
++ Fixed some bugs.
++ New command: sync:full -> forces a full sync
+
+### Disclaimer
+The sync system is here, but I still need to implement the core functionality: when assigning a service to a new agent, it should automatically sync the data from the service to the agent. This is not implemented yet
+
+### Commit message: `New runtime config type: syncs, 2 new tests: 23_test-service-sync, 24_test-service-full-sync, new command: sync:full, fixed some bugs. See CHANGELOG.md for more details.`

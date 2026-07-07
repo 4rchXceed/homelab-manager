@@ -12,18 +12,18 @@
                         {
                             "type": "userVar",
                             "name": "Reverse proxy port",
-                            "id": "reverse_proxy_port"
+                            "id": "reverse_proxy_port",
                         },
-                        ".env"
-                    ]
-                }
-            ]
+                        ".env",
+                    ],
+                },
+            ],
         },
         {
             "path": "nginx.conf",
             "whenConfigUpdated": [
                 "docker compose down",
-                "docker compose up -d"
+                "docker compose up -d",
             ],
             "reloadTimeout": 5,
             "generators": [
@@ -33,10 +33,10 @@
                         "MAIN-WEBSITE-HOST",
                         {
                             "type": "ip",
-                            "get": "main-website"
+                            "get": "main-website",
                         },
-                        "nginx.conf"
-                    ]
+                        "nginx.conf",
+                    ],
                 },
                 {
                     "generator": "replaceFile",
@@ -44,10 +44,10 @@
                         "CLOUD-HOST",
                         {
                             "type": "ip",
-                            "get": "nextcloud"
+                            "get": "nextcloud",
                         },
-                        "nginx.conf"
-                    ]
+                        "nginx.conf",
+                    ],
                 },
                 {
                     "generator": "replaceFile",
@@ -55,10 +55,10 @@
                         "SUBSITE_HOST",
                         {
                             "type": "ip",
-                            "get": "subsite"
+                            "get": "subsite",
                         },
-                        "nginx.conf"
-                    ]
+                        "nginx.conf",
+                    ],
                 },
                 {
                     "generator": "replaceFile",
@@ -67,10 +67,10 @@
                         {
                             "type": "userVar",
                             "name": "Cloud subpath (example: cloud)",
-                            "id": "cloud_subpath"
+                            "id": "cloud_subpath",
                         },
-                        "nginx.conf"
-                    ]
+                        "nginx.conf",
+                    ],
                 },
                 {
                     "generator": "replaceFile",
@@ -79,10 +79,10 @@
                         {
                             "type": "userVar",
                             "name": "Cloud port (example: 3939)",
-                            "id": "cloud_port"
+                            "id": "cloud_port",
                         },
-                        "nginx.conf"
-                    ]
+                        "nginx.conf",
+                    ],
                 },
                 {
                     "generator": "replaceFile",
@@ -91,10 +91,10 @@
                         {
                             "type": "userVar",
                             "name": "Main website port (example: 9005)",
-                            "id": "main_website_port"
+                            "id": "main_website_port",
                         },
-                        "nginx.conf"
-                    ]
+                        "nginx.conf",
+                    ],
                 },
                 {
                     "generator": "replaceFile",
@@ -103,12 +103,12 @@
                         {
                             "type": "userVar",
                             "name": "Subsite port variable",
-                            "id": "subsite_port_var"
+                            "id": "subsite_port_var",
                         },
-                        "nginx.conf"
-                    ]
-                }
-            ]
-        }
-    ]
+                        "nginx.conf",
+                    ],
+                },
+            ],
+        },
+    ],
 }

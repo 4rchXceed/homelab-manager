@@ -198,6 +198,10 @@ def send_file(sock: SSLSocket, file_path: str, file_path_to_send: str):
     fsize = os.path.getsize(file_path)
     mtime = os.path.getmtime(file_path)
     sock.sendall(f"{fsize}?{file_path_to_send}?{mtime}\n".encode())
+    send_file_raw(file_path, sock)
+
+
+def send_file_raw(file_path: str, sock: SSLSocket):
     with open(file_path, "rb") as f:
         while True:
             bytes_read = f.read(4096)
@@ -217,6 +221,9 @@ def recv_file(sock: SSLSocket, save_path: str) -> bool:
     fsize_str, file_path, mod_date = file_infos.split("?", 2)
     fsize = int(fsize_str)
     full_save_path = os.path.join(save_path, file_path)
+    return recv_file_raw(full_save_path, sock, fsize, mod_date)
+
+def recv_file_raw(full_save_path: str, sock: SSLSocket, fsize: int, mod_date: str) -> bool:
     try:
         bytes_received = 0
         os.makedirs(os.path.dirname(full_save_path), exist_ok=True)
@@ -261,7 +268,7 @@ def connect_as(transaction_id: str, role: str, ssl_context: SSLContext) -> SSLSo
         return
     client = ssl_context.wrap_socket(socket.socket(socket.AF_INET, socket.SOCK_STREAM), server_hostname=AgentConfig.instance.server["host"])
     client.connect((AgentConfig.instance.server["host"], AgentConfig.instance.backup_relay_port))
-    payload = f"{transaction_id}:{role}"
+    payload = f"temp:{transaction_id}:{role}"
     client.sendall(payload.encode())
     response = client.recv(1024).decode()
     if response == "OK":

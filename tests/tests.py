@@ -641,6 +641,48 @@ class TestHomelabManager():
         assert size == 2097138, f"Test incremental backup failed: folder size is {size}, not 2097138 bytes"
         self.ok(nbr)
 
+    # Tests the services sync
+    def test_service_sync(self):
+        nbr = "23"
+        instance = HomelabManagerInstance(nbr,["agent01", "agent02"], env="RUNTIME_CONFIG_FILE=../tests/configs/runtime/23.jsonc BACKUP_DUMP=yes")
+        print("Reloading runtime config...")
+        instance.send_command("config:runtime reload")
+        subprocess.run("./create_datas_stage1.sh", shell=True, check=True, cwd="tmp/agent02/services/23_test-service-sync")
+        subprocess.run("./create_datas_stage2.sh", shell=True, check=True, cwd="tmp/agent02/services/23_test-service-sync")
+        s = time.time()
+        print("Waiting for test result.", end="", flush=True)
+        while time.time() - s < 5 and not self.folder_size("tmp/agent01/test-storage/", except_files=["index.json"]) == 2097146:
+            time.sleep(1)
+            print(".", end="", flush=True)
+        print("ok")
+        assert self.folder_size("tmp/agent01/test-storage/", except_files=["index.json"]) == 2097146, f"Test service sync failed: folder size is {self.folder_size('tmp/agent01/test-storage/', except_files=['index.json'])}, not 2097146 bytes"
+        self.ok(nbr)
+
+    # Tests the services full sync
+    def test_service_full_sync(self):
+        nbr = "24"
+        instance = HomelabManagerInstance(nbr,["agent01", "agent02"], env="RUNTIME_CONFIG_FILE=../tests/configs/runtime/24.jsonc BACKUP_DUMP=yes")
+        print("Reloading runtime config...")
+        base_data_path = "tmp/agent02/services/24_test-service-full-sync/data"
+        os.makedirs(base_data_path, exist_ok=True)
+        if os.path.exists(os.path.join(base_data_path, "samplefile1.bin")):
+            os.unlink(os.path.join(base_data_path, "samplefile1.bin"))
+        if os.path.exists(os.path.join(base_data_path, "samplefile2.bin")):
+            os.unlink(os.path.join(base_data_path, "samplefile2.bin"))
+        instance.send_command("config:runtime reload") # config:reload does a full sync of services. This is where we will test the full sync of services.
+        shutil.copyfile("tmp/agent02/services/24_test-service-full-sync/sampledatas.pdf", os.path.join(base_data_path, "samplefile1.bin"))
+        shutil.copyfile("tmp/agent02/services/24_test-service-full-sync/sampledatas.pdf", os.path.join(base_data_path, "samplefile2.bin"))
+        subprocess.run("./create_datas_stage1.sh", shell=True, check=True, cwd="tmp/agent02/services/24_test-service-full-sync")
+        subprocess.run("./create_datas_stage2.sh", shell=True, check=True, cwd="tmp/agent02/services/24_test-service-full-sync")
+        s = time.time()
+        print("Waiting for test result.", end="", flush=True)
+        while time.time() - s < 5 and not self.folder_size("tmp/agent01/test-storage/", except_files=["index.json"]) == 4194284:
+            time.sleep(1)
+            print(".", end="", flush=True)
+        print("ok")
+        assert self.folder_size("tmp/agent01/test-storage/", except_files=["index.json"]) == 4194284, f"Test service sync failed: folder size is {self.folder_size('tmp/agent01/test-storage/', except_files=['index.json'])}, not 4194284 bytes"
+        self.ok(nbr)
+
     def folder_size(self, folder: str, except_files: list[str] = []) -> int:
         total_size = 0
         for dirpath, _, filenames in os.walk(folder):
@@ -684,12 +726,40 @@ def main():
         print("20: test_incremental_backup_2")
         print("21: test_full_backup_restore")
         print("22: test_incremental_backup_restore")
+        print("23: test_service_sync")
+        print("24: test_service_full_sync")
         print("all: run all tests")
         print("logs: print logs from the previous test run (requires the cache to be present)")
         print("logs:reload [agentX|server]: shows the logs of the specified agent or server and auto reloads the logs every 0.5s")
         print("clear: clear the test cache")
         sys.exit(1)
-    all_args = [str(i) for i in range(1, 22 + 1)]
+    map = {
+        "1": "test_service_basic",
+        "2": "test_generator_1",
+        "3": "test_generator_2",
+        "4": "test_uservar_1",
+        "5": "test_uservar_2",
+        "6": "test_multiple_servers_basic_01",
+        "7": "test_multiple_servers_ip_01",
+        "8": "test_multiple_servers_ip_with_change_01",
+        "9": "test_reload_config",
+        "10": "test_regen_config",
+        "11": "test_runtime_config",
+        "12": "test_exec_raw_restart",
+        "13": "test_services_sync",
+        "14": "test_var_set",
+        "15": "test_emergency_proc",
+        "16": "test_service_build",
+        "17": "test_security_regen_cert",
+        "18": "test_backup_full",
+        "19": "test_incremental_backup",
+        "20": "test_incremental_backup_2",
+        "21": "test_full_backup_restore",
+        "22": "test_incremental_backup_restore",
+        "23": "test_service_sync",
+        "24": "test_service_full_sync"
+    }
+    all_args = [str(i) for i in range(1, len(map) + 1)]
     if args[0] == "all":
         args = all_args
     if args[0] == "logs:reload":
@@ -753,158 +823,24 @@ def main():
     print("\033[91m IF YOU THINK THE TEST IS STUCK, OPEN ANOTHER SHELL AND TYPE `python3 tests.py logs` TO SEE THE AGENT + SERVER LOGS \033[00m")
     print("\033[91m ALSO IF YOU HAVE DOCKER IN ROOT MODE, YOU NEED TO RUN THIS AS ROOT, SINCE THE SOCKET AUTH IS ROOT-ONLY (FOR NOW) \033[00m")
     test = TestHomelabManager()
-    if "1" in args:
-        try:
-            test.test_service_basic()
-        except Exception as e:
-            print(f"\033[91mTest 1 failed: {e}\033[0m")
-            print(traceback.format_exc())
+    for arg in args:
+        test_method_name = map.get(arg)
+        if test_method_name is None:
+            print(f"\033[91mInvalid test number: {arg}\033[0m")
             all_ok = False
-    if "2" in args:
-        try:
-            test.test_generator_1()
-        except Exception as e:
-            print(f"\033[91mTest 2 failed: {e}\033[0m")
-            print(traceback.format_exc())
+            continue
+        test_method = getattr(test, test_method_name, None)
+        if test_method is None:
+            print(f"\033[91mTest method not found: {test_method_name}\033[0m")
             all_ok = False
-    if "3" in args:
+            continue
         try:
-            test.test_generator_2()
-        except Exception as e:
-            print(f"\033[91mTest 3 failed: {e}\033[0m")
-            print(traceback.format_exc())
+            test_method()
+        except AssertionError as e:
+            print(f"\033[91mTest {arg} failed: {e}\033[0m")
             all_ok = False
-    if "4" in args:
-        try:
-            test.test_uservar_1()
         except Exception as e:
-            print(f"\033[91mTest 4 failed: {e}\033[0m")
-            print(traceback.format_exc())
-            all_ok = False
-    if "5" in args:
-        try:
-            test.test_uservar_2()
-        except Exception as e:
-            print(f"\033[91mTest 5 failed: {e}\033[0m")
-            print(traceback.format_exc())
-            all_ok = False
-    if "6" in args:
-        try:
-            test.test_multiple_servers_basic()
-        except Exception as e:
-            print(f"\033[91mTest 6 failed: {e}\033[0m")
-            print(traceback.format_exc())
-            all_ok = False
-    if "7" in args:
-        try:
-            test.test_multiple_servers_ip()
-        except Exception as e:
-            print(f"\033[91mTest 7 failed: {e}\033[0m")
-            print(traceback.format_exc())
-            all_ok = False
-    if "8" in args:
-        try:
-            test.test_multiple_servers_ip_with_change()
-        except Exception as e:
-            print(f"\033[91mTest 8 failed: {e}\033[0m")
-            print(traceback.format_exc())
-            all_ok = False
-    if "9" in args:
-        try:
-            test.test_reload_config()
-        except Exception as e:
-            print(f"\033[91mTest 9 failed: {e}\033[0m")
-            print(traceback.format_exc())
-            all_ok = False
-    if "10" in args:
-        try:
-            test.test_regen_config()
-        except Exception as e:
-            print(f"\033[91mTest 10 failed: {e}\033[0m")
-            print(traceback.format_exc())
-            all_ok = False
-    if "11" in args:
-        try:
-            test.test_runtime_config()
-        except Exception as e:
-            print(f"\033[91mTest 11 failed: {e}\033[0m")
-            print(traceback.format_exc())
-            all_ok = False
-    if "12" in args:
-        try:
-            test.test_exec_raw_restart()
-        except Exception as e:
-            print(f"\033[91mTest 12 failed: {e}\033[0m")
-            print(traceback.format_exc())
-            all_ok = False
-    if "13" in args:
-        try:
-            test.test_services_sync()
-        except Exception as e:
-            print(f"\033[91mTest 13 failed: {e}\033[0m")
-            print(traceback.format_exc())
-            all_ok = False
-    if "14" in args:
-        try:
-            test.test_var_set()
-        except Exception as e:
-            print(f"\033[91mTest 14 failed: {e}\033[0m")
-            print(traceback.format_exc())
-            all_ok = False
-    if "15" in args:
-        try:
-            test.test_emergency_proc()
-        except Exception as e:
-            print(f"\033[91mTest 15 failed: {e}\033[0m")
-            print(traceback.format_exc())
-            all_ok = False
-    if "16" in args:
-        try:
-            test.test_service_build()
-        except Exception as e:
-            print(f"\033[91mTest 16 failed: {e}\033[0m")
-            print(traceback.format_exc())
-            all_ok = False
-    if "17" in args:
-        try:
-            test.test_security_regen_cert()
-        except Exception as e:
-            print(f"\033[91mTest 17 failed: {e}\033[0m")
-            print(traceback.format_exc())
-            all_ok = False
-    if "18" in args:
-        try:
-            test.test_backup_full()
-        except Exception as e:
-            print(f"\033[91mTest 18 failed: {e}\033[0m")
-            print(traceback.format_exc())
-            all_ok = False
-    if "19" in args:
-        try:
-            test.test_incremental_backup_1()
-        except Exception as e:
-            print(f"\033[91mTest 19 failed: {e}\033[0m")
-            print(traceback.format_exc())
-            all_ok = False
-    if "20" in args:
-        try:
-            test.test_incremental_backup_2()
-        except Exception as e:
-            print(f"\033[91mTest 20 failed: {e}\033[0m")
-            print(traceback.format_exc())
-            all_ok = False
-    if "21" in args:
-        try:
-            test.test_full_backup_restore()
-        except Exception as e:
-            print(f"\033[91mTest 21 failed: {e}\033[0m")
-            print(traceback.format_exc())
-            all_ok = False
-    if "22" in args:
-        try:
-            test.test_incremental_backup_restore()
-        except Exception as e:
-            print(f"\033[91mTest 22 failed: {e}\033[0m")
+            print(f"\033[91mTest {arg} failed with unexpected error: {e}\033[0m")
             print(traceback.format_exc())
             all_ok = False
     if all_ok:

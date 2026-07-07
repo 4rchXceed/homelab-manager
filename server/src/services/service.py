@@ -33,6 +33,9 @@ class ServerService:
         self.config_files = [ConfigFile(data, self) for data in self.config_files_obj]
         self.need_update = False
 
+        # Sync settings
+        self.sync_storage: ServerStorage | None = None
+
         # Database
         db_element = (
             self.context.database.session.query(Service)
@@ -65,6 +68,17 @@ class ServerService:
                 db_element = self.context.database.session.query(BackupConfig).filter_by(id=backup_config.db_element_id).first()
                 if db_element:
                     db_element.last = datetime.now()
+        if self.db_element.last_sync and self.db_element.sync_time:
+            last_sync = self.db_element.last_sync
+            if (datetime.now() - last_sync).total_seconds() > self.db_element.sync_time/60: # Convert minutes to seconds
+                th = threading.Thread(target=self.full_sync)
+                th.start()
+                self.db_element.last_sync = datetime.now()
+                self.context.database.session.commit()
+
+    def full_sync(self) -> None:
+        self.context.app.backup_manager.issue_full_sync(self)
+
 
     def backup(self, backup_config: ServiceBackupConfig, nothread=False) -> None:
         for backup_target in backup_config.targets:
@@ -94,7 +108,6 @@ class ServerService:
 
     def run_backup(self, backup_config: ServiceBackupConfig, backup_storage: ServerStorage) -> bool:
         return self.context.app.backup_manager.issue_backup(backup_config, backup_storage)
-
 
     # This is a shared resource between threads, and since every thread has it's own db session, this will f- up everything
     @property
@@ -208,6 +221,18 @@ class ServerService:
                     "FREE::docker compose up"
                 ]
             }, timeout=120)
+            if response:
+                return True
+        return False
+
+    def update_sync(self) -> bool:
+        agent = self.get_agent()
+        if agent:
+            response = agent.send_pingpong({
+                "type": "start_watchfiles",
+                "service": self.id,
+                "datas": self.datas,
+            })
             if response:
                 return True
         return False

@@ -1,10 +1,12 @@
+import datetime
+import time
 import threading
 import json
 import os
 
 from command_context import CommandContext
 from config.load import get_config
-from helpers import get_current_context
+from helpers import get_current_context, parse_time
 from logger import logger
 from protocol.agent import Agent
 from services.service import ServerService
@@ -15,11 +17,95 @@ class RuntimeConfig:
     def init(self) -> None:
         self.context = get_current_context()
         self.context.event_manager.register_event("config_reloaded", self.reload_backup_assignments)
+        self.context.event_manager.register_event("agent_connected", self.reload_syncs_from_db)
         self.load_config()
+
+    def reload_syncs_from_db(self, _):
+        for service_id, service in self.context.app.services.items():
+            if not service.sync_storage and service.db_element.sync_server and service.db_element.sync_storage_id_str:
+                agent_id = service.db_element.sync_server.id_str
+                agent = Agent.get_from_id_str(agent_id)
+                if agent:
+                    storage_id = service.db_element.sync_storage_id_str
+                    storage = agent.resolve_storage(storage_id)
+                    if storage:
+                        if storage.id != storage_id:
+                            logger.warning(f"!! Storage {storage_id} invalid. Using fallback: {storage.id}")
+                        service.sync_storage = storage
+                        success = service.update_sync()
+                        if not success:
+                            logger.error(f"Failed to update the sync for service: {service_id}")
+                    else:
+                        logger.error(f"!! Sync storage for service {service_id} not found for agent {agent_id}")
+                else:
+                    logger.error(f"!! Sync agent {agent_id} for service {service_id} is not found! Cannot sync!!")
 
     # do_not_check_backups is used (mainly) for tests
     def reload(self, cmd_context: CommandContext, no_backup_check = False):
         self.load_config()
+        self.reload_assignments(cmd_context)
+        self.reload_syncs(cmd_context)
+        if not no_backup_check:
+            self.context.app.check_backups()
+
+    def reload_syncs(self, cmd_context: CommandContext):
+         # First: check for modifications and additions on syncs
+         for service_id, storage_config in self.syncs.items():
+            service = ServerService.get_from_id_str(service_id)
+            if not storage_config.get("server") or not storage_config.get("storage"):
+                cmd_context.output_print(f"Either server or storage config key is missing for sync config: {service_id}")
+            if service:
+                agent_id  = storage_config.get("server")
+                agent = Agent.get_from_id_str(agent_id)
+                if agent:
+                    storage_id = storage_config.get("storage")
+                    storage = agent.resolve_storage(storage_id)
+                    if storage:
+                        ok = True
+                        if storage.id != storage_id:
+                            cmd_context.output_print(f"/!\\ Storage {storage_id} was invalid. Fallback is {storage.id}")
+                            ok = cmd_context.output_input(f"Use fallback {storage.id} ? (y/N)").lower() == "y"
+                        if ok:
+                            change = False
+                            sync_time = parse_time(storage_config.get("fullSyncInterval", None))
+                            if sync_time:
+                                if not service.db_element.sync_server or service.db_element.sync_server.id_str != agent_id:
+                                    if agent.db_server:  # Should never be None
+                                        cmd_context.output_print("> Sync server has changed... updating config")
+                                        service.db_element.sync_server = agent.db_server
+                                        self.context.database.session.commit()
+                                        change = True
+                                if service.db_element.sync_storage_id_str != storage_id:
+                                    cmd_context.output_print("> Sync storage has changed... updating config")
+                                    service.db_element.sync_storage_id_str = storage_id
+                                    self.context.database.session.commit()
+                                    change = True
+                                if service.db_element.sync_time != sync_time:
+                                    cmd_context.output_print("> Sync time has changed... updating config (and resetting next sync time. run sync:full to run a full sync now)")
+                                    service.db_element.sync_time = sync_time
+                                    service.db_element.last_sync = datetime.datetime.now()
+                                    self.context.database.session.commit()
+                                    change = True
+                                if change:
+                                    service.sync_storage = storage
+                                    success = service.update_sync()
+                                    service.full_sync()
+                                    if success:
+                                        cmd_context.output_print(f"Successfully updated sync config for service {service_id}!")
+                                    else:
+                                        cmd_context.output_print(f"{service_id} has is probably not assigned to any server / other sync config issue")
+                            else:
+                                cmd_context.output_print(f"/!\\ Invalid sync time for service {service_id}. Ignoring sync assignment")
+                        else:
+                            cmd_context.output_print("/!\\ Aborting")
+                    else:
+                        cmd_context.output_print(f"/!\\ Storage {storage_id} invalid / not found and no fallback storage found")
+                else:
+                    cmd_context.output_print(f"/!\\ Agent with id {agent_id} not found. Ignoring sync assignment")
+            else:
+                cmd_context.output_print(f"/!\\ Service {service_id} is not a valid service. Ignoring sync assignment")
+
+    def reload_assignments(self, cmd_context: CommandContext):
         # Check for modifications and additions on assignments
         cmd_context.output_print("Checking for changes in service assignments...")
         for service_id, server_id in self.assignments.items():
@@ -27,7 +113,7 @@ class RuntimeConfig:
             agent = Agent.get_from_id_str(server_id)
             if not service or not agent or not agent.db_server:
                 cmd_context.output_print(
-                    f"Either {service_id} is not a valid service or {server_id} is not a valid agent/server -> ignoring assignment"
+                    f"/!\\ Either {service_id} is not a valid service or {server_id} is not a valid agent/server -> ignoring assignment"
                 )
             else:
                 if not service.db_element.server:
@@ -52,17 +138,16 @@ class RuntimeConfig:
                     )
                     service.unassign(cmd_context)
         cmd_context.output_print("Checking for changes in backup assignments...")
-        if not no_backup_check:
-            self.context.app.check_backups()
+
+
 
     def dump(self):
-        # TODO: Finish this
         # Dump the current config to the file !! it overwrites the file entirely
         self.assignments.clear()
         for service_id, service in self.context.app.services.items():
             if service.db_element.server:
                 self.assignments[service_id] = service.db_element.server.id_str
-        self.config_raw = {"assignments": self.assignments}
+        self.config_raw = {"assignments": self.assignments, "backupAssignments": self.backup_assignments}
         with open(self.config_path, "w", encoding="utf-8") as f_dst:
             json.dump(self.config_raw, f_dst, indent=4)
 
@@ -83,6 +168,7 @@ class RuntimeConfig:
         self.config_raw = parse_json_file(runtime_config)
         self.assignments: dict[str, str] = self.config_raw.get("assignments", {})
         self.backup_assignments: dict = self.config_raw.get("backupAssignments", {})
+        self.syncs = self.config_raw.get("syncs", {})
         self.reload_backup_assignments()
 
     def reload_backup_assignments(self, _=None):

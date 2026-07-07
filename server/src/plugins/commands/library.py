@@ -16,6 +16,7 @@ from plugins.commands.security_regenerate_certificate import SecurityRegenerateC
 from plugins.commands.backup_create import BackupServiceCommand
 from plugins.commands.backup_list import BackupListCommand
 from plugins.commands.backup_restore import BackupRestoreCommand
+from plugins.commands.sync_full import SyncFullCommand
 
 COMMANDS: list[type[CommandBase]] = [
     ConfigSyncCommand,
@@ -34,5 +35,6 @@ COMMANDS: list[type[CommandBase]] = [
     SecurityRegenerateCertificateCommand,
     BackupServiceCommand,
     BackupListCommand,
-    BackupRestoreCommand
+    BackupRestoreCommand,
+    SyncFullCommand,
 ]

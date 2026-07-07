@@ -16,6 +16,9 @@
             "default": {
                 "path": "./storage/bucket_big",
             },
+            "syncs": {
+                "path": "./storage/bucket_syncs",
+            },
             "fallback": {
                 "path": "./fallback",
             },

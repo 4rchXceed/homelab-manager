@@ -1,0 +1,12 @@
+{
+    "assignments": {
+        "23_test-service-sync": "agent02",
+    },
+    "syncs": {
+        "23_test-service-sync": {
+            "server": "agent01",
+            "storage": "test-storage",
+            "fullSyncInterval": "1h",
+        },
+    },
+}

@@ -1,4 +1,5 @@
 {
+    // ! Reloaded only when config:runtime reload is called
     // Assignments define which services are running on which servers
     "assignments": {
         // service id: Server id
@@ -6,9 +7,27 @@
         "nextcloud": "main",
         "reverse-proxy": "main",
     },
+    // ! Reloaded only when config:runtime reload is called
+    // Sync configuration (to sync the service's data to another server)
+    // This is used to sync the service's data to a storage, so when you assign the service to another server, the data will be synced to the new server
+    // Only one sync server is allowed (maybe will be changed in the future)
+    "syncs": {
+        // Service ID: Sync assignments config
+        "nextcloud": {
+            // Server ID
+            "server": "main",
+            // Storage ID
+            "storage": "default",
+            // By default the files are synced every change.
+            // But this system can desynchronize the files, if it's not 24h running without any problem.
+            // So, to avoid this, you can set a full sync interval, which will force a full sync of the files every X time.
+            "fullSyncInterval": "1h",
+        },
+    },
+    // !!! Always reloaded when the server starts, and when config:runtime reload is called
     // Backup assignments define which services are backed up on which servers
     // Be very careful with these assignments, as they can disable backups for services.
-    // This is why, when you write the configuration, you *NEED* to enumerate all backup IDs (defined in config.jsonc), even the one with no targets.
+    // This is why, when you write the configuration, you *SHOULD* to enumerate all backup IDs, else a big warning will be shown (defined in config.jsonc), even the one with no targets.
     // Small talk about the protocol
     // Agents never communicate directly with each other, they all go through the server. (simpler for security)
     "backupAssignments": {

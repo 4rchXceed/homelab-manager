@@ -24,7 +24,8 @@ class Server(Base):
     api_key: Mapped[Optional[str]] = mapped_column(String(36))
     reverse_api_key: Mapped[Optional[str]] = mapped_column(String(36))
 
-    service: Mapped[list['Service']] = relationship('Service', back_populates='server')
+    service_server: Mapped[list['Service']] = relationship('Service', foreign_keys='[Service.server_id]', back_populates='server')
+    service_sync_server: Mapped[list['Service']] = relationship('Service', foreign_keys='[Service.sync_server_id]', back_populates='sync_server')
 
 
 class UserVariable(Base):
@@ -45,6 +46,7 @@ class Service(Base):
     __tablename__ = 'service'
     __table_args__ = (
         ForeignKeyConstraint(['server_id'], ['server.id'], name='server_service_fk'),
+        ForeignKeyConstraint(['sync_server_id'], ['server.id'], name='server_service_fk1'),
         PrimaryKeyConstraint('id', name='service_pk'),
         Index('service_id_str_unique', 'id_str', unique=True)
     )
@@ -53,10 +55,15 @@ class Service(Base):
     id_str: Mapped[str] = mapped_column(String(100), nullable=False)
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     disabled: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    sync_server_id: Mapped[Optional[int]] = mapped_column(Integer)
     server_id: Mapped[Optional[int]] = mapped_column(Integer)
     last_config: Mapped[Optional[str]] = mapped_column(String)
+    sync_storage_id_str: Mapped[Optional[str]] = mapped_column(String(100))
+    last_sync: Mapped[Optional[datetime.datetime]] = mapped_column(DateTime)
+    sync_time: Mapped[Optional[int]] = mapped_column(Integer)
 
-    server: Mapped[Optional['Server']] = relationship('Server', back_populates='service')
+    server: Mapped[Optional['Server']] = relationship('Server', foreign_keys=[server_id], back_populates='service_server')
+    sync_server: Mapped[Optional['Server']] = relationship('Server', foreign_keys=[sync_server_id], back_populates='service_sync_server')
     backup_config: Mapped[list['BackupConfig']] = relationship('BackupConfig', back_populates='service')
     ip_needs_update_service_trigger: Mapped[list['IpNeedsUpdate']] = relationship('IpNeedsUpdate', foreign_keys='[IpNeedsUpdate.service_trigger_id]', back_populates='service_trigger')
     ip_needs_update_service_updated: Mapped[list['IpNeedsUpdate']] = relationship('IpNeedsUpdate', foreign_keys='[IpNeedsUpdate.service_updated_id]', back_populates='service_updated')

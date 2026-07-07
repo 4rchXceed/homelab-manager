@@ -263,6 +263,7 @@ class ServerApp:
                     )
                     sync_thread.start()
                     self.temp_threads.append(sync_thread)
+                    self.context.event_manager.trigger_event("agent_connected", agent)
 
                 init_thread = threading.Thread(
                     target=self.temp_thread_wrapper, args=(init_wrapper,)

@@ -7,7 +7,13 @@ from config import AgentConfig
 import os
 from messaging.log import debug
 from backup.backup_fsutils import strip_path, all_versions_folders, folder_size, hash_file, hashes_neq, is_path_part_of
-from backup.backup_utils import after_full_cleanup, after_incremential_cleanup, all_versions_folders, buffered_recv, connect_as, get_index, incremental_check_for_changes, recv_file, restore_files, send_file, set_index, create_backup_summary_client, get_restore_needs, is_deleted
+from backup.backup_utils import after_full_cleanup, after_incremential_cleanup, all_versions_folders, buffered_recv, connect_as, get_index, incremental_check_for_changes, recv_file, restore_files, send_file, set_index, create_backup_summary_client, get_restore_needs, is_deleted, send_file_raw, recv_file_raw
+
+class FileQueueEntry:
+    def __init__(self, service: str, file_name: str, file_path: str):
+        self.service = service
+        self.file_name = file_name
+        self.file_path = file_path
 
 class BackupManager:
     def verify_path(self, path: str, can_create: bool) -> bool:
@@ -44,28 +50,21 @@ class BackupManager:
                     changes = json.loads(buffered_recv(client))
                     debug(f"Changes received: starting to send files...")
                     for change in changes:
-                            file_path = os.path.join(backup_from_path, change)
-                            try:
-                                if os.path.exists(file_path) and os.path.isfile(file_path):
-                                    send_file(client, file_path, change.removeprefix(os.sep))
-                                else:
-                                    debug(f"File {file_path} does not exist or is not a file.")
-                                    all_ok = False
-                            except Exception as e:
-                                debug(f"Error sending file {file_path}: {e}")
+                        file_path = os.path.join(backup_from_path, change)
+                        try:
+                            if os.path.exists(file_path) and os.path.isfile(file_path):
+                                send_file(client, file_path, change.removeprefix(os.sep))
+                            else:
+                                debug(f"File {file_path} does not exist or is not a file.")
                                 all_ok = False
+                        except Exception as e:
+                            debug(f"Error sending file {file_path}: {e}")
+                            all_ok = False
                     if all_ok:
                         debug(f"All files sent successfully")
                     else:
                         debug(f"Some files failed to send")
                 if type == "full":
-                    exclude_paths = []
-                    for data in datas:
-                        if data.startswith("!"):
-                            rel_path = os.path.join(backup_from_path, data.removeprefix("!"))
-                            exclude_paths.append(rel_path)
-
-
                     for data in [data for data in datas if not data.startswith("!")]:
                         data_path = os.path.join(backup_from_path, data)
 
@@ -73,12 +72,11 @@ class BackupManager:
                             for root, _, files in os.walk(data_path):
                                 for file in files:
                                     file_path = os.path.join(root, file)
-                                    if not any(is_path_part_of(file_path, ex) for ex in exclude_paths): # If not excluded, send the file
-                                        try:
-                                            send_file(client, file_path, strip_path(file_path, backup_from_path).removeprefix(os.sep))
-                                        except Exception as e:
-                                            debug(f"Error sending file {file_path}: {e}")
-                                            all_ok = False
+                                    try:
+                                        send_file(client, file_path, strip_path(file_path, backup_from_path).removeprefix(os.sep))
+                                    except Exception as e:
+                                        debug(f"Error sending file {file_path}: {e}")
+                                        all_ok = False
                         elif os.path.isfile(data_path):
                             try:
                                 send_file(client, data_path, strip_path(data_path, backup_from_path).removeprefix(os.sep))
@@ -145,16 +143,14 @@ class BackupManager:
                 after_full_cleanup(path, service, config["max_size"], config["max_age"])
 
 
-    def init_restore_as_service(self, service: str, transaction_id: str, datas: list[str], ssl_context: SSLContext) -> bool:
+    def init_restore_as_client(self, service: str, transaction_id: str, datas: list[str], ssl_context: SSLContext, restore_path: str) -> bool:
         if not AgentConfig.instance:
             return False
         ok = True
         client = connect_as(transaction_id, "backup", ssl_context)
         if client:
-            restore_path = os.path.join(AgentConfig.instance.services_folder, service)
             if not os.path.exists(restore_path):
                 return False
-
             files_to_check = json.loads(buffered_recv(client))
             files_changed = get_restore_needs(files_to_check, restore_path)
 
@@ -194,6 +190,48 @@ class BackupManager:
             client.close()
         return True
 
+    def init_full_sync_as_service(self, service: str, transaction_id: str, datas: list[str], ssl_context: SSLContext) -> bool:
+        # Sync storage runs the method: init_restore_as_client, since it shares the same logic as restoring a backup, but instead of restoring a backup it syncs the files from the service to the storage.
+        if not AgentConfig.instance:
+            return False
+        all_ok = True
+        client = connect_as(transaction_id, "service", ssl_context)
+        if client:
+            ready_response = client.recv(1024).decode()
+            if ready_response == "START":
+                services_folder = AgentConfig.instance.services_folder
+                sync_path = os.path.join(services_folder, service)
+                files_to_check: list[dict[str,str]] = [] # List of dicts with keys "path", "hash"
+                # Send only the datas
+                for data in datas:
+                    data_clean = data.removeprefix("./").removesuffix("/")
+                    data_path = os.path.join(sync_path, data_clean)
+                    if os.path.exists(data_path) and os.path.isdir(data_path):
+                        for root, _, files in os.walk(data_path):
+                            for file in files:
+                                file_path = os.path.join(root, file)
+                                relative_path = strip_path(file_path, sync_path).removeprefix(os.sep)
+                                try:
+                                    files_to_check.append({"path": relative_path, "hash": hash_file(file_path)})
+                                except OSError:
+                                    continue
+                    elif os.path.isfile(data_path):
+                        relative_path = strip_path(data_path, sync_path).removeprefix(os.sep)
+                        try:
+                            files_to_check.append({"path": relative_path, "hash": hash_file(data_path)})
+                        except OSError:
+                            continue
+                client.sendall(f"{json.dumps(files_to_check)}\n".encode())
+                r = buffered_recv(client)
+                files_to_restore = json.loads(r)
+
+                restore_files(files_to_restore, sync_path, client)
+
+
+            client.sendall(b"END\n")
+            client.close() # Close signal announces the end of the transfer
+        return all_ok
+
     def init_restore_as_storage(self, path: str, service: str, type: str, config: dict, transaction_id: str, ssl_context: SSLContext, restore_path: str|None) -> tuple[bool, str]:
         if not AgentConfig.instance:
             return False, "Not supposed to happen, AgentConfig.instance is None."
@@ -208,7 +246,6 @@ class BackupManager:
                 return False, f"No backups found for service {service} in {all_versions_path}."
             restore_path = all_versions[-1] # Restore the latest backup if no specific restore path
 
-        parent = os.path.join(path, service, type)
         full_path = os.path.join(path, service, type, restore_path)
         if not os.path.exists(full_path):
             return False, f"Backup with id {restore_path} not found for service {service} in {full_path}."
@@ -263,6 +300,37 @@ class BackupManager:
             client.sendall("END\n".encode())
             client.close()
         return True, messages
+
+    def sync_file_to_storage(self, service: str, file_path: str, file_name: str, transfer_socket: SSLSocket) -> None:
+        file_size = os.path.getsize(file_path)
+        modification_time = os.path.getmtime(file_path)
+        payload = f"{service}?{file_size}?{file_name}?{modification_time}\n"
+        transfer_socket.sendall(payload.encode())
+        send_file_raw(file_path, transfer_socket)
+
+    def handle_as_storage(self, sock: SSLSocket):
+        stop = False
+        while not stop:
+            datas = buffered_recv(sock)
+            if datas.count("?") == 4:
+                parts = datas.split("?")
+                service = parts[0]
+                path = parts[1]
+                debug(f"RECEIVING FILE FOR SERVICE {service} IN PATH {path}")
+                try:
+                    file_size = int(parts[2])
+                except:
+                    debug(f"PROTOCOL ERROR: {file_size} IS NOT AN INT!")
+                    continue
+                file_name = parts[3]
+                modification_time = parts[4]
+                parent_path = os.path.join(path, service, "sync")
+                full_path = os.path.join(parent_path, file_name)
+                recv_file_raw(full_path, sock, file_size, modification_time)
+            else:
+                debug(f"PROTOCOL ERROR: INVALID HEADER: {datas}")
+                if not datas:
+                    stop = True
 
     def list_backups(self, path: str, with_size: bool) -> dict:
         backups = {}

@@ -24,6 +24,7 @@ class Agent:
         self.keepalive_thread = None
         self.storages_cfg = {}
         self.storages: list[ServerStorage] = []
+        self.api_key = None
 
         # FXXX circular imports
         from services.service import ServerService
@@ -144,20 +145,22 @@ class Agent:
         process_thread = threading.Thread(target=self.process_queue)
         process_thread.start()
 
-    def check_api_key(self, api_key: str) -> tuple[dict, str]|None:
+    @staticmethod
+    def check_api_key(api_key: str) -> tuple[dict, str]|None:
+        context = get_current_context()
         server = (
-            self.context.database.session.query(Server)
+            context.database.session.query(Server)
             .filter_by(api_key=api_key)
             .first()
         )
         if server:
-            for server_obj in self.context.config_servers.servers:
+            for server_obj in context.config_servers.servers:
                 if server_obj["id"] == server.id_str:
                     rev_api_key = server.reverse_api_key
                     if rev_api_key is None:
                         rev_api_key = str(uuid.uuid4())
                         server.reverse_api_key = rev_api_key
-                        self.context.database.session.commit()
+                        context.database.session.commit()
 
                     return server_obj, rev_api_key
         return None
@@ -172,8 +175,9 @@ class Agent:
         try:
             data = self.socket.recv(1024).decode()
             if data:
-                datas = self.check_api_key(data)
+                datas = Agent.check_api_key(data)
                 if datas:
+                    self.api_key = data
                     self.server, reverse_api_key = datas
                     self.socket.sendall(("OK:"+reverse_api_key).encode())
                     return True
@@ -196,7 +200,19 @@ class Agent:
                         buffer = buffer.split("\n", 1)[1]
                     try:
                         if line:
-                            self.handle_request(json.loads(line))
+                            json_data = json.loads(line)
+                            if json_data.get("type") == "relay_file_deletion":
+                                service = self.ServerService.get_from_id_str(json_data.get("service"))
+                                if service:
+                                    if service.sync_storage:
+                                        service.sync_storage.agent.send_pingpong({
+                                            "type": "delete_file",
+                                            "service": service.id,
+                                            "path": service.sync_storage.path,
+                                            "file": json_data.get("file_name"),
+                                        })
+                            else:
+                                self.handle_request(json_data)
                     except json.JSONDecodeError as e:
                         logger.error(f"JSON decode error: {e}")
             except Exception as e:
