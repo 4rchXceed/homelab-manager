@@ -1,7 +1,0 @@
-FROM alpine:3.24
-
-RUN apk add --no-cache curl
-
-ENV NET_URL="notset"
-
-CMD ["sh", "-c", "curl -s http://IP_ADDR:5003/r/7/ok"]

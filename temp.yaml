@@ -1,0 +1,61 @@
+config:
+  services_folder: "../services-compose"
+  database_file: "./test.db"
+  net:
+    server_port: 4398
+    file_server_port: 4399
+    backup_transfer_port: 4397
+  unix_socket_path: "/tmp/homelab-manager.sock"
+  startup_timeout: 120s
+  keepalive_interval: 5s
+  binds:
+    - 192.168.1.250
+  file_server_auth:
+    user: admin
+    password: pass
+  backup_check_interval: 1s
+generators:
+  name:
+    base: "bash"
+    run_commands:
+      - command1
+      - command2
+    timeout: 10s
+services:
+  service_id:
+    description: XYZ
+    data:
+      - ./path/to/some/data
+    backup:
+      - id: backup01
+        type: full
+        max_size: 2GB
+        max_age: 1y
+        schedule: 12h
+        no_backup_on_creation: false
+    config_files:
+      - path: .env
+        when_config_updated:
+          - docker compose restart
+        reload_timeout: 5
+        generators:
+          - name: generator_name
+            args:
+              - type: string
+                value: test
+              - type: userVar
+                name: "Here's a name"
+                id: nametest
+servers:
+  - id: main
+    description: XYZ
+    ip: 192.168.1.250
+    api_key: super-secret-api-key
+    storages:
+      default:
+        path: ./storage01
+        fallback: storage02
+        do_not_create: false
+      storage02:
+        path: storage02
+      fallback: storage01

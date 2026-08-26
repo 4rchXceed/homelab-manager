@@ -1,0 +1,12 @@
+[package]
+name = "server"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+rusqlite = "0.40.2"
+tempdir = "0.3.7"
+yaml-rust2 = "0.12.0"
+
+# [features]
+# dev=[]

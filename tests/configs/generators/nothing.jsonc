@@ -1,4 +1,0 @@
-{
-    "base": "bashUnsandboxed",
-    "run": "exit 0"
-}

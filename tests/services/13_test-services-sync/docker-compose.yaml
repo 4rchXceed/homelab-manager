@@ -1,5 +1,0 @@
-services:
-    test-app:
-        image: nginx:latest
-        ports:
-            - "5006:80"

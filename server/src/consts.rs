@@ -1,0 +1,14 @@
+pub static TEMP_DIR_PREFIX: &str = "homelab-manager-";
+pub static DEFAULT_CONFIG_FILE_PATH: &str = "../config/config.jsonc";
+pub static DEFAULT_SERVICES_FOLDER: &str = "services";
+pub static DEFAULT_DATABASE_FILE_PATH: &str = "database.db";
+pub static DEFAULT_UNIX_SOCKET_PATH: &str = "/tmp/homelab-manager.sock";
+pub static DEFAULT_SERVICE_DESCRIPTION: &str = "No description provided.";
+pub static DEFAULT_BASH_GENERATOR_TIMEOUT: &str = "60s";
+pub static DEFAULT_STARTUP_TIMEOUT: &str = "120s";
+pub static DEFAULT_KEEPALIVE_INTERVAL: &str = "5s";
+pub static DEFAULT_BACKUP_CHECK_INTERVAL: &str = "1m";
+pub static DEFAULT_SERVER_PORT: i64 = 4398;
+pub static DEFAULT_FILE_SERVER_PORT: i64 = 4399;
+pub static DEFAULT_BACKUP_TRANSFER_PORT: i64 = 4397;
+pub static MAX_PORT_NBR: i64 = 65535;

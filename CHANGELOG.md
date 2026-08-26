@@ -178,3 +178,15 @@ The sync system is here, but I still need to implement the core functionality: w
 ~ Other small changes
 
 ### Commit message: `New commands: backup:delete, var:get, var:list. Added file permission support to the backup system. Modified some tests to also test the file permissions. Other small changes. See CHANGELOG.md for more details.`
+
+## LAST: f448c0ef3dbff5d813ecc03cf6431b3d23aad963
+Ok, this one is the V-E-R-Y big change.
+Truth is, this project has a lot of bugs, and issues, so... I decided to rewrite the whole project... in RUST!
+And good news: Apart from github inline suggestions, I will NOT Vibe-Code/use AI to do this rewrite, not like the other people (targeting Bun and Ladybird). I will WRITE IT MYSELF in Rust, so it will have good code quality.
+This commit contains:
+- The config loader in Rust.
+- !! THE CONFIG LANGUAGE IS NOW YAML, NO LONGER JSONC XD
+- Yeah... that's pretty much this commit.
+Note: this commit is on the rust-rewrite branch, and will be merged to main when it's done.
+
+### Commit message: `Rewriting the whole project in Rust (WITHOUT AI). See CHANGELOG.md for more details.`

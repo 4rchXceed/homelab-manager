@@ -1,7 +1,0 @@
-services:
-    test-app:
-        image: nginx:latest
-        volumes:
-            - ./nginx.conf:/etc/nginx/nginx.conf
-        ports:
-            - 5002:80
