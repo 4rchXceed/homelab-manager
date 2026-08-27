@@ -52,6 +52,13 @@ pub enum ConfigError {
     GeneratorArgumentTypeNotSupported(String),
     ServicesConfigNotObject,
     OneServiceKeyNotFound,
+    ServerIpMissing(String),
+    ServerIpInvalid(String, String),
+    ServerApiKeyMissing(String),
+    ServerStorageIdInvalid(String),
+    ServerStoragePathMissing(String),
+    ServerConfigMissing,
+    ServerIdMissing,
 }
 
 #[derive(Debug)]
@@ -113,11 +120,22 @@ impl Config {
             }
             services_config.insert(key_str.to_string(), service_config.unwrap());
         }
+
+        let servers_config_raw = yaml["servers"]
+            .as_vec()
+            .ok_or(ConfigError::ServerConfigMissing)?;
+
+        let mut servers_config: Vec<ServerConfig> = Vec::new();
+        for server_config_raw in servers_config_raw.iter() {
+            let server_config = ServerConfig::from_yaml(server_config_raw)?;
+            servers_config.push(server_config);
+        }
+
         return Ok(Self {
             config_general: config_general,
             generators_config: generators_config,
             services_config: services_config,
-            servers_config: Vec::new(), // Don't have time to do it today, will do it later
+            servers_config: servers_config,
         });
     }
 }

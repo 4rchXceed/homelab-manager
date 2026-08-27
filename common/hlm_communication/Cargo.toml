@@ -1,0 +1,8 @@
+[package]
+name = "hlm_communication"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+rustls = "0.23.43"
+openssl = "0.10.81"

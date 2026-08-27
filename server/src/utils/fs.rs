@@ -41,8 +41,11 @@ pub enum TimeParseError {
 
 #[derive(Debug, Clone)]
 pub enum FileSizeParseError {
-    NoNumberBeforeUnit,
+    NumberInvalid,
     InvalidUnit,
+    NegativeSize,
+    SizeTooLarge,
+    SizeIsNotInteger,
 }
 
 pub fn parse_time(value: &str) -> Result<usize, TimeParseError> {
@@ -97,21 +100,31 @@ pub fn parse_time(value: &str) -> Result<usize, TimeParseError> {
 
 pub fn parse_file_size(value: &str) -> Result<usize, FileSizeParseError> {
     const SIZE_MAP: [(&str, usize); 5] = [
-        ("b", 1),
         ("kb", 1024),
         ("mb", 1024 * 1024),
         ("gb", 1024 * 1024 * 1024),
         ("tb", 1024 * 1024 * 1024 * 1024),
+        ("b", 1), // Put the b at the end to avoid matching b in kb, mb, gb, tb
     ];
     let value = value.trim().to_lowercase();
 
     for (unit, multiplier) in SIZE_MAP.iter() {
         if value.ends_with(unit) {
             let number_str = value.trim_end_matches(unit).trim();
-            let number: usize = number_str
+            let number: f32 = number_str
                 .parse()
-                .map_err(|_| FileSizeParseError::NoNumberBeforeUnit)?;
-            return Ok(number * multiplier);
+                .map_err(|_| FileSizeParseError::NumberInvalid)?;
+            let result = number * *multiplier as f32;
+            if result < 0.0 {
+                return Err(FileSizeParseError::NegativeSize);
+            }
+            if result > usize::MAX as f32 {
+                return Err(FileSizeParseError::NegativeSize);
+            }
+            if result % 1.0 != 0.0 {
+                return Err(FileSizeParseError::SizeIsNotInteger);
+            }
+            return Ok(result as usize);
         }
     }
     return Err(FileSizeParseError::InvalidUnit);
@@ -149,5 +162,27 @@ mod tests {
             assert!(result.is_ok());
             assert_eq!(result.unwrap(), expected);
         }
+    }
+
+    #[test]
+    pub fn test_parse_file_size() {
+        let test_cases = vec![
+            ("1b", 1),
+            ("1kb", 1024),
+            ("1mb", 1024 * 1024),
+            ("1gb", 1024 * 1024 * 1024),
+            ("1tb", 1024 * 1024 * 1024 * 1024),
+            ("1.398GB", (1501091072) as usize), // 1.39GB in bytes
+        ];
+
+        for (input, expected) in test_cases {
+            let result = parse_file_size(input);
+            println!("Testing parse_file_size('{}') => {:?}", input, result);
+            assert!(result.is_ok());
+            assert_eq!(result.unwrap(), expected);
+        }
+        assert!(parse_file_size("1.5b").is_err()); // Not an integer
+        assert!(parse_file_size("-1tb").is_err()); // Not an integer
+        assert!(parse_file_size("-9999999999999tb").is_err()); // Not an integer
     }
 }

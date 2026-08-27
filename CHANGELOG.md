@@ -190,3 +190,14 @@ This commit contains:
 Note: this commit is on the rust-rewrite branch, and will be merged to main when it's done.
 
 ### Commit message: `Rewriting the whole project in Rust (WITHOUT AI). See CHANGELOG.md for more details.`
+
+## LAST: e3de20861066910c629fd3a844f1750e7a573c0c
+Continued the Rust rewrite:
+- Finished the config loader.
+- Added some more unittests
+- Added a REWRITE.md with notes / TODOs
+- Added a "common lib" for the client/server communication, with SSL Support
+  - Added a certificate generator for the server (self-signed)
+  - Added the config
+  - That's it
+### Commit message: `Continued the Rust rewrite: client/server communication lib (1)`

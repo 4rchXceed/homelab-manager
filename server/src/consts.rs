@@ -12,3 +12,4 @@ pub static DEFAULT_SERVER_PORT: i64 = 4398;
 pub static DEFAULT_FILE_SERVER_PORT: i64 = 4399;
 pub static DEFAULT_BACKUP_TRANSFER_PORT: i64 = 4397;
 pub static MAX_PORT_NBR: i64 = 65535;
+pub static DEFAULT_FALLBACK_STORAGE: &str = "fallback";
