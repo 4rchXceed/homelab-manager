@@ -201,3 +201,14 @@ Continued the Rust rewrite:
   - Added the config
   - That's it
 ### Commit message: `Continued the Rust rewrite: client/server communication lib (1)`
+
+## LAST: afa7f8398728e1fbb5a058ebf99c99b15bbf327f
+Ok, so the "common lib" evolved into a full client/server communication library, with SSL support, and custom protocol creation. This commit contains:
+- The common lib (client/server communication library)
+- The server (with SSL support, and the config loader)
+- The client (with SSL support, and the config loader)
+- Custom message builder
+- Custom handler builder
+- etc.
+
+### Commit message: `Continued the Rust rewrite: client/server communication lib (2)`

@@ -6,3 +6,5 @@ edition = "2024"
 [dependencies]
 rustls = "0.23.43"
 openssl = "0.10.81"
+uuid = {version = "1.26.0", features = ["v4"]}
+indexmap = "2.14.1"

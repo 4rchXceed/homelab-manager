@@ -3,8 +3,13 @@ This library is used to handle communication between the homelab-manager server 
 It's a library since both the server and the agents need to use it.
 
 ## Communication protocol
-The communication protocol is based on basic SSL sockets, with basic JSON data exchange.
-This library provides a simple trait and runner to create communication socket, implement API keys, etc.
+This library is made to create custom communication protocol between the server and the agents. The protocol is based on TCP *SSL* sockets, and uses a customized message format.
 
 ## Example:
 See example -> A simple example of how to use the library to create a server and an agent that can communicate with each other.
+
+## TODO
+- [x] Basic implementation of the socket communication protocol.
+- [x] Message builder
+- [ ] Documentation
+- [ ] Probably: Add a way to "sync" the message format between the server and the agents, maybe via a file format
