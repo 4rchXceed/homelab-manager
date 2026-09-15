@@ -8,11 +8,10 @@ pub type TempDirCreation = (String, TempDir);
 
 pub fn create_temp_dir() -> Result<TempDirCreation, String> {
     let temp_dir = TempDir::new(TEMP_DIR_PREFIX);
-    if temp_dir.is_ok() {
-        let temp_dir = temp_dir.unwrap();
+    if let Ok(temp_dir) = temp_dir {
         let path = temp_dir.path().as_os_str().to_str();
-        if path.is_some() {
-            return Ok((String::from(path.unwrap()), temp_dir));
+        if let Some(path) = path {
+            return Ok((String::from(path), temp_dir));
         } else {
             return Err(String::from(
                 "Should NOT be happening: TempDir path INVALID!",

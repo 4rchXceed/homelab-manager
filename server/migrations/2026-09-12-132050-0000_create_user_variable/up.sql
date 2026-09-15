@@ -1,0 +1,5 @@
+CREATE TABLE user_variable (
+    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    id_str VARCHAR(100) NOT NULL UNIQUE,
+    value TEXT
+);

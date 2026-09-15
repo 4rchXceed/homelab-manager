@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 pub static TEMP_DIR_PREFIX: &str = "homelab-manager-";
 pub static DEFAULT_CONFIG_FILE_PATH: &str = "../config/config.jsonc";
 pub static DEFAULT_SERVICES_FOLDER: &str = "services";
@@ -13,3 +15,5 @@ pub static DEFAULT_FILE_SERVER_PORT: i64 = 4399;
 pub static DEFAULT_BACKUP_TRANSFER_PORT: i64 = 4397;
 pub static MAX_PORT_NBR: i64 = 65535;
 pub static DEFAULT_FALLBACK_STORAGE: &str = "fallback";
+pub static SEND_SLEEP_DELAY: u64 = 50; // in milliseconds
+pub static DEFAULT_SMALL_OPERATION_TIMEOUT: Duration = Duration::from_secs(5);

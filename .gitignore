@@ -3,3 +3,4 @@ reverse-proxy-full/
 .ropeproject
 tmp/
 tmp
+common/hlm_communication

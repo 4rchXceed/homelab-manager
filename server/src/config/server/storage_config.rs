@@ -2,7 +2,7 @@ use yaml_rust2::Yaml;
 
 use crate::{config::config::ConfigError, consts::DEFAULT_FALLBACK_STORAGE};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct StorageConfig {
     pub id: String,
     pub path: String,

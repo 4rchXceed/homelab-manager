@@ -29,6 +29,7 @@
         rustc
         cargo
         openssl
+        diesel-cli
       ];
     in
     {

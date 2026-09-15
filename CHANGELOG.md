@@ -212,3 +212,12 @@ Ok, so the "common lib" evolved into a full client/server communication library,
 - etc.
 
 ### Commit message: `Continued the Rust rewrite: client/server communication lib (2)`
+
+## LAST: 77b60a9aa71475f79312e6ebc22c35f39067801d
+Ok, so I removed the lib 'cause it sucked for multithreading.
+And for the rewrite, I wrote:
+- Database system (diesel.rs, sqlite)
+- Basic multi-thread-friendly agent struct
+- Fixed the code to be more conventional
+
+### Commit message: `Continued the Rust rewrite: Db + multi-thread-friendly agent struct + code improvements`

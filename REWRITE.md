@@ -1,7 +1,7 @@
 # Rust rewrite notes
 ## Server-side to do
 - [X] Config loader
-- [ ] SSLSocket
+- [X] SSLSocket
 - [ ] Agent manager module
 - [ ] Agent communication module
 - [ ] Service module
