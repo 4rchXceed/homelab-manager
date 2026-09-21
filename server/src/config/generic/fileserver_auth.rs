@@ -2,7 +2,7 @@ use yaml_rust2::Yaml;
 
 use crate::config::config::ConfigError;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct FileServerAuthConfig {
     pub username: String,
     pub password: String,

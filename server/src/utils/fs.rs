@@ -1,6 +1,7 @@
 use std::path::MAIN_SEPARATOR_STR;
 
 use tempdir::TempDir;
+use thiserror::Error;
 
 use crate::consts::TEMP_DIR_PREFIX;
 
@@ -32,18 +33,25 @@ pub fn join_path(path1: &str, path2: &str) -> String {
     return path;
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Error)]
 pub enum TimeParseError {
+    #[error("No number found before unit")]
     NoNumberBeforeUnit,
+    #[error("General parse error: {0}")]
     GeneralParseError(String),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Error)]
 pub enum FileSizeParseError {
+    #[error("Invalid number")]
     NumberInvalid,
+    #[error("Invalid unit")]
     InvalidUnit,
+    #[error("Negative size")]
     NegativeSize,
+    #[error("Size too large")]
     SizeTooLarge,
+    #[error("Size is not an integer")]
     SizeIsNotInteger,
 }
 

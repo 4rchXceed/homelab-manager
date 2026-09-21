@@ -4,9 +4,16 @@ use std::{
     net::IpAddr,
     sync::{Arc, RwLock},
     thread::Thread,
+    time::Duration,
 };
+
 use thiserror::Error;
-use tokio::net::TcpStream;
+use tokio::{
+    io::{AsyncReadExt, AsyncWriteExt},
+    net::TcpStream,
+    sync::Mutex,
+};
+use tokio_rustls::server::TlsStream;
 use uuid::Uuid;
 
 use crate::{
@@ -15,7 +22,7 @@ use crate::{
         server::{config::ServerConfig, storage_config::StorageConfig},
     },
     consts::{DEFAULT_FALLBACK_STORAGE, DEFAULT_SMALL_OPERATION_TIMEOUT, SEND_SLEEP_DELAY},
-    context::{CommandContext, Context},
+    context::{CommandContext, LockedContext},
     logger::{log_error, log_recv_mismatch},
     models::Server,
     protocol::{
@@ -75,6 +82,10 @@ pub enum AgentCommunicationError {
     InvalidMessage(MessageInvalidity),
     #[error("Ping-Pong timed out")]
     PingPongTimeout,
+    #[error(
+        "Failed to unlock context for writing (you should not see this error, please report it)"
+    )]
+    ContextUnlockFailed(String),
 }
 
 pub struct Agent {
@@ -89,6 +100,7 @@ pub struct Agent {
     current_message_id: u32,
     reverse_api_key: String,
     connected: bool,
+    keepalive_interval: u64,
 }
 
 impl Agent {
@@ -96,8 +108,10 @@ impl Agent {
         id: String,
         api_key: String,
         new_config: &Config,
-        context: &mut Context,
+        context: LockedContext,
     ) -> Result<AgentLocked, AgentCommunicationError> {
+        let reverse_api_key = Uuid::new_v4().to_string();
+
         let agent = Agent {
             id: id,
             keep_alive: None,
@@ -108,8 +122,9 @@ impl Agent {
             send_queue: HashMap::new(),
             recv_queue: HashMap::new(),
             current_message_id: 0,
-            reverse_api_key: Uuid::new_v4().to_string(),
+            reverse_api_key: reverse_api_key,
             connected: false,
+            keepalive_interval: new_config.config_general.keepalive_interval as u64,
         };
 
         let agent = Arc::new(RwLock::new(agent));
@@ -122,46 +137,34 @@ impl Agent {
     pub fn reload(
         me: AgentLocked,
         new_config: &Config,
-        context: &mut Context,
+        context: LockedContext,
     ) -> Result<(), AgentCommunicationError> {
-        let mut agent = agent_take_write!(me);
+        let server = {
+            let agent = agent_take_read!(me);
 
-        let server = new_config.servers_config.iter().find(|s| s.id == agent.id);
+            new_config.servers_config.iter().find(|s| s.id == agent.id)
+        };
 
         if let Some(server) = server {
-            Self::init_server_storage(me.clone(), Some(server));
+            Self::init_server_storage(me.clone(), Some(server))?;
+
+            let mut agent = agent_take_write!(me);
 
             agent.id = server.id.clone();
             agent.api_key = server.api_key.clone();
             agent.ip = Some(server.ip);
 
-            if let Some(conn) = &mut context.thread_context.connection {
-                let db_server = schema::server::table
-                    .filter(schema::server::id_str.eq(agent.id.clone()))
-                    .first::<Server>(conn);
-
-                if let Ok(db_server) = db_server {
-                    agent.update_server(&mut context.command_context, db_server, conn, server);
-                } else if let Err(e) = db_server {
-                    match e {
-                        diesel::result::Error::NotFound => {
-                            agent.insert_server(&context.command_context, conn, server);
-                        }
-
-                        _ => {
-                            log_error(
-                                format!(
-                                    "Error while running server db sync query: {}",
-                                    e.to_string()
-                                )
-                                .as_str(),
-                                &context.command_context,
-                            );
-                        }
-                    }
+            if let Ok(app_context) = context.context.read() {
+                if let Ok(conn) = &mut app_context.generate_connection() {
+                    Self::sync_agent_with_db(&context, agent, conn, server);
+                } else {
+                    log_error("Database context not available", &context.command_context);
                 }
             } else {
-                log_error("Database context not available", &context.command_context);
+                log_error(
+                    "Failed to acquire read lock on context",
+                    &CommandContext::server_logger(),
+                );
             }
         } else {
             // TODO: Server deleted
@@ -257,31 +260,37 @@ impl Agent {
         return Ok(());
     }
 
-    pub fn send_raw(bytes: Vec<u8>, stream: &TcpStream) -> Result<(), AgentCommunicationError> {
-        match stream.try_write(&bytes) {
+    pub async fn send_raw(
+        bytes: Vec<u8>,
+        stream: Arc<Mutex<TlsStream<TcpStream>>>,
+    ) -> Result<(), AgentCommunicationError> {
+        match stream.lock().await.write(&bytes).await {
             Ok(_) => Ok(()),
             Err(e) => Err(AgentCommunicationError::FailedToSendMessage(e)),
         }
     }
 
-    pub fn recv_raw(length: usize, stream: &TcpStream) -> Result<Vec<u8>, AgentCommunicationError> {
+    pub async fn recv_raw(
+        length: usize,
+        stream: Arc<Mutex<TlsStream<TcpStream>>>,
+    ) -> Result<Vec<u8>, AgentCommunicationError> {
         let mut buffer = vec![0; length];
 
-        match stream.try_read(&mut buffer) {
+        match stream.lock().await.read(&mut buffer).await {
             Ok(_) => Ok(buffer),
             Err(e) => Err(AgentCommunicationError::FailedToReceiveMessage(e)),
         }
     }
 
-    pub fn init_connection(
+    pub async fn init_connection(
         me: AgentLocked,
-        stream: &TcpStream,
+        stream: Arc<Mutex<TlsStream<TcpStream>>>,
     ) -> Result<(), AgentCommunicationError> {
         let agent = agent_take_read!(me);
 
-        Self::send_raw(b"AUTH".to_vec(), stream)?;
+        Self::send_raw(b"AUTH".to_vec(), stream.clone()).await?;
 
-        let uuid = Self::recv_raw(36, stream)?;
+        let uuid = Self::recv_raw(36, stream.clone()).await?;
 
         let uuid_str = String::from_utf8(uuid)
             .map_err(|e| AgentCommunicationError::AuthFailed(e.to_string()))?;
@@ -290,11 +299,11 @@ impl Agent {
             return Err(AgentCommunicationError::AuthRejected);
         }
 
-        Self::send_raw(b"OK".to_vec(), stream)?;
+        Self::send_raw(b"OK".to_vec(), stream.clone()).await?;
 
-        Self::send_raw(agent.reverse_api_key.as_bytes().to_vec(), stream)?;
+        Self::send_raw(agent.reverse_api_key.as_bytes().to_vec(), stream.clone()).await?;
 
-        let ack = Self::recv_raw(2, stream)?;
+        let ack = Self::recv_raw(2, stream).await?;
 
         if ack != b"OK" {
             return Err(AgentCommunicationError::ReverseApiKeyNotAcknowledged);
@@ -303,33 +312,56 @@ impl Agent {
         return Ok(());
     }
 
+    pub fn get_id(&self) -> String {
+        return self.id.clone();
+    }
+
     pub fn generate_message_id(&mut self) -> u32 {
         self.current_message_id += 1;
         return self.current_message_id;
     }
 
-    pub fn connect(socket: &TcpStream, me: AgentLocked) -> Result<(), AgentCommunicationError> {
-        Self::init_connection(me.clone(), socket)?;
+    pub async fn connect(
+        socket: Arc<Mutex<TlsStream<TcpStream>>>,
+        me: AgentLocked,
+    ) -> Result<(), AgentCommunicationError> {
+        Self::init_connection(me.clone(), socket.clone()).await?;
 
         agent_take_write!(me).connected = true;
+
+        Self::start_process_manager(socket.clone(), &me);
+        Self::start_process_sends(socket, &me);
+
+        std::thread::spawn(move || {
+            let keepalive_result = Self::run_keepalive(me.clone());
+            if let Err(e) = keepalive_result {
+                log_error(
+                    format!("Error in keepalive thread: {}", e.to_string()).as_str(),
+                    &CommandContext::server_logger(),
+                );
+            }
+        });
 
         return Ok(());
     }
 
-    pub fn process_messages(
+    async fn process_messages(
         me: AgentLocked,
-        socket: Arc<TcpStream>,
+        socket: Arc<Mutex<TlsStream<TcpStream>>>,
     ) -> Result<(), AgentCommunicationError> {
         loop {
             let mut buf = [0; 4];
 
             socket
-                .try_read(&mut buf)
+                .lock()
+                .await
+                .read(&mut buf)
+                .await
                 .map_err(|e| AgentCommunicationError::ReadError(e))?;
 
             let message_length = u32::from_be_bytes(buf) as usize;
 
-            let message_bytes = Self::recv_raw(message_length, &socket)?;
+            let message_bytes = Self::recv_raw(message_length, socket.clone()).await?;
 
             let json = String::from_utf8(message_bytes).map_err(|e| {
                 AgentCommunicationError::InvalidMessage(MessageInvalidity::InvalidUtf8(e))
@@ -347,16 +379,20 @@ impl Agent {
         }
     }
 
-    pub fn process_sends(
+    async fn process_sends(
         me: AgentLocked,
-        socket: Arc<TcpStream>,
+        socket: Arc<Mutex<TlsStream<TcpStream>>>,
     ) -> Result<(), AgentCommunicationError> {
         loop {
-            let agent = me
-                .read()
-                .map_err(|e| AgentCommunicationError::AgentUnlockFailed(e.to_string()))?;
+            let send_queue = {
+                let mut agent = me
+                    .write()
+                    .map_err(|e| AgentCommunicationError::AgentUnlockFailed(e.to_string()))?;
 
-            for (id, message) in agent.send_queue.iter() {
+                std::mem::take(&mut agent.send_queue)
+            };
+
+            for (id, message) in send_queue.iter() {
                 let message_wrapper = ToAgentMessageWrapper {
                     id: *id,
                     message: message.clone(),
@@ -370,8 +406,8 @@ impl Agent {
 
                 let message_length = (message_bytes.len() as u32).to_be_bytes();
 
-                Self::send_raw(message_length.to_vec(), &socket)?;
-                Self::send_raw(message_bytes.to_vec(), &socket)?;
+                Self::send_raw(message_length.to_vec(), socket.clone()).await?;
+                Self::send_raw(message_bytes.to_vec(), socket.clone()).await?;
             }
             std::thread::sleep(std::time::Duration::from_millis(SEND_SLEEP_DELAY));
         }
@@ -390,6 +426,18 @@ impl Agent {
             return self.get_storage(DEFAULT_FALLBACK_STORAGE.to_string());
         } else {
             return None;
+        }
+    }
+
+    fn run_keepalive(me: AgentLocked) -> Result<(), AgentCommunicationError> {
+        let interval = agent_take_read!(me).keepalive_interval;
+
+        loop {
+            Self::send_message_pingpong(
+                ToAgentMessage::KeepAlive,
+                Some(Duration::from_secs(interval)),
+                me.clone(),
+            )?;
         }
     }
 
@@ -428,7 +476,7 @@ impl Agent {
 
     fn update_server(
         &self,
-        context: &mut CommandContext,
+        context: &CommandContext,
         db_server: Server,
         conn: &mut diesel::prelude::SqliteConnection,
         server: &ServerConfig,
@@ -454,6 +502,74 @@ impl Agent {
                     .as_str(),
                     &context,
                 );
+            }
+        }
+    }
+
+    pub fn handle_disconnect(&mut self) {
+        // TODO
+    }
+
+    // TODO: Service functions
+
+    fn start_process_manager(socket: Arc<Mutex<TlsStream<TcpStream>>>, me: &Arc<RwLock<Agent>>) {
+        let me_clone = me.clone();
+        let socket_clone = socket.clone();
+        tokio::spawn(async move {
+            let process_messages_result = Self::process_messages(me_clone, socket_clone).await;
+            if let Err(e) = process_messages_result {
+                log_error(
+                    format!("Error in message processing thread: {}", e.to_string()).as_str(),
+                    &CommandContext::server_logger(),
+                );
+            }
+        });
+    }
+
+    fn start_process_sends(socket: Arc<Mutex<TlsStream<TcpStream>>>, me: &Arc<RwLock<Agent>>) {
+        let me_clone = me.clone();
+        let socket_clone = socket.clone();
+        tokio::spawn(async move {
+            let process_messages_result = Self::process_sends(me_clone, socket_clone).await;
+            if let Err(e) = process_messages_result {
+                log_error(
+                    format!("Error in message processing thread: {}", e.to_string()).as_str(),
+                    &CommandContext::server_logger(),
+                );
+            }
+        });
+    }
+
+    fn sync_agent_with_db(
+        context: &LockedContext,
+        mut agent: std::sync::RwLockWriteGuard<'_, Agent>,
+        conn: &mut r2d2::PooledConnection<
+            diesel::r2d2::ConnectionManager<diesel::prelude::SqliteConnection>,
+        >,
+        server: &ServerConfig,
+    ) {
+        let db_server = schema::server::table
+            .filter(schema::server::id_str.eq(agent.id.clone()))
+            .first::<Server>(conn);
+
+        if let Ok(db_server) = db_server {
+            agent.update_server(&context.command_context, db_server, conn, server);
+        } else if let Err(e) = db_server {
+            match e {
+                diesel::result::Error::NotFound => {
+                    agent.insert_server(&context.command_context, conn, server);
+                }
+
+                _ => {
+                    log_error(
+                        format!(
+                            "Error while running server db sync query: {}",
+                            e.to_string()
+                        )
+                        .as_str(),
+                        &context.command_context,
+                    );
+                }
             }
         }
     }

@@ -2,13 +2,13 @@ use yaml_rust2::Yaml;
 
 use crate::{config::config::ConfigError, utils::fs::parse_file_size};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum BackupType {
     Full,
     Incremental,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct BackupConfig {
     pub id: String,
     pub backup_type: BackupType,

@@ -8,22 +8,38 @@ use openssl::x509::extension::{
     SubjectKeyIdentifier,
 };
 use openssl::x509::{X509, X509NameBuilder};
+use thiserror::Error;
 
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum CertGenerationError {
-    NoIPAddressesProvided,
+    #[error("Failed to generate RSA key")]
     FailedToGenerateRSAKey,
+    #[error("Failed to build cert name")]
     FailedToBuildName,
+    #[error("Failed to build certificate")]
     FailedToBuildCertificate,
+    #[error("Failed to set validity period")]
     FailedToSetValidityPeriod,
+    #[error("Failed to set serial number")]
     FailedToSetSerialNumber,
+    #[error("Failed to add valid IP addresses to the certificate")]
     FailedToAddValidIPAddresses,
+    #[error("Failed to sign certificate")]
     FailedToSignCertificate,
+    #[error("Failed to generate private key")]
     FailedToGeneratePrivateKey,
+    #[error("Failed to write server private key")]
     FailedToWriteServerKey,
+    #[error("Failed to generate rustls certificate")]
     FailedToGenerateCertificate,
+    #[error("Failed to write server certificate")]
     FailedToWriteServerCertificate,
+    #[error("Failed to write client certificate")]
     FailedToWriteClientCertificate,
+    #[error("Failed to convert server certificate to private key: {0}")]
+    FailedToConvertServerCertificateToPrivateKey(String),
+    #[error("Failed to convert server certificate to PEM: {0}")]
+    FailedToConvertServerCertificateToPem(String),
 }
 
 /// ! Disclaimer: this has been "vibe coded", I don't know shit about OpenSSL / certs, so if you know how to do this code cleaner, please do so. I just wanted to get it working for now.
@@ -118,6 +134,10 @@ pub fn generate_server_leaf(
     cert_builder
         .set_version(2)
         .map_err(|_| CertGenerationError::FailedToBuildCertificate)?;
+
+    if ips.is_empty() {
+        return Err(CertGenerationError::FailedToAddValidIPAddresses);
+    }
 
     let mut name_builder =
         X509NameBuilder::new().map_err(|_| CertGenerationError::FailedToBuildName)?;

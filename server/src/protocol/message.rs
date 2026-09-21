@@ -3,11 +3,13 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize, Clone)]
 pub enum ToAgentMessage {
     CheckStorage(String, bool), // (path, can be created)
+    KeepAlive,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub enum FromAgentMessage {
     StorageCheckResult(bool), // is valid
+    KeepAliveAck,
 }
 
 #[derive(Serialize, Deserialize)]

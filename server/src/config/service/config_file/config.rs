@@ -5,7 +5,7 @@ use crate::{
     utils::fs::parse_time,
 };
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ConfigFileConfig {
     pub path: String,
     pub when_config_updated: Vec<String>,

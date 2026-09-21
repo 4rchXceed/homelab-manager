@@ -1,5 +1,6 @@
 use std::{env::var, path::Path};
 
+use thiserror::Error;
 use yaml_rust2::YamlLoader;
 
 use crate::{
@@ -7,11 +8,15 @@ use crate::{
     consts::DEFAULT_CONFIG_FILE_PATH,
 };
 
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum ConfigLoadError {
+    #[error("The config file is not found")]
     FileNotFound,
+    #[error("Failed to read the config file: {0}")]
     ConfigReadError(std::io::Error),
+    #[error("Failed to parse the config file: {0}")]
     YamlParseError(yaml_rust2::ScanError),
+    #[error("Failed to process the config file: {0}")]
     ConfigError(ConfigError),
 }
 
@@ -42,48 +47,33 @@ impl ConfigLoader {
         }
     }
 
-    pub fn load(&mut self) -> Result<Config, ConfigLoadError> {
-        let config_path = self.get_config_path();
-        if config_path.is_err() {
-            return Err(ConfigLoadError::FileNotFound);
-        }
-        let config_path = config_path.unwrap();
+    pub fn load(&self) -> Result<(Config, String), ConfigLoadError> {
+        let config_path = self
+            .get_config_path()
+            .map_err(|_| ConfigLoadError::FileNotFound)?;
 
-        let config_content = std::fs::read_to_string(config_path);
-        if config_content.is_err() {
-            return Err(ConfigLoadError::ConfigReadError(
-                config_content.err().unwrap(),
-            ));
-        }
-        let config_content = config_content.unwrap();
+        let config_content = std::fs::read_to_string(config_path)
+            .map_err(|e| ConfigLoadError::ConfigReadError(e))?;
 
-        let config_raw = YamlLoader::load_from_str(config_content.as_str());
-        if config_raw.is_err() {
-            return Err(ConfigLoadError::YamlParseError(config_raw.err().unwrap()));
-        }
-        let config_raw = config_raw.unwrap();
+        let config_raw = YamlLoader::load_from_str(config_content.as_str())
+            .map_err(|e| ConfigLoadError::YamlParseError(e))?;
 
-        let res = self.post_process_config(config_raw);
-        if res.is_err() {
-            return Err(ConfigLoadError::ConfigError(res.err().unwrap()));
-        }
-        return Ok(res.unwrap());
+        let res = self
+            .post_process_config(config_raw)
+            .map_err(|e| ConfigLoadError::ConfigError(e))?;
+
+        return Ok((res, config_content));
     }
 
     pub fn post_process_config(
-        &mut self,
+        &self,
         config_raw: Vec<yaml_rust2::Yaml>,
     ) -> Result<Config, ConfigError> {
-        let first = config_raw.first();
-        if first.is_none() {
-            return Err(ConfigError::NoConfig);
-        }
-        let first = first.unwrap();
-        let config = Config::from_yaml(first);
-        if config.is_err() {
-            return Err(config.err().unwrap());
-        }
-        return Ok(config.unwrap());
+        let first = config_raw.first().ok_or(ConfigError::NoConfig)?;
+
+        let config = Config::from_yaml(first)?;
+
+        return Ok(config);
     }
 }
 
@@ -105,7 +95,7 @@ mod tests {
         std::fs::write(&config_file_path, CONFIG_SAMPLE)
             .expect("Failed to write config sample to temp file");
 
-        let mut config_loader = ConfigLoader::with_path(config_file_path);
+        let config_loader = ConfigLoader::with_path(config_file_path);
         let config_result = config_loader.load();
         println!("Config result: {:?}", config_result);
         assert!(config_result.is_ok());

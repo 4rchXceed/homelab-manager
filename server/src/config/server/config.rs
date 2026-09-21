@@ -4,7 +4,7 @@ use yaml_rust2::{Yaml, yaml::Hash};
 
 use crate::config::{config::ConfigError, server::storage_config::StorageConfig};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ServerConfig {
     pub id: String,
     pub description: String,

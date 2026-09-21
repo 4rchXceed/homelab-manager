@@ -1,5 +1,3 @@
-use std::net::IpAddr;
-
 use yaml_rust2::Yaml;
 
 use crate::{
@@ -14,7 +12,7 @@ use crate::{
     utils::fs::parse_time,
 };
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct GeneralConfig {
     pub services_folder: String,
     pub database_file: String,
@@ -23,7 +21,6 @@ pub struct GeneralConfig {
     pub startup_timeout: usize,
     pub keepalive_interval: usize,
     pub notifications_urls: Vec<String>,
-    pub binds: Vec<IpAddr>,
     pub file_server_auth: FileServerAuthConfig,
     pub backup_check_interval: usize,
 }
@@ -37,7 +34,7 @@ impl GeneralConfig {
             .as_str()
             .unwrap_or(DEFAULT_DATABASE_FILE_PATH);
 
-        let net_config = NetConfig::from_yaml(&yaml["net_config"]);
+        let net_config = NetConfig::from_yaml(&yaml["net"]);
         if net_config.is_err() {
             return Err(net_config.err().unwrap());
         }
@@ -76,13 +73,6 @@ impl GeneralConfig {
             .filter_map(|url| url.as_str().map(|s| s.to_string()))
             .collect();
 
-        let binds: Vec<IpAddr> = yaml["binds"]
-            .as_vec()
-            .unwrap_or(&Vec::new())
-            .iter()
-            .filter_map(|ip| ip.as_str().and_then(|s| s.parse().ok()))
-            .collect();
-
         let file_server_auth_raw = &yaml["file_server_auth"];
         if file_server_auth_raw.is_badvalue() {
             return Err(ConfigError::FileServerAuthMissing);
@@ -113,7 +103,6 @@ impl GeneralConfig {
             startup_timeout: startup_timeout,
             keepalive_interval: keepalive_interval,
             notifications_urls: notifications_urls,
-            binds: binds,
             file_server_auth: file_server_auth,
             backup_check_interval: backup_check_interval,
         });

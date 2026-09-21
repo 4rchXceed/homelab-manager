@@ -2,7 +2,7 @@ use yaml_rust2::Yaml;
 
 use crate::config::{config::ConfigError, service::config_file::generator::arg::GeneratorArg};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct GeneratorConfig {
     pub generator_id: String,
     pub args: Vec<GeneratorArg>,
@@ -10,9 +10,9 @@ pub struct GeneratorConfig {
 
 impl GeneratorConfig {
     pub fn from_yaml(yaml: &Yaml) -> Result<Self, ConfigError> {
-        let generator_id = yaml["generator"]
+        let generator_id = yaml["name"]
             .as_str()
-            .ok_or(ConfigError::RunGeneratorIdMissing)?;
+            .ok_or(ConfigError::RunGeneratorNameMissing)?;
 
         if yaml["args"].is_badvalue() || !yaml["args"].is_array() {
             return Err(ConfigError::RunGeneratorArgsNotArray(

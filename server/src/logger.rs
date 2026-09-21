@@ -1,6 +1,6 @@
 use chrono::Local;
 
-use crate::{context::CommandContext, protocol::message::FromAgentMessage};
+use crate::context::CommandContext;
 
 pub fn log(message: &str, level: &str, context: &CommandContext) {
     let time = Local::now();

@@ -5,28 +5,30 @@ config:
     server_port: 4398
     file_server_port: 4399
     backup_transfer_port: 4397
+    binds:
+      - 192.168.1.250
+      - 127.0.0.1
+    cert_dir: "./certs"
   unix_socket_path: "/tmp/homelab-manager.sock"
   startup_timeout: 120s
   keepalive_interval: 5s
-  binds:
-    - 192.168.1.250
   file_server_auth:
-    user: admin
+    username: admin
     password: pass
   backup_check_interval: 1s
 generators:
   name:
     base: "bash"
-    run_commands:
+    commands:
       - command1
       - command2
     timeout: 10s
 services:
   service_id:
     description: XYZ
-    data:
+    datas:
       - ./path/to/some/data
-    backup:
+    backups:
       - id: backup01
         type: full
         max_size: 2GB
@@ -37,13 +39,13 @@ services:
       - path: .env
         when_config_updated:
           - docker compose restart
-        reload_timeout: 5
+        reload_timeout: 5s
         generators:
           - name: generator_name
             args:
               - type: string
                 value: test
-              - type: userVar
+              - type: user_var
                 name: "Here's a name"
                 id: nametest
 servers:

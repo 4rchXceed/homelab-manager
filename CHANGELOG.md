@@ -221,3 +221,8 @@ And for the rewrite, I wrote:
 - Fixed the code to be more conventional
 
 ### Commit message: `Continued the Rust rewrite: Db + multi-thread-friendly agent struct + code improvements`
+
+## LAST: 21937543744d8b6fb02c01ee31cc9167d9e0b63f
++ Added agent & net struct on server, which is multi-thread-friendly
++ Started coding the agent, with a new config type: ini!()
++ First connection between agent and server (with SSL support)

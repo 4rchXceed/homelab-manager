@@ -2,7 +2,7 @@ use yaml_rust2::Yaml;
 
 use crate::config::{config::ConfigError, generator::base_config::GeneratorBaseConfig};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct GeneratorConfig {
     pub id: String,
     pub generator_base: GeneratorBaseConfig,

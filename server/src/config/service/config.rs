@@ -8,7 +8,7 @@ use crate::{
     consts::DEFAULT_SERVICE_DESCRIPTION,
 };
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ServiceConfig {
     pub id: String,
     pub description: String,
@@ -22,7 +22,7 @@ impl ServiceConfig {
         let description = yaml["description"]
             .as_str()
             .unwrap_or(DEFAULT_SERVICE_DESCRIPTION);
-        let data_dirs = yaml["data_dirs"]
+        let data_dirs = yaml["datas"]
             .as_vec()
             .unwrap_or(&Vec::new())
             .iter()

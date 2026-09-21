@@ -4,7 +4,7 @@ use crate::{
     config::config::ConfigError, consts::DEFAULT_BASH_GENERATOR_TIMEOUT, utils::fs::parse_time,
 };
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct BashGeneratorConfig {
     pub commands: Vec<String>,
     pub timeout: usize,
@@ -43,7 +43,7 @@ impl BashGeneratorConfig {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum GeneratorBaseConfig {
     Bash(BashGeneratorConfig),
     BashUnsandboxed(BashGeneratorConfig),

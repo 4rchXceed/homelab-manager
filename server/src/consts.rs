@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 pub static TEMP_DIR_PREFIX: &str = "homelab-manager-";
-pub static DEFAULT_CONFIG_FILE_PATH: &str = "../config/config.jsonc";
+pub static DEFAULT_CONFIG_FILE_PATH: &str = "./config/config.yaml";
 pub static DEFAULT_SERVICES_FOLDER: &str = "services";
 pub static DEFAULT_DATABASE_FILE_PATH: &str = "database.db";
 pub static DEFAULT_UNIX_SOCKET_PATH: &str = "/tmp/homelab-manager.sock";
