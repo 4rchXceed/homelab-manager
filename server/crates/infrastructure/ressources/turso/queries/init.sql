@@ -1,0 +1,49 @@
+CREATE TABLE agent (
+    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    id_str VARCHAR(100) NOT NULL UNIQUE,
+    ip VARCHAR(15) NOT NULL UNIQUE,
+    api_key VARCHAR(36) NOT NULL UNIQUE,
+    disabled BOOLEAN NOT NULL DEFAULT FALSE,
+    reverse_api_key VARCHAR(36) NOT NULL UNIQUE
+);
+
+CREATE TABLE service (
+    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    sync_agent_id INTEGER REFERENCES agent(id),
+    agent_id INTEGER REFERENCES agent(id),
+    id_str VARCHAR(100) NOT NULL UNIQUE,
+    name VARCHAR(100) NOT NULL,
+    last_config TEXT,
+    sync_storage_id_str VARCHAR(100),
+    last_sync TIMESTAMP,
+    sync_time INTEGER NOT NULL,
+    disabled BOOLEAN NOT NULL DEFAULT FALSE
+);
+
+CREATE TABLE backup_config (
+    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    service_id INTEGER NOT NULL REFERENCES service(id) ON DELETE CASCADE,
+    id_str VARCHAR(100) NOT NULL UNIQUE,
+    last TIMESTAMP,
+    disabled BOOLEAN NOT NULL DEFAULT FALSE
+);
+
+CREATE TABLE ip_needs_update (
+    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    service_trigger_id INTEGER NOT NULL REFERENCES service(id) ON DELETE CASCADE,
+    service_updated_id INTEGER NOT NULL REFERENCES service(id) ON DELETE CASCADE,
+    last_ip VARCHAR(15) NOT NULL
+);
+
+CREATE TABLE user_variable (
+    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    id_str VARCHAR(100) NOT NULL UNIQUE,
+    value TEXT
+);
+
+CREATE TABLE user_var_needs_update (
+    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    service_id INTEGER NOT NULL REFERENCES service(id) ON DELETE CASCADE,
+    user_variable_id INTEGER NOT NULL REFERENCES user_variable(id) ON DELETE CASCADE,
+    last_value TEXT NOT NULL
+);

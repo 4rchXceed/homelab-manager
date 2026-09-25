@@ -1,0 +1,18 @@
+[package]
+name = "infrastructure"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+turso = { version = "0.7.2", default-features = false, features = ["mimalloc", "pure-rust-crypto", "stacker", "test_helper", "io_memory_yield", "sync"] }
+thiserror = "2.0.20"
+application = { path = "../application" }
+domain = { path = "../domain" }
+config = { path = "../config" }
+async-trait = "0.1.92"
+tokio-rustls = "0.26.5"
+tokio = { version = "1.53.1", features = ["full"] }
+openssl = "0.10.81"
+log = "0.4.34"
+simple_logger = { version = "5.2.0", features = ["colors", "timestamps", "stderr"] }
+uuid = { version="1.26.1", features=["v4"] }

@@ -1,2 +1,0 @@
-DROP TABLE IF EXISTS user_variable;
-DROP TABLE IF EXISTS service;

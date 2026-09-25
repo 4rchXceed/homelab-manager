@@ -1,6 +1,0 @@
-CREATE TABLE ip_needs_update (
-    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-    service_trigger_id INTEGER NOT NULL REFERENCES service(id) ON DELETE CASCADE,
-    service_updated_id INTEGER NOT NULL REFERENCES service(id) ON DELETE CASCADE,
-    last_ip VARCHAR(15) NOT NULL
-);

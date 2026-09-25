@@ -3,3 +3,4 @@ db/
 certs/
 deps/
 test.db*
+src.old

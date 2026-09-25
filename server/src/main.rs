@@ -1,23 +1,81 @@
-mod config;
-mod consts;
-mod context;
-mod database;
-mod logger;
-mod models;
-mod net;
-mod protocol;
-mod schema;
-mod server;
-mod utils;
+use std::sync::Arc;
+
+use application::{
+    agent::usecases::{authenticate::AuthenticateAgent, ensure_db::EnsureAgentInDb},
+    net::repositories::net_manager::NetworkManager,
+};
+use config::loader::ConfigLoader;
+use infrastructure::{
+    database::turso::{agent::TursoAgentsDb, connection::TursoDbConnection},
+    logger::init::init_logger,
+    net::rustls::network_manager::RustlsNetworkManager,
+};
+use log::error;
+use log::info;
 
 #[tokio::main]
 async fn main() {
-    let mut server = server::HomelabServer::new()
+    // Test implementation
+
+    // The config
+    let config = ConfigLoader::new_from_env()
+        .load()
         .map_err(|e| e.to_string())
-        .expect("Failed to create the server :( ");
-    server
-        .run()
+        .expect("Failed to load config")
+        .0;
+
+    // The logger
+    init_logger(config.config_general.log_level).expect("Failed to set log level");
+
+    // The db
+    let db = TursoDbConnection::new(config.config_general.database_file)
         .await
         .map_err(|e| e.to_string())
-        .expect("Failed to run the server :( ");
+        .expect("Failed to create db");
+
+    // The agent repository
+    let agent_repo = Arc::new(TursoAgentsDb::new(Arc::new(db)));
+
+    // Register the agents in the database
+    let agent_ensurer = EnsureAgentInDb::new(agent_repo.clone());
+    agent_ensurer
+        .ensure_agents(&config.agents_config)
+        .await
+        .expect("Failed to update agents in db");
+
+    // The connection
+    let nm = RustlsNetworkManager::listen(
+        config.config_general.net_config.server_port,
+        config.config_general.net_config.clone(),
+    )
+    .await
+    .map_err(|e| e.to_string())
+    .expect("Failed to start server");
+
+    info!(
+        "Server listening on port {}",
+        config.config_general.net_config.server_port
+    );
+    // The accept loop
+    loop {
+        let connection = nm.accept_new().await;
+
+        match connection {
+            Ok(connection) => {
+                let auth = AuthenticateAgent::new(connection, agent_repo.clone());
+                let result = auth.authenticate().await;
+                match result {
+                    Ok(agent) => {
+                        info!("Agent authenticated: {:?}", agent.id);
+                    }
+                    Err(e) => {
+                        error!("Error authenticating agent: {}", e);
+                    }
+                }
+            }
+            Err(e) => {
+                error!("Error accepting connection: {}", e);
+            }
+        }
+    }
 }

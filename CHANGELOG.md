@@ -233,3 +233,18 @@ And for the rewrite, I wrote:
 + Added DB system for agent (simple JSON)
 
 ### Commit message: `Finished agent's connection + authentication`
+
+## LAST: 09a3363f5babba6ef04ee70643abbccdf713147e
+Ok man it's been the 2nd time I rewrite (almost) the whole project
++ Switched to clean architecture [rust] (only for the server, for now)
+  - Only the basic agent features are implemented (connect)
+What works:
+- Agent connects to server
+- Config load
+- DB save
+- TLS support
+- That's it
+
+### !! THIS IS NO LONGER A "RUST-REWRITE": IT'S ALMOST LIKE STARTING A WHOLE NEW PROJECT, BUT IT'S BETTER THIS WAY
+
+### Commit message: `Switched to clean architecture`

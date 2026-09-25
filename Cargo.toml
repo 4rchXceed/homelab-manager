@@ -1,3 +1,12 @@
  [workspace]
  resolver = "3"
- members = ["agent", "server"]
+ members = [
+     "agent",
+     "server",
+     "server/crates/domain",
+     "server/crates/config",
+     "server/crates/utils",
+     "server/crates/consts",
+     "server/crates/application",
+     "server/crates/infrastructure",
+ ]
