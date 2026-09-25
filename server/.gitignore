@@ -1,3 +1,5 @@
 target/
 db/
 certs/
+deps/
+test.db*

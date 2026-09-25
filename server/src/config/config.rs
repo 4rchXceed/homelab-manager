@@ -160,6 +160,10 @@ pub enum ConfigError {
         "At least one bind address must be specified in the network config (/general/net/binds)"
     )]
     NoBindAddresses,
+    #[error(
+        "Invalid log level, must be either: debug, error, trace, warn, info, got: {0} (/general/log_level"
+    )]
+    InvalidLogLevel(String),
 }
 
 #[derive(Debug, Clone)]

@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use ini::ini;
 use thiserror::Error;
 
@@ -20,12 +22,15 @@ pub struct Config {
     // Paths
     pub service_folder: String,   // Optional
     pub certificate_path: String, // Required
+    pub database_path: String,    // Optional
     // Connection
     pub server_host: String,     // Required
     pub server_port: u16,        // Optional
     pub file_server_port: u16,   // Optional
     pub backup_relay_port: u16,  // Optional
     pub keepalive_max_time: u64, // Optional
+    // Other (optional)
+    pub log_level: String, // Optional
 }
 
 impl Config {
@@ -77,6 +82,11 @@ impl Config {
         let service_folder = paths_section
             .get("service_folder")
             .unwrap_or(&"services".to_string())
+            .to_string();
+
+        let database = paths_section
+            .get("database")
+            .unwrap_or(&"db.json".to_string())
             .to_string();
 
         let certificate_path =
@@ -134,18 +144,33 @@ impl Config {
                 ConfigError::MissingKey("keepalive_max_time".to_string(), "connection".to_string())
             })?;
 
+        let other_section = ini
+            .get("other")
+            .unwrap_or(&HashMap::new())
+            .iter()
+            .filter(|(_, v)| v.is_some())
+            .map(|(k, v)| (k.clone(), v.as_ref().unwrap().clone()))
+            .collect::<std::collections::HashMap<String, String>>();
+
+        let log_level = other_section
+            .get("log_level")
+            .unwrap_or(&"info".to_string())
+            .to_string();
+
         return Ok(Self {
             id: id.clone(),
             api_key: api_key.clone(),
             file_server_username: file_server_username.clone(),
             file_server_password: file_server_password.clone(),
             service_folder: service_folder.clone(),
+            certificate_path: certificate_path.clone(),
+            database_path: database,
             server_host: server_host.clone(),
             server_port: server_port,
             file_server_port: file_server_port,
             backup_relay_port: backup_server_port,
             keepalive_max_time: keepalive_max_time,
-            certificate_path: certificate_path.clone(),
+            log_level: log_level,
         });
     }
 }

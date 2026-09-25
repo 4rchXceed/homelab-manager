@@ -33,13 +33,9 @@ impl diesel::r2d2::CustomizeConnection<SqliteConnection, diesel::r2d2::Error>
     }
 }
 
-pub fn generate_connection_pool() -> Result<Pool<ConnectionManager<SqliteConnection>>, r2d2::Error>
-{
-    let database_url = if let Ok(url) = std::env::var("DATABASE_URL") {
-        url
-    } else {
-        String::from("db/db.db")
-    };
+pub fn generate_connection_pool(
+    database_url: String,
+) -> Result<Pool<ConnectionManager<SqliteConnection>>, r2d2::Error> {
     return Pool::builder()
         .max_size(20)
         .connection_customizer(Box::new(ConnectionOptions {

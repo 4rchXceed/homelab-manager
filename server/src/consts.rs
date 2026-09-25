@@ -17,3 +17,4 @@ pub static MAX_PORT_NBR: i64 = 65535;
 pub static DEFAULT_FALLBACK_STORAGE: &str = "fallback";
 pub static SEND_SLEEP_DELAY: u64 = 50; // in milliseconds
 pub static DEFAULT_SMALL_OPERATION_TIMEOUT: Duration = Duration::from_secs(5);
+pub static DEFAULT_LOG_LEVEL: &str = "INFO";

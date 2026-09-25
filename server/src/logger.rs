@@ -20,6 +20,19 @@ pub fn log_error(message: &str, context: &CommandContext) {
     log(message, "ERROR", context);
 }
 
+pub fn log_trace(message: &str, context: &CommandContext) {
+    log(message, "TRACE", context);
+}
+
+// Easy function, since they are a lot used in server-only envs
+
+#[macro_export]
+macro_rules! trace_srv {
+    ($($arg:tt)+) => {
+        crate::logger::log_trace(format!($($arg)+).as_str(), &crate::context::CommandContext::server_logger());
+    };
+}
+
 // Specific case errors:
 
 pub fn log_recv_mismatch(context: &CommandContext, expected: &str) {

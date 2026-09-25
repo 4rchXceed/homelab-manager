@@ -7,11 +7,11 @@ use std::{
     time::Duration,
 };
 
-use thiserror::Error;
 use tokio::{
-    io::{AsyncReadExt, AsyncWriteExt},
+    io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt},
     net::TcpStream,
     sync::Mutex,
+    time::sleep,
 };
 use tokio_rustls::server::TlsStream;
 use uuid::Uuid;
@@ -23,70 +23,39 @@ use crate::{
     },
     consts::{DEFAULT_FALLBACK_STORAGE, DEFAULT_SMALL_OPERATION_TIMEOUT, SEND_SLEEP_DELAY},
     context::{CommandContext, LockedContext},
-    logger::{log_error, log_recv_mismatch},
+    logger::{log_error, log_info, log_recv_mismatch},
     models::Server,
     protocol::{
+        agent::errors::{AgentCommunicationError, MessageInvalidity},
         message::{
             FromAgentMessage, FromAgentMessageWrapper, ToAgentMessage, ToAgentMessageWrapper,
         },
         storage::Storage,
     },
-    schema,
+    schema, trace_srv,
 };
 
 macro_rules! agent_take_write {
     ($me: expr) => {
-        $me.write()
-            .map_err(|e| AgentCommunicationError::AgentUnlockFailed(e.to_string()))?
+        $me.write().map_err(|e| {
+            crate::protocol::agent::errors::AgentCommunicationError::AgentUnlockFailed(
+                e.to_string(),
+            )
+        })?
     };
 }
 
 macro_rules! agent_take_read {
     ($me: expr) => {
-        $me.read()
-            .map_err(|e| AgentCommunicationError::AgentUnlockFailed(e.to_string()))?
+        $me.read().map_err(|e| {
+            crate::protocol::agent::errors::AgentCommunicationError::AgentUnlockFailed(
+                e.to_string(),
+            )
+        })?
     };
 }
 
 pub type AgentLocked = Arc<RwLock<Agent>>;
-
-#[derive(Error, Debug)]
-pub enum MessageInvalidity {
-    #[error("Invalid UTF-8 message received: {0}")]
-    InvalidUtf8(std::string::FromUtf8Error),
-    #[error("Invalid JSON message received: {0}")]
-    InvalidJson(serde_json::Error),
-}
-
-#[derive(Error, Debug)]
-pub enum AgentCommunicationError {
-    #[error("Agent is not connected (maybe disconnected / not initialized)")]
-    AgentNotConnected,
-    #[error("Failed to send message to agent: {0}")]
-    FailedToSendMessage(std::io::Error),
-    #[error("Failed to receive message from agent: {0}")]
-    FailedToReceiveMessage(std::io::Error),
-    #[error("Auth failed: {0}")]
-    AuthFailed(String),
-    #[error("Client tried to connect with wrong UUID, connection rejected")]
-    AuthRejected,
-    #[error("Agent did not acknowledge reverse API key")]
-    ReverseApiKeyNotAcknowledged,
-    #[error("Failed to unlock agent for writing (you should not see this error, please report it)")]
-    AgentUnlockFailed(String),
-    #[error("Failed to read from socket: {0}")]
-    ReadError(std::io::Error),
-    #[error("Failed to write to socket: {0}")]
-    WriteError(std::io::Error),
-    #[error("Invalid message received: {0}")]
-    InvalidMessage(MessageInvalidity),
-    #[error("Ping-Pong timed out")]
-    PingPongTimeout,
-    #[error(
-        "Failed to unlock context for writing (you should not see this error, please report it)"
-    )]
-    ContextUnlockFailed(String),
-}
 
 pub struct Agent {
     id: String,
@@ -288,26 +257,57 @@ impl Agent {
     ) -> Result<(), AgentCommunicationError> {
         let agent = agent_take_read!(me);
 
+        trace_srv!("Sending auth ack...");
+
         Self::send_raw(b"AUTH".to_vec(), stream.clone()).await?;
 
-        let uuid = Self::recv_raw(36, stream.clone()).await?;
+        let agent_api_key_str = {
+            let mut agent_api_key = Vec::new();
 
-        let uuid_str = String::from_utf8(uuid)
-            .map_err(|e| AgentCommunicationError::AuthFailed(e.to_string()))?;
+            trace_srv!("Reading agent API key...");
 
-        if uuid_str != agent.id {
+            stream
+                .lock()
+                .await
+                .read_until(b'\n', &mut agent_api_key)
+                .await
+                .map_err(|e| AgentCommunicationError::WriteError(e))?;
+
+            trace_srv!("Parsing agent API key...");
+
+            String::from_utf8(agent_api_key)
+                .map_err(|e| AgentCommunicationError::AuthFailed(e.to_string()))?
+        };
+
+        let agent_api_key_str = agent_api_key_str.trim(); // Remove the "\n"
+
+        if agent_api_key_str != agent.api_key {
+            trace_srv!("Wrong API key...");
+
+            Self::send_raw(b"ER".to_vec(), stream).await?;
             return Err(AgentCommunicationError::AuthRejected);
         }
 
+        trace_srv!("API key correct...");
+
+        trace_srv!("Sending correct API key ack...");
+
         Self::send_raw(b"OK".to_vec(), stream.clone()).await?;
 
+        trace_srv!("Sending reverse API key...");
+
         Self::send_raw(agent.reverse_api_key.as_bytes().to_vec(), stream.clone()).await?;
+
+        trace_srv!("Waiting for API key ACK...");
 
         let ack = Self::recv_raw(2, stream).await?;
 
         if ack != b"OK" {
+            trace_srv!("Agent did not accept our reverse API key :( ...");
             return Err(AgentCommunicationError::ReverseApiKeyNotAcknowledged);
         }
+
+        trace_srv!("Agent accepted our reverse API key :)");
 
         return Ok(());
     }
@@ -325,15 +325,23 @@ impl Agent {
         socket: Arc<Mutex<TlsStream<TcpStream>>>,
         me: AgentLocked,
     ) -> Result<(), AgentCommunicationError> {
+        log_info("Agent connecting...", &CommandContext::server_logger());
+
         Self::init_connection(me.clone(), socket.clone()).await?;
+
+        log_info(
+            "Auth successful! Connected!",
+            &CommandContext::server_logger(),
+        );
 
         agent_take_write!(me).connected = true;
 
         Self::start_process_manager(socket.clone(), &me);
         Self::start_process_sends(socket, &me);
 
-        std::thread::spawn(move || {
-            let keepalive_result = Self::run_keepalive(me.clone());
+        tokio::spawn(async move {
+            let keepalive_result = Self::run_keepalive(me.clone()).await;
+
             if let Err(e) = keepalive_result {
                 log_error(
                     format!("Error in keepalive thread: {}", e.to_string()).as_str(),
@@ -429,7 +437,7 @@ impl Agent {
         }
     }
 
-    fn run_keepalive(me: AgentLocked) -> Result<(), AgentCommunicationError> {
+    async fn run_keepalive(me: AgentLocked) -> Result<(), AgentCommunicationError> {
         let interval = agent_take_read!(me).keepalive_interval;
 
         loop {
@@ -438,6 +446,7 @@ impl Agent {
                 Some(Duration::from_secs(interval)),
                 me.clone(),
             )?;
+            sleep(Duration::from_secs(interval)).await;
         }
     }
 

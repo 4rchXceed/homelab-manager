@@ -57,7 +57,7 @@ pub async fn create_tls_connection(
     port: usize,
     net_config: &NetConfig,
 ) -> Result<(TcpListener, TlsAcceptor), NetError> {
-    let addr = format!("[::]:{}", port);
+    let addr = format!("0.0.0.0:{}", port);
 
     if !std::path::Path::new(&net_config.cert_dir).exists() {
         std::fs::create_dir_all(&net_config.cert_dir)

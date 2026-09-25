@@ -1,6 +1,6 @@
 use std::sync::RwLock;
 
-use diesel::{SqliteConnection, r2d2::ConnectionManager};
+use diesel::{r2d2::ConnectionManager, SqliteConnection};
 use r2d2::{Pool, PooledConnection};
 
 use crate::config::config::Config;

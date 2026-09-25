@@ -1,2 +1,4 @@
 target/
 certs/
+db.json
+rust_log.bat

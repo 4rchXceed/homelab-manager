@@ -226,3 +226,10 @@ And for the rewrite, I wrote:
 + Added agent & net struct on server, which is multi-thread-friendly
 + Started coding the agent, with a new config type: ini!()
 + First connection between agent and server (with SSL support)
+
+## LAST: d73d21bdab4c9bae1acace789411bba4741de066
++ Finished agent's first connection with the server (authentication)
++ Added log level for server
++ Added DB system for agent (simple JSON)
+
+### Commit message: `Finished agent's connection + authentication`

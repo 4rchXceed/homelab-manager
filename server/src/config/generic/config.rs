@@ -7,7 +7,8 @@ use crate::{
     },
     consts::{
         DEFAULT_BACKUP_CHECK_INTERVAL, DEFAULT_DATABASE_FILE_PATH, DEFAULT_KEEPALIVE_INTERVAL,
-        DEFAULT_SERVICES_FOLDER, DEFAULT_STARTUP_TIMEOUT, DEFAULT_UNIX_SOCKET_PATH,
+        DEFAULT_LOG_LEVEL, DEFAULT_SERVICES_FOLDER, DEFAULT_STARTUP_TIMEOUT,
+        DEFAULT_UNIX_SOCKET_PATH,
     },
     utils::fs::parse_time,
 };
@@ -23,6 +24,7 @@ pub struct GeneralConfig {
     pub notifications_urls: Vec<String>,
     pub file_server_auth: FileServerAuthConfig,
     pub backup_check_interval: usize,
+    pub log_level: log::Level,
 }
 
 impl GeneralConfig {
@@ -95,6 +97,19 @@ impl GeneralConfig {
         }
         let backup_check_interval = backup_check_interval.unwrap();
 
+        let log_level = yaml["log_level"].as_str().unwrap_or(DEFAULT_LOG_LEVEL);
+
+        let log_level = match log_level.to_lowercase().as_str() {
+            "debug" => log::Level::Debug,
+            "error" => log::Level::Error,
+            "trace" => log::Level::Trace,
+            "warn" => log::Level::Warn,
+            "info" => log::Level::Info,
+            _ => {
+                return Err(ConfigError::InvalidLogLevel(log_level.to_string()));
+            }
+        };
+
         return Ok(Self {
             services_folder: String::from(services_folder),
             database_file: String::from(database_file),
@@ -105,6 +120,7 @@ impl GeneralConfig {
             notifications_urls: notifications_urls,
             file_server_auth: file_server_auth,
             backup_check_interval: backup_check_interval,
+            log_level,
         });
     }
 }

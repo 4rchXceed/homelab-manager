@@ -1,11 +1,7 @@
 use std::sync::{Arc, RwLock};
 
 use thiserror::Error;
-use tokio::{
-    io::{AsyncBufReadExt, AsyncReadExt},
-    net::TcpListener,
-    sync::Mutex,
-};
+use tokio::{io::AsyncBufReadExt, net::TcpListener, sync::Mutex};
 use tokio_rustls::TlsAcceptor;
 
 use crate::{
@@ -17,7 +13,8 @@ use crate::{
     database::generate_connection_pool,
     logger::{log_error, log_info},
     net::{connection::create_tls_connection, error::NetError},
-    protocol::agent::{Agent, AgentLocked},
+    protocol::agent::agent::{Agent, AgentLocked},
+    trace_srv,
 };
 
 #[derive(Debug, Error)]
@@ -54,7 +51,7 @@ impl HomelabServer {
             .load()
             .map_err(|e| HomelabStartupFail::ConfigParseFail(e))?;
 
-        let pool = generate_connection_pool()
+        let pool = generate_connection_pool(config.config_general.database_file.clone())
             .map_err(|e| HomelabStartupFail::DatabaseConnectionFail(e))?;
 
         let context = Arc::new(RwLock::new(Context {
@@ -118,6 +115,8 @@ impl HomelabServer {
         res: Result<(tokio::net::TcpStream, std::net::SocketAddr), std::io::Error>,
         acceptor: TlsAcceptor,
     ) -> Result<(), HomelabRuntimeError> {
+        trace_srv!("Accepting new agent...");
+
         let (stream, _) = res.map_err(|e| HomelabRuntimeError::TcpListenerAcceptFail(e))?;
 
         let mut stream_accepted = acceptor
@@ -134,6 +133,11 @@ impl HomelabServer {
 
         let server_id_str = String::from_utf8_lossy(&server_id).trim().to_string();
 
+        log_info(
+            format!("Connection request for agent: {}", server_id_str).as_str(),
+            &CommandContext::server_logger(),
+        );
+
         let agent_opt = self.agents.iter().find(|agent| {
             if let Ok(agent_locked) = agent.read() {
                 agent_locked.get_id() == server_id_str
@@ -143,12 +147,15 @@ impl HomelabServer {
         });
 
         if let Some(agent_locked) = agent_opt {
-            if let Err(e) =
-                Agent::connect(Arc::new(Mutex::new(stream_accepted)), agent_locked.clone()).await
-            {
+            trace_srv!("Found new...");
+
+            let connection_result =
+                Agent::connect(Arc::new(Mutex::new(stream_accepted)), agent_locked.clone()).await;
+
+            if let Err(e) = connection_result {
                 log_error(
                     format!(
-                        "Failed to connect agent with server ID {}: {:?}",
+                        "Failed to connect agent with server ID {}: {}",
                         server_id_str, e
                     )
                     .as_str(),
