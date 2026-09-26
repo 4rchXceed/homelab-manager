@@ -16,13 +16,14 @@ config:
     username: admin
     password: pass
   backup_check_interval: 1s
-  log_level: info
+  log_level: trace
 generators:
   name:
     base: "bash"
     commands:
       - command1
       - command2
+    requires_sample_file: true
     timeout: 10s
 services:
   service_id:

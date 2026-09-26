@@ -32,9 +32,9 @@ impl ServiceConfig {
             .collect::<Result<Vec<String>, ConfigError>>()?;
 
         let mut backup_configs = Vec::new();
-        if !yaml["backup_configs"].is_badvalue() {
-            if yaml["backup_configs"].is_array() {
-                let backup_configs_raw = yaml["backup_configs"].as_vec().unwrap();
+        if !yaml["backups"].is_badvalue() {
+            if yaml["backups"].is_array() {
+                let backup_configs_raw = yaml["backups"].as_vec().unwrap();
                 for backup_config_raw in backup_configs_raw.iter() {
                     let backup_config = BackupConfig::from_yaml(backup_config_raw);
                     if backup_config.is_err() {

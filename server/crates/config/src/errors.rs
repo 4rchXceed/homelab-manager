@@ -74,9 +74,17 @@ pub enum ConfigError {
     )]
     BackupConfigScheduleMissing(String),
     #[error(
-        "The backup config's \"max_age\" property is in an invalid format: {1} (/services/{0}/backups/N/max_age) [ex: 30d]"
+        "The backup config's \"max_size\" property is in an invalid format: {1} (/services/{0}/backups/N/max_size) [ex: 30gb]"
     )]
     BackupConfigMaxSizeParseError(String, FileSizeParseError),
+    #[error(
+        "The backup config's \"max_age\" property is in an invalid format: {1} (/services/{0}/backups/N/max_age) [ex: 30d]"
+    )]
+    BackupConfigMaxAgeParseError(String, TimeParseError),
+    #[error(
+        "The backup config's \"schedule\" property is in an invalid format: {1} (/services/{0}/backups/N/schedule) [ex: 30d]"
+    )]
+    BackupConfigScheduleParseError(String, TimeParseError),
     #[error(
         "The backup config's \"type\" property can only be full or incremental (/services/{0}/backups/N/type) [ex: 30d]"
     )]
@@ -153,6 +161,12 @@ pub enum ConfigError {
         "Invalid log level, must be either: debug, error, trace, warn, info, got: {0} (/general/log_level"
     )]
     InvalidLogLevel(String),
+    #[error("The base generator config isn't a key: value (/generators/{0})")]
+    GeneratorConfigArgumentsMissing(String),
+    #[error(
+        "The base generator config's \"timeout\" property is in an invalid format: {1} (/generators/{0}/timeout) [ex: 30s]"
+    )]
+    GeneratorConfigTimeoutParseError(String, TimeParseError),
 }
 
 #[derive(Debug, Error)]

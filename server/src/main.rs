@@ -4,16 +4,21 @@ use application::{
     agent::repositories::agents_repository::AgentsRepository,
     file_server::usecases::starter::FileServerStarter,
     net::repositories::net_manager::NetworkManager,
+    services::repositories::services_repository::ServicesRepository,
 };
 use config::loader::ConfigLoader;
 use domain::agent::protocol::message::ServerToAgentMsg;
 use infrastructure::{
     agent::inmemory::agent_repository::InMemoryAgentRepository,
-    database::turso::{agent::TursoAgentsDb, connection::TursoDbConnection},
+    database::turso::{
+        agents::TursoAgentsDb, backups::TursoBackupsDb, connection::TursoDbConnection,
+        services::TursoServicesDb,
+    },
     file_server::rclone::file_server::RCloneFileServer,
     init_app,
     logger::simple_logger::init::init_logger,
     net::rustls::network_manager::RustlsNetworkManager,
+    services::inmemory::services_repository::InMemoryServicesRepository,
 };
 use log::error;
 use log::info;
@@ -35,13 +40,15 @@ async fn main() {
     init_logger(config.config_general.log_level).expect("Failed to set log level");
 
     // The db
-    let db = TursoDbConnection::new(config.config_general.database_file.clone())
-        .await
-        .map_err(|e| e.to_string())
-        .expect("Failed to create db");
+    let db = Arc::new(
+        TursoDbConnection::new(config.config_general.database_file.clone())
+            .await
+            .map_err(|e| e.to_string())
+            .expect("Failed to create db"),
+    );
 
     // The agent's db
-    let agents_db = Arc::new(TursoAgentsDb::new(Arc::new(db)));
+    let agents_db = Arc::new(TursoAgentsDb::new(db.clone()));
 
     // The agent's repository
     let agent_repo = Arc::new(InMemoryAgentRepository::new(
@@ -54,6 +61,23 @@ async fn main() {
         .await
         .map_err(|e| e.to_string())
         .expect("Failed to ensure agents");
+
+    // The backups db
+    let backups_db = Arc::new(TursoBackupsDb::new(db.clone()));
+
+    // The services db
+    let services_db = Arc::new(TursoServicesDb::new(db, backups_db));
+
+    // The services repository
+    let service_repo = Arc::new(InMemoryServicesRepository::new(
+        agent_repo.clone(),
+        services_db,
+    ));
+
+    service_repo
+        .ensure_services(config.services_config)
+        .await
+        .expect("Failed to ensure services into db");
 
     // Test file server
     let file_server = Arc::new(RCloneFileServer::new(&config.config_general));

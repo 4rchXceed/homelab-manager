@@ -1,27 +1,45 @@
+use std::collections::HashMap;
+
+use utils::config::parse_time;
 use yaml_rust2::Yaml;
 
-use crate::{errors::ConfigError, generator::base_config::GeneratorBaseConfig};
+use crate::errors::ConfigError;
+
+pub type Arguments = HashMap<String, Yaml>;
 
 #[derive(Debug, Clone)]
-pub struct GeneratorConfig {
+pub struct GeneratorBaseConfig {
     pub id: String,
-    pub generator_base: GeneratorBaseConfig,
+    pub generator_base_name: String,
+    pub require_sample_file: bool,
+    pub arguments: HashMap<String, Yaml>,
+    pub timeout: usize,
 }
 
-impl GeneratorConfig {
+impl GeneratorBaseConfig {
     pub fn from_yaml(yaml: &Yaml, key: String) -> Result<Self, ConfigError> {
         let base = yaml["base"]
             .as_str()
             .ok_or(ConfigError::GeneratorConfigBaseMissing(key.clone()))?;
-        let generator_base = GeneratorBaseConfig::from_yaml(yaml, base);
-        if generator_base.is_err() {
-            return Err(generator_base.err().unwrap());
-        }
-        let generator_base = generator_base.unwrap();
+
+        let arguments = yaml
+            .as_hash()
+            .ok_or(ConfigError::GeneratorConfigArgumentsMissing(key.clone()))?
+            .iter()
+            .map(|(k, v)| (k.as_str().unwrap_or_default().to_string(), v.clone()))
+            .collect();
+
+        let require_sample_file = yaml["requires_sample_file"].as_bool().unwrap_or(false);
+
+        let timeout = parse_time(yaml["timeout"].as_str().unwrap_or("30s"))
+            .map_err(|e| ConfigError::GeneratorConfigTimeoutParseError(key.clone(), e))?;
 
         return Ok(Self {
             id: key,
-            generator_base: generator_base,
+            generator_base_name: base.to_string(),
+            arguments: arguments,
+            require_sample_file: require_sample_file,
+            timeout: timeout,
         });
     }
 }

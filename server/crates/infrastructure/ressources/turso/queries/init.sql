@@ -14,7 +14,7 @@ CREATE TABLE service (
 
     sync_storage_id_str VARCHAR(100),
     last_sync TIMESTAMP,
-    sync_time INTEGER NOT NULL
+    sync_time INTEGER
 );
 
 CREATE TABLE backup_config (
@@ -23,8 +23,7 @@ CREATE TABLE backup_config (
 
     service_id INTEGER NOT NULL REFERENCES service(id) ON DELETE CASCADE,
 
-    last TIMESTAMP,
-    disabled BOOLEAN NOT NULL DEFAULT FALSE
+    last TIMESTAMP
 );
 
 CREATE TABLE ip_needs_update (

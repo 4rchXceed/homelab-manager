@@ -1,7 +1,7 @@
 use yaml_rust2::Yaml;
 
 use crate::errors::ConfigError;
-use utils::config::parse_file_size;
+use utils::config::{parse_file_size, parse_time};
 
 #[derive(Debug, Clone)]
 pub enum BackupType {
@@ -45,18 +45,18 @@ impl BackupConfig {
         }
         let max_size = max_size.unwrap();
 
-        let max_age = parse_file_size(max_age_raw);
+        let max_age = parse_time(max_age_raw);
         if max_age.is_err() {
-            return Err(ConfigError::BackupConfigMaxSizeParseError(
+            return Err(ConfigError::BackupConfigMaxAgeParseError(
                 String::from(id),
                 max_age.err().unwrap(),
             ));
         }
         let max_age = max_age.unwrap();
 
-        let schedule = parse_file_size(schedule_raw);
+        let schedule = parse_time(schedule_raw);
         if schedule.is_err() {
-            return Err(ConfigError::BackupConfigMaxSizeParseError(
+            return Err(ConfigError::BackupConfigScheduleParseError(
                 String::from(id),
                 schedule.err().unwrap(),
             ));

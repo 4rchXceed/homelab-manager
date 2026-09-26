@@ -1,7 +1,6 @@
 target/
-db/
 certs/
 deps/
 test.db*
 src.old
-services/
+/services/

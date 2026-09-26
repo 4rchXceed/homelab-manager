@@ -1,11 +1,13 @@
 use yaml_rust2::Yaml;
 
-use crate::{errors::ConfigError, service::config_file::generator::arg::GeneratorArg};
+use crate::errors::ConfigError;
+
+pub type GeneratorArguments = Vec<Yaml>;
 
 #[derive(Debug, Clone)]
 pub struct GeneratorConfig {
     pub generator_id: String,
-    pub args: Vec<GeneratorArg>,
+    pub args: Vec<Yaml>,
 }
 
 impl GeneratorConfig {
@@ -19,20 +21,11 @@ impl GeneratorConfig {
                 generator_id.to_string(),
             ));
         }
-        let args_raw = yaml["args"].as_vec().unwrap();
-
-        let mut args = Vec::new();
-        for arg_raw in args_raw.iter() {
-            let arg = GeneratorArg::from_yaml(arg_raw);
-            if arg.is_err() {
-                return Err(arg.err().unwrap());
-            }
-            args.push(arg.unwrap());
-        }
+        let args_raw = yaml["args"].as_vec().unwrap_or(&Vec::new()).clone();
 
         return Ok(Self {
             generator_id: String::from(generator_id),
-            args: args,
+            args: args_raw,
         });
     }
 }

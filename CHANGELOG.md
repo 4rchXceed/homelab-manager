@@ -271,3 +271,12 @@ What works:
 Note: I will, but only when I have time, make the agent a clean architecture too, but for now I'll focus on the server-side.
 
 ## Commit messsage: `Recv & Send queues for server + Send queue for agent`
+
+## LAST: b0d1f9a903286f5045f99b6b938557a33a900bf6
++ Added generator base
++ Added generator repository
++ Added service repository
++ Added backups_db & services_db
++ Bugfixes
+
+### Commit message: `Added generator base, generator repository, service repository, backups_db & services_db + bugfixes`

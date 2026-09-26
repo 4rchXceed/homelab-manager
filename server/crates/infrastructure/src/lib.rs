@@ -8,6 +8,7 @@ pub mod database;
 pub mod file_server;
 pub mod logger;
 pub mod net;
+pub mod services;
 
 /// Initiate the dependencies for the infrastructure layer.
 pub fn init_app() -> Result<(), String> {

@@ -4,14 +4,14 @@ use yaml_rust2::Yaml;
 
 use crate::errors::ConfigError;
 use crate::{
-    agent::config::AgentConfig, generator::config::GeneratorConfig, generic::config::GeneralConfig,
-    service::config::ServiceConfig,
+    agent::config::AgentConfig, generator::config::GeneratorBaseConfig,
+    generic::config::GeneralConfig, service::config::ServiceConfig,
 };
 
 #[derive(Debug, Clone)]
 pub struct Config {
     pub config_general: GeneralConfig,
-    pub generators_config: HashMap<String, GeneratorConfig>,
+    pub generators_config: HashMap<String, GeneratorBaseConfig>,
     pub services_config: HashMap<String, ServiceConfig>,
     pub agents_config: Vec<AgentConfig>,
 }
@@ -27,7 +27,7 @@ impl Config {
         }
         let config_general = config_general.unwrap();
 
-        let mut generators_config: HashMap<String, GeneratorConfig> = HashMap::new();
+        let mut generators_config: HashMap<String, GeneratorBaseConfig> = HashMap::new();
         if yaml["generators"].is_badvalue() {
             return Err(ConfigError::NoGeneratorsConfig);
         }
@@ -42,7 +42,7 @@ impl Config {
             }
             let key_str = key_str.unwrap();
 
-            let generator_config = GeneratorConfig::from_yaml(value, String::from(key_str));
+            let generator_config = GeneratorBaseConfig::from_yaml(value, String::from(key_str));
             if generator_config.is_err() {
                 return Err(generator_config.err().unwrap());
             }
