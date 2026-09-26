@@ -1,12 +1,16 @@
 use std::sync::Arc;
 
 use application::{
-    agent::usecases::{authenticate::AuthenticateAgent, ensure_db::EnsureAgentInDb},
+    agent::{
+        repositories::agents_repository::AgentsRepository,
+        usecases::authenticate::AuthenticateAgent,
+    },
     file_server::usecases::starter::FileServerStarter,
     net::repositories::net_manager::NetworkManager,
 };
 use config::loader::ConfigLoader;
 use infrastructure::{
+    agent::inmemory::agent_repository::InMemoryAgentRepository,
     database::turso::{agent::TursoAgentsDb, connection::TursoDbConnection},
     file_server::rclone::file_server::RCloneFileServer,
     init_app,
@@ -38,15 +42,17 @@ async fn main() {
         .map_err(|e| e.to_string())
         .expect("Failed to create db");
 
-    // The agent repository
-    let agent_repo = Arc::new(TursoAgentsDb::new(Arc::new(db)));
+    // The agent's db
+    let agents_db = Arc::new(TursoAgentsDb::new(Arc::new(db)));
 
-    // Register the agents in the database
-    let agent_ensurer = EnsureAgentInDb::new(agent_repo.clone());
-    agent_ensurer
-        .ensure_agents(&config.agents_config)
+    // The agent's repository
+    let agent_repo = InMemoryAgentRepository::new(agents_db, config.agents_config.clone());
+
+    agent_repo
+        .ensure_agents()
         .await
-        .expect("Failed to update agents in db");
+        .map_err(|e| e.to_string())
+        .expect("Failed to ensure agents");
 
     // Test file server
     let file_server = Arc::new(RCloneFileServer::new(&config.config_general));
@@ -71,14 +77,17 @@ async fn main() {
         "Server listening on port {}",
         config.config_general.net_config.server_port
     );
+
+    // The connection authentication
+    let auth = AuthenticateAgent::new(Arc::new(agent_repo.clone()));
+
     // The accept loop
     loop {
         let connection = nm.accept_new().await;
 
         match connection {
             Ok(connection) => {
-                let auth = AuthenticateAgent::new(connection, agent_repo.clone());
-                let result = auth.authenticate().await;
+                let result = auth.authenticate(connection).await;
                 match result {
                     Ok(agent) => {
                         info!("Agent authenticated: {:?}", agent.id);

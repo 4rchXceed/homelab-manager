@@ -1,3 +1,4 @@
+#[derive(Debug, Clone)]
 pub struct Storage {
     pub id: String,
     pub path: String,

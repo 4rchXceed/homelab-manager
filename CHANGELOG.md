@@ -256,3 +256,9 @@ What works:
 + Some bugfixes
 
 ### Commit message: `rclone: file sync + http-to-https reverse proxy`
+
+## LAST: 8045674b9f00d5b813f705f2a44c94d27d0ac670
++ Added "agent repository" with a InMemory DB (not permanent, since it contains sockets)
++ After alot of thinking, I decided to abandon the two configs (db and real config), to only use the real config, and the db will be used only for things managed by the server (like auto-generated stuff)
+
+### Commit message: `Agent repsitory + removed a lot of stuff from the DB`

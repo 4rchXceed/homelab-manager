@@ -30,8 +30,10 @@ pub enum AgentCommunicationError {
     NetError(String),
     #[error("Failed to get agent from database: {0}")]
     FailedToGetAgentFromDb(String),
-    #[error("Agent with ID: {0} not found in database")]
+    #[error("Agent with ID: {0} not found.")]
     AgentWithIdNotFound(String),
+    #[error("Failed to set agent's net connection into the repository: {0}")]
+    FailedToSetAgentNetConnection(String),
     // #[error(
     //     "Failed to unlock context for writing (you should not see this error, please report it)"
     // )]

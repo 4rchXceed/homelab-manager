@@ -2,6 +2,7 @@ use crate::{
     common::net::init::init_rustls, file_server::rclone::check_requirements::check_requirements,
 };
 
+pub mod agent;
 pub mod common;
 pub mod database;
 pub mod file_server;

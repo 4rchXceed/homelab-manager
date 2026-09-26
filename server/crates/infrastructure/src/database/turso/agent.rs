@@ -1,8 +1,5 @@
-use std::collections::HashMap;
-
 use application::database::repositories::agents_db::AgentsDb;
 use async_trait::async_trait;
-use domain::agent::{agent::Agent, update_agent::UpdateAgent};
 use turso::core::alloc::Arc;
 use uuid::Uuid;
 
@@ -20,66 +17,50 @@ impl TursoAgentsDb {
 
 #[async_trait]
 impl AgentsDb for TursoAgentsDb {
-    async fn get_agent_by_id(&self, id: String) -> Result<Option<Agent>, String> {
+    async fn get_reverse_api_key_for_agent(
+        &self,
+        agent_id: String,
+    ) -> Result<Option<String>, String> {
         let conn = self
             .database_conn
             .create_connection()
             .map_err(|e| e.to_string())?;
 
         let mut rows = conn
-            .query(sql!(get_agent), (id.clone(),))
+            .query(sql!(get_reverse_api_key), (agent_id,))
             .await
             .map_err(|e| e.to_string())?;
 
         if let Some(row) = rows.next().await.map_err(|e| e.to_string())? {
-            let api_key = row.get::<String>(0).map_err(|e| e.to_string())?;
-            let ip = row.get::<String>(1).map_err(|e| e.to_string())?;
-            let reverse_api_key = row.get::<String>(2).map_err(|e| e.to_string())?;
+            let reverse_api_key = row.get::<String>(0).map_err(|e| e.to_string())?;
 
-            return Ok(Some(Agent {
-                id,
-                api_key,
-                ip,
-                reverse_api_key,
-                storages: Vec::new(),
-                storages_configs: HashMap::new(),
-            }));
+            return Ok(Some(reverse_api_key));
         } else {
             return Ok(None);
         }
     }
 
-    async fn ensure_agent(&self, agent: UpdateAgent) -> Result<(), String> {
+    async fn ensure_agent(&self, agent_id: String) -> Result<String, String> {
         let conn = self
             .database_conn
             .create_connection()
             .map_err(|e| e.to_string())?;
 
-        let existing_agent = self.get_agent_by_id(agent.id.clone()).await?;
+        let existing_agent = self.get_reverse_api_key_for_agent(agent_id.clone()).await?;
 
-        if existing_agent.is_none() {
+        if let Some(reverse_api_key) = existing_agent {
+            return Ok(reverse_api_key);
+        } else {
+            let reverse_api_key = Uuid::new_v4().to_string();
+
             conn.execute(
                 sql!(insert_agent),
-                (
-                    agent.id.clone(),
-                    agent.api_key.clone(),
-                    agent.ip.clone(),
-                    Uuid::new_v4().to_string(),
-                ),
+                (agent_id.clone(), reverse_api_key.clone()),
             )
             .await
             .map_err(|e| e.to_string())?;
-        } else if let Some(existing_agent) = existing_agent
-            && (existing_agent.api_key != agent.api_key || existing_agent.ip != agent.ip)
-        {
-            conn.execute(
-                sql!(update_agent),
-                (agent.api_key.clone(), agent.ip.clone(), agent.id.clone()),
-            )
-            .await
-            .map_err(|e| e.to_string())?;
-        }
 
-        return Ok(());
+            return Ok(reverse_api_key);
+        }
     }
 }

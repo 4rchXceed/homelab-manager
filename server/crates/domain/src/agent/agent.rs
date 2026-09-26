@@ -4,6 +4,7 @@ use config::agent::storage_config::StorageConfig;
 
 use crate::backup::storage::Storage;
 
+#[derive(Debug, Clone)]
 pub struct Agent {
     pub id: String,
     pub api_key: String,
