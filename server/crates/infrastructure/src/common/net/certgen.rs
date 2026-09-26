@@ -9,7 +9,7 @@ use openssl::x509::extension::{
 };
 use openssl::x509::{X509, X509NameBuilder};
 
-use crate::net::rustls::errors::CertGenerationError;
+use crate::common::net::errors::CertGenerationError;
 
 /// ! Disclaimer: this has been "vibe coded", I don't know shit about OpenSSL / certs, so if you know how to do this code cleaner, please do so. I just wanted to get it working for now.
 /// This is one of the rare times I use a 100% AI generated code. (maybe the only time in this project)

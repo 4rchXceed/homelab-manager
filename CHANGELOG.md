@@ -248,3 +248,11 @@ What works:
 ### !! THIS IS NO LONGER A "RUST-REWRITE": IT'S ALMOST LIKE STARTING A WHOLE NEW PROJECT, BUT IT'S BETTER THIS WAY
 
 ### Commit message: `Switched to clean architecture`
+
+## LAST: ee33048e4a3b0b8711b4d234a082666f2b641fe9
++ Added file sync via rclone (for the services folder). Details:
+  + HTTP-to-HTTPS reverse proxy for rclone (so the agent can **SAFELY** download files from the server)
+  + Added a "check-requirements" for the agent and the server
++ Some bugfixes
+
+### Commit message: `rclone: file sync + http-to-https reverse proxy`

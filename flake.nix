@@ -30,6 +30,7 @@
         cargo
         openssl
         diesel-cli
+        rclone
       ];
     in
     {

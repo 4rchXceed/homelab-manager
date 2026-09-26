@@ -2,12 +2,15 @@ use std::sync::Arc;
 
 use application::{
     agent::usecases::{authenticate::AuthenticateAgent, ensure_db::EnsureAgentInDb},
+    file_server::usecases::starter::FileServerStarter,
     net::repositories::net_manager::NetworkManager,
 };
 use config::loader::ConfigLoader;
 use infrastructure::{
     database::turso::{agent::TursoAgentsDb, connection::TursoDbConnection},
-    logger::init::init_logger,
+    file_server::rclone::file_server::RCloneFileServer,
+    init_app,
+    logger::simple_logger::init::init_logger,
     net::rustls::network_manager::RustlsNetworkManager,
 };
 use log::error;
@@ -16,6 +19,8 @@ use log::info;
 #[tokio::main]
 async fn main() {
     // Test implementation
+    // Init
+    init_app().expect("Failed to init app");
 
     // The config
     let config = ConfigLoader::new_from_env()
@@ -28,7 +33,7 @@ async fn main() {
     init_logger(config.config_general.log_level).expect("Failed to set log level");
 
     // The db
-    let db = TursoDbConnection::new(config.config_general.database_file)
+    let db = TursoDbConnection::new(config.config_general.database_file.clone())
         .await
         .map_err(|e| e.to_string())
         .expect("Failed to create db");
@@ -42,6 +47,16 @@ async fn main() {
         .ensure_agents(&config.agents_config)
         .await
         .expect("Failed to update agents in db");
+
+    // Test file server
+    let file_server = Arc::new(RCloneFileServer::new(&config.config_general));
+
+    let starter = FileServerStarter::new(file_server);
+
+    starter
+        .start_and_wait()
+        .await
+        .expect("Failed to start file server");
 
     // The connection
     let nm = RustlsNetworkManager::listen(

@@ -1,5 +1,5 @@
 config:
-  services_folder: "../services-compose"
+  services_folder: "./services"
   database_file: "./test.db"
   net:
     server_port: 4398
@@ -16,7 +16,7 @@ config:
     username: admin
     password: pass
   backup_check_interval: 1s
-  log_level: trace
+  log_level: info
 generators:
   name:
     base: "bash"

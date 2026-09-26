@@ -1,9 +1,11 @@
 use crate::client::Client;
 
+mod check_requirements;
 mod client;
 mod config;
 mod db;
 mod errors;
+mod file_client;
 mod net;
 
 #[tokio::main]

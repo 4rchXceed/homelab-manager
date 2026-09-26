@@ -1,17 +1,8 @@
 use std::collections::HashMap;
 
 use ini::ini;
-use thiserror::Error;
 
-#[derive(Debug, Error)]
-pub enum ConfigError {
-    #[error("Failed to open ini file: {0}")]
-    FailedToOpenIniFile(String),
-    #[error("Missing required section: {0} in ini file")]
-    MissingSection(String),
-    #[error("Missing required key: {0} in section: {1} of ini file")]
-    MissingKey(String, String),
-}
+use crate::errors::ConfigError;
 
 pub struct Config {
     // Auth

@@ -9,10 +9,17 @@ thiserror = "2.0.20"
 application = { path = "../application" }
 domain = { path = "../domain" }
 config = { path = "../config" }
+consts = { path = "../consts" }
 async-trait = "0.1.92"
-tokio-rustls = "0.26.5"
+rustls = { version = "0.23.45", default-features = false, features = ["aws_lc_rs", "tls12"] }
+tokio-rustls = { version = "0.26.5", features = ["aws-lc-rs"] }
 tokio = { version = "1.53.1", features = ["full"] }
 openssl = "0.10.81"
 log = "0.4.34"
 simple_logger = { version = "5.2.0", features = ["colors", "timestamps", "stderr"] }
 uuid = { version="1.26.1", features=["v4"] }
+ureq = "3.4.2"
+hyper = { version = "1.11.1", features = ["full"] }
+hyper-util = { version = "0.1.21", features = ["full"] }
+http-body-util = "0.1.5"
+which = "8.0.6"
