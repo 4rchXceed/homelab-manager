@@ -2,7 +2,9 @@ use crate::client::Client;
 
 mod check_requirements;
 mod client;
+mod commands;
 mod config;
+mod context;
 mod db;
 mod errors;
 mod file_client;

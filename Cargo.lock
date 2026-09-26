@@ -1261,6 +1261,8 @@ dependencies = [
  "log",
  "openssl",
  "rustls",
+ "serde",
+ "serde_json",
  "simple_logger",
  "thiserror",
  "tokio",
@@ -2295,6 +2297,7 @@ version = "0.1.0"
 dependencies = [
  "application",
  "config",
+ "domain",
  "infrastructure",
  "log",
  "tokio",

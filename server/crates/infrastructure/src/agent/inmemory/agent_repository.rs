@@ -3,7 +3,7 @@ use std::sync::Arc;
 use application::{
     agent::repositories::agents_repository::AgentsRepository,
     database::repositories::agents_db::AgentsDb,
-    net::repositories::net_connection::NetworkConnection,
+    net::repositories::agent_connection::AgentConnection,
 };
 use async_trait::async_trait;
 use config::agent::config::AgentConfig;
@@ -53,7 +53,7 @@ impl AgentsRepository for InMemoryAgentRepository {
         return Ok(());
     }
 
-    async fn set_agents_net(&self, net_agent: Arc<dyn NetworkConnection>) -> Result<(), String> {
+    async fn set_agents_net(&self, net_agent: Arc<dyn AgentConnection>) -> Result<(), String> {
         for agent in self.agents.write().await.iter_mut() {
             agent.net_agent = Some(net_agent.clone());
         }
@@ -66,5 +66,12 @@ impl AgentsRepository for InMemoryAgentRepository {
         let agent = agents.iter().find(|agent| agent.config.id == id)?;
 
         return agent.agent.clone();
+    }
+
+    async fn get_agent_net(&self, id: String) -> Option<Arc<dyn AgentConnection>> {
+        let agents = self.agents.read().await;
+        let agent = agents.iter().find(|agent| agent.config.id == id)?;
+
+        return agent.net_agent.clone();
     }
 }

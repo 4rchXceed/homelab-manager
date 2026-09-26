@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use application::net::repositories::net_connection::NetworkConnection;
+use application::net::repositories::agent_connection::AgentConnection;
 use config::agent::config::AgentConfig;
 use domain::agent::agent::Agent;
 
@@ -9,7 +9,7 @@ pub struct InMemoryAgent {
     pub id: String,
     pub agent: Option<Agent>,
     pub config: AgentConfig,
-    pub net_agent: Option<Arc<dyn NetworkConnection>>,
+    pub net_agent: Option<Arc<dyn AgentConnection>>,
 }
 
 impl InMemoryAgent {

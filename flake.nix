@@ -31,6 +31,7 @@
         openssl
         diesel-cli
         rclone
+        cloc
       ];
     in
     {

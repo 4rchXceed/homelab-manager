@@ -27,7 +27,7 @@ pub enum DatabaseSaveError {
     FileWriteError(std::io::Error),
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Database {
     pub reverse_api_key: Option<String>,
 }

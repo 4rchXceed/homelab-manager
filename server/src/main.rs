@@ -1,14 +1,12 @@
-use std::sync::Arc;
+use std::{sync::Arc, time::Duration};
 
 use application::{
-    agent::{
-        repositories::agents_repository::AgentsRepository,
-        usecases::authenticate::AuthenticateAgent,
-    },
+    agent::repositories::agents_repository::AgentsRepository,
     file_server::usecases::starter::FileServerStarter,
     net::repositories::net_manager::NetworkManager,
 };
 use config::loader::ConfigLoader;
+use domain::agent::protocol::message::ServerToAgentMsg;
 use infrastructure::{
     agent::inmemory::agent_repository::InMemoryAgentRepository,
     database::turso::{agent::TursoAgentsDb, connection::TursoDbConnection},
@@ -46,7 +44,10 @@ async fn main() {
     let agents_db = Arc::new(TursoAgentsDb::new(Arc::new(db)));
 
     // The agent's repository
-    let agent_repo = InMemoryAgentRepository::new(agents_db, config.agents_config.clone());
+    let agent_repo = Arc::new(InMemoryAgentRepository::new(
+        agents_db,
+        config.agents_config.clone(),
+    ));
 
     agent_repo
         .ensure_agents()
@@ -68,6 +69,7 @@ async fn main() {
     let nm = RustlsNetworkManager::listen(
         config.config_general.net_config.server_port,
         config.config_general.net_config.clone(),
+        agent_repo.clone(),
     )
     .await
     .map_err(|e| e.to_string())
@@ -78,22 +80,26 @@ async fn main() {
         config.config_general.net_config.server_port
     );
 
-    // The connection authentication
-    let auth = AuthenticateAgent::new(Arc::new(agent_repo.clone()));
-
     // The accept loop
     loop {
-        let connection = nm.accept_new().await;
+        let connection = nm.accept_new_auth_agent().await;
 
         match connection {
             Ok(connection) => {
-                let result = auth.authenticate(connection).await;
-                match result {
-                    Ok(agent) => {
-                        info!("Agent authenticated: {:?}", agent.id);
+                connection.start_processing().await;
+
+                info!("New agent connection accepted and processing started");
+
+                let response = connection
+                    .send_pingpong(ServerToAgentMsg::Void, Duration::from_secs(10))
+                    .await;
+
+                match response {
+                    Ok(_) => {
+                        info!("Ping-pong successful with agent");
                     }
                     Err(e) => {
-                        error!("Error authenticating agent: {}", e);
+                        error!("Ping-pong failed with agent: {}", e);
                     }
                 }
             }

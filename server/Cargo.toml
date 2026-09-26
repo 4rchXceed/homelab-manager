@@ -7,6 +7,7 @@ edition = "2024"
 tokio = { version = "1.53.1", features = ["full"] }
 config = { path = "crates/config" }
 application = { path = "crates/application" }
+domain = { path = "crates/domain" }
 infrastructure = { path = "crates/infrastructure" }
 log = "0.4.34"
 # tempdir = "0.3.7"

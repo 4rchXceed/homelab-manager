@@ -4,6 +4,7 @@ use ini::ini;
 
 use crate::errors::ConfigError;
 
+#[derive(Clone)]
 pub struct Config {
     // Auth
     pub id: String,                   // Required

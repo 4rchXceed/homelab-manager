@@ -262,3 +262,12 @@ What works:
 + After alot of thinking, I decided to abandon the two configs (db and real config), to only use the real config, and the db will be used only for things managed by the server (like auto-generated stuff)
 
 ### Commit message: `Agent repsitory + removed a lot of stuff from the DB`
+
+## LAST: 44f089a8cd9cbe33e86b02be71b74ce1b77fe47b
++ Added agent/server communication via message queues (server-side), and did a little bit of the work on the agent-side
++ Moved auth protocol to infra layer (server-side)
++ Did some other changes
+
+Note: I will, but only when I have time, make the agent a clean architecture too, but for now I'll focus on the server-side.
+
+## Commit messsage: `Recv & Send queues for server + Send queue for agent`

@@ -1,5 +1,7 @@
+use std::sync::Arc;
+
 use log::trace;
-use tokio::{io::AsyncWriteExt, net::TcpStream};
+use tokio::{io::AsyncWriteExt, net::TcpStream, sync::RwLock};
 use tokio_rustls::client::TlsStream;
 
 use crate::{
@@ -10,10 +12,12 @@ use crate::{
 };
 
 pub async fn handle_server_auth(
-    socket: &mut TlsStream<TcpStream>,
+    socket: Arc<RwLock<TlsStream<TcpStream>>>,
     config: &Config,
     db: &mut Database,
 ) -> Result<(), ClientRuntimeError> {
+    let mut socket = socket.write().await;
+
     trace!("Starting auth protocol");
 
     let mut id = config.id.clone();
@@ -26,7 +30,7 @@ pub async fn handle_server_auth(
         .await
         .map_err(|e| ClientRuntimeError::net_run(NetRunError::SocketWriteError(e)))?;
 
-    if let ack = Client::recv(socket, 4).await?
+    if let ack = Client::recv(&mut socket, 4).await?
         && ack != b"AUTH"
     {
         let str = String::from_utf8_lossy(ack.as_slice());
@@ -45,7 +49,7 @@ pub async fn handle_server_auth(
         .await
         .map_err(|e| ClientRuntimeError::net_run(NetRunError::SocketWriteError(e)))?;
 
-    let auth_ack = Client::recv(socket, 2).await?;
+    let auth_ack = Client::recv(&mut socket, 2).await?;
 
     if auth_ack != b"OK" {
         let str = String::from_utf8_lossy(&auth_ack);
@@ -57,7 +61,7 @@ pub async fn handle_server_auth(
 
     trace!("[OK] API KEY OK");
 
-    let reverse_api_key = Client::recv(socket, 36).await?;
+    let reverse_api_key = Client::recv(&mut socket, 36).await?;
 
     let reverse_api_key_str = String::from_utf8(reverse_api_key)
         .map_err(|_| ClientRuntimeError::auth(AuthError::ReverseApiKeyIsntUtf8))?;

@@ -1,25 +1,29 @@
-use std::time::Duration;
+use std::sync::Arc;
 
 use log::info;
 use tokio::{
-    io::{AsyncReadExt, AsyncWriteExt},
+    io::AsyncReadExt,
     net::TcpStream,
-    time::sleep,
+    sync::{RwLock, RwLockWriteGuard},
 };
 use tokio_rustls::{client::TlsStream, rustls::pki_types::ServerName};
 
 use crate::{
     check_requirements::check_requirements,
     config::Config,
+    context::AgentContext,
     db::database::Database,
     errors::{ClientInitError, ClientRuntimeError, NetInitError, NetRunError},
     file_client::rclone::sync_rclone,
-    net::{auth::handle_server_auth, connection::create_tls_client},
+    net::{
+        auth::handle_server_auth, connection::create_tls_client, message_handler::MessageHandler,
+        send_queue::SendQueue,
+    },
 };
 
 pub struct Client {
     config: Config,
-    socket: Option<TlsStream<TcpStream>>,
+    socket: Option<Arc<RwLock<TlsStream<TcpStream>>>>,
     db: Database,
 }
 
@@ -57,11 +61,11 @@ impl Client {
 
         info!("Authenticating to server...");
 
-        let socket = self.socket.as_mut().ok_or(ClientRuntimeError::net_run(
+        let socket = self.socket.as_ref().ok_or(ClientRuntimeError::net_run(
             NetRunError::SocketClosedOrNotFound,
         ))?;
 
-        handle_server_auth(socket, &self.config, &mut self.db).await?;
+        handle_server_auth(socket.clone(), &self.config, &mut self.db).await?;
 
         info!("Authentication OK!");
 
@@ -84,19 +88,21 @@ impl Client {
         .await
         .map_err(|e| ClientRuntimeError::FileSyncError(e))?;
 
-        loop {
-            tokio::select! {
-                _ = sleep(Duration::from_secs(1)) => {},
-                _ = tokio::signal::ctrl_c() => break,
-            }
+        let context = AgentContext::new(self.db.clone(), self.config.clone());
+
+        tokio::select! {
+            _ = MessageHandler::handle_messages(socket.clone(), SendQueue::new(), context) => {},
+            _ = tokio::signal::ctrl_c() => return Ok(()),
         }
 
-        if let Some(socket) = &mut self.socket {
-            socket
-                .shutdown()
-                .await
-                .map_err(|e| ClientRuntimeError::net_run(NetRunError::SocketCloseError(e)))?;
-        }
+        // if let Some(socket) = &mut self.socket {
+        //     socket
+        //         .write()
+        //         .await
+        //         .shutdown()
+        //         .await
+        //         .map_err(|e| ClientRuntimeError::net_run(NetRunError::SocketCloseError(e)))?;
+        // }
         return Ok(());
     }
 
@@ -120,7 +126,7 @@ impl Client {
             .await
             .map_err(|e| ClientRuntimeError::net_init(NetInitError::TlsError(e.to_string())))?;
 
-        self.socket = Some(tls_stream);
+        self.socket = Some(Arc::new(RwLock::new(tls_stream)));
 
         info!("Server connected!");
 
@@ -128,7 +134,7 @@ impl Client {
     }
 
     pub async fn recv(
-        socket: &mut TlsStream<TcpStream>,
+        socket: &mut RwLockWriteGuard<'_, TlsStream<TcpStream>>,
         length: usize,
     ) -> Result<Vec<u8>, ClientRuntimeError> {
         let mut buffer = vec![0; length];
