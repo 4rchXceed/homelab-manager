@@ -2,8 +2,8 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum GenerateConfigError {
-    #[error("Generator not found: {0}")]
-    GeneratorNotFound(String),
+    #[error("Failed to get generator: {0}")]
+    FailedToGetGenerator(String),
     #[error("Failed to generate commands: {0}")]
     FailedToGenerateCommands(String),
     #[error("Failed to send to agent: {0}")]

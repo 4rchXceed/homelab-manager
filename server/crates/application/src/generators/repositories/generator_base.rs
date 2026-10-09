@@ -1,6 +1,12 @@
-use config::generator::config::Arguments;
+use config::service::config_file::generator::config::GeneratorArguments;
+use domain::agent::protocol::message::GeneratorMode;
 
-pub trait GeneratorBase {
+pub trait GeneratorBase: Send + Sync {
     fn get_name(&self) -> &str;
-    fn generate_commands(&self, config: &Arguments) -> Result<Vec<String>, String>;
+    /// Returns:
+    /// - Vec<String>: the commands
+    fn generate_commands(
+        &self,
+        config: &GeneratorArguments,
+    ) -> Result<(Vec<String>, GeneratorMode), String>;
 }

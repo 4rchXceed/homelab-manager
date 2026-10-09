@@ -7,6 +7,6 @@ use config::service::config::ServiceConfig;
 pub trait ServicesRepository {
     async fn ensure_services(&self, services: HashMap<String, ServiceConfig>)
     -> Result<(), String>;
-    async fn assign_to(&self, agent_id: String) -> Result<(), String>;
+    async fn assign_to(&self, service_id: String, agent_id: String) -> Result<(), String>;
     async fn reload(&self, service_id: String) -> Result<(), String>;
 }

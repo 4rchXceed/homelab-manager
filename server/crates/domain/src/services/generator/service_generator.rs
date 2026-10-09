@@ -1,5 +1,6 @@
 use config::service::config_file::generator::config::{GeneratorArguments, GeneratorConfig};
 
+#[derive(Debug)]
 pub struct ServiceGenerator {
     pub base: String,
     pub arguments: GeneratorArguments,

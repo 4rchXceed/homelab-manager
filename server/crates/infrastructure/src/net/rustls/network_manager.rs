@@ -21,6 +21,7 @@ pub struct RustlsNetworkManager {
     tcp_listener: Arc<RwLock<TcpListener>>,
     tcp_acceptor: Arc<tokio_rustls::TlsAcceptor>,
     agent_authenticator: Arc<TlsAgentAuthenticator>,
+    agent_repo: Arc<dyn AgentsRepository>,
 }
 
 impl RustlsNetworkManager {
@@ -34,7 +35,8 @@ impl RustlsNetworkManager {
         return Ok(Self {
             tcp_listener: Arc::new(RwLock::new(listener)),
             tcp_acceptor: Arc::new(acceptor),
-            agent_authenticator: Arc::new(TlsAgentAuthenticator::new(agent_repo)),
+            agent_authenticator: Arc::new(TlsAgentAuthenticator::new(agent_repo.clone())),
+            agent_repo: agent_repo,
         });
     }
 
@@ -63,6 +65,10 @@ impl NetworkManager for RustlsNetworkManager {
             .await
             .map_err(|e| e.to_string())?;
 
-        return Ok(Arc::new(RustTlsAgentConnection::new(tls_stream)));
+        let agent_net = Arc::new(RustTlsAgentConnection::new(tls_stream));
+
+        self.agent_repo.set_agents_net(agent_net.clone()).await.map_err(|e|format!("Failed to set agent net: {}", e))?;
+
+        return Ok(agent_net);
     }
 }

@@ -32,15 +32,13 @@ impl ServiceConfig {
             .collect::<Result<Vec<String>, ConfigError>>()?;
 
         let mut backup_configs = Vec::new();
+
         if !yaml["backups"].is_badvalue() {
-            if yaml["backups"].is_array() {
-                let backup_configs_raw = yaml["backups"].as_vec().unwrap();
+            if let Some(backup_configs_raw) = yaml["backups"].as_vec() {
                 for backup_config_raw in backup_configs_raw.iter() {
-                    let backup_config = BackupConfig::from_yaml(backup_config_raw);
-                    if backup_config.is_err() {
-                        return Err(backup_config.err().unwrap());
-                    }
-                    backup_configs.push(backup_config.unwrap());
+                    let backup_config = BackupConfig::from_yaml(backup_config_raw)?;
+
+                    backup_configs.push(backup_config);
                 }
             } else {
                 return Err(ConfigError::ServiceConfigBackupConfigsNotArray(key.clone()));
@@ -48,15 +46,13 @@ impl ServiceConfig {
         }
 
         let mut config_files = Vec::new();
+
         if !yaml["config_files"].is_badvalue() {
-            if yaml["config_files"].is_array() {
-                let config_files_raw = yaml["config_files"].as_vec().unwrap();
+            if let Some(config_files_raw) = yaml["config_files"].as_vec() {
                 for config_file_raw in config_files_raw.iter() {
-                    let config_file = ConfigFileConfig::from_yaml(config_file_raw);
-                    if config_file.is_err() {
-                        return Err(config_file.err().unwrap());
-                    }
-                    config_files.push(config_file.unwrap());
+                    let config_file = ConfigFileConfig::from_yaml(config_file_raw)?;
+
+                    config_files.push(config_file);
                 }
             } else {
                 return Err(ConfigError::ServiceConfigConfigFilesNotArray(key.clone()));

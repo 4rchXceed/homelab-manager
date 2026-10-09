@@ -280,3 +280,13 @@ Note: I will, but only when I have time, make the agent a clean architecture too
 + Bugfixes
 
 ### Commit message: `Added generator base, generator repository, service repository, backups_db & services_db + bugfixes`
+
+## LAST: d64708f6b0a6357d443ad850e3e5718cc4207e8f
+Added generator's code (server-side only)
++ Added generators code (server-side only, for now)
++ Added a service repository
++ Added two repositories: generator base repo & generator repo
+~ From now on, commit messages will be the changelog
+
+TODO: Bash generator + client-side code
+

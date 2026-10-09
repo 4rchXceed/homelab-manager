@@ -39,26 +39,20 @@ impl ConfigFileConfig {
         }
         let reload_timeout = reload_timeout.unwrap();
 
-        if yaml["generators"].is_badvalue() || !yaml["generators"].is_array() {
-            return Err(ConfigError::ServiceConfigGeneratorsNotArray(
-                path.to_string(),
-            ));
-        }
-        let generators_config_raw = yaml["generators"].as_vec().unwrap();
+        let generators_config_raw = yaml["generators"].as_vec().ok_or(ConfigError::ServiceConfigGeneratorsNotArray(path.to_string()))?;
 
-        let generator_config = Vec::new();
+        let mut generator_configs = Vec::new();
         for generator_config_raw in generators_config_raw.iter() {
-            let generator_config = GeneratorConfig::from_yaml(generator_config_raw);
-            if generator_config.is_err() {
-                return Err(generator_config.err().unwrap());
-            }
+            let generator_config = GeneratorConfig::from_yaml(generator_config_raw)?;
+
+            generator_configs.push(generator_config);
         }
 
         return Ok(Self {
             path: String::from(path),
             when_config_updated: when_config_updated,
             reload_timeout: reload_timeout,
-            generators_config: generator_config,
+            generators_config: generator_configs,
         });
     }
 }

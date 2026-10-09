@@ -4,3 +4,4 @@ deps/
 test.db*
 src.old
 /services/
+db/

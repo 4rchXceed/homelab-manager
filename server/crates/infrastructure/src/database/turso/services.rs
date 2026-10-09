@@ -102,4 +102,25 @@ impl ServicesDb for TursoServicesDb {
 
         return Ok(service);
     }
+    
+    async fn update_agent_id_for(&self, service_id: String, agent_host_id: String) -> Result<(), String> {
+        let conn = self
+            .connection
+            .create_connection()
+            .map_err(|e| e.to_string())?;
+
+        let mut rows = conn.query(sql!(get_agent_db_id), (agent_host_id.clone(),))
+            .await
+            .map_err(|e| e.to_string())?;
+
+        let row = rows.next().await.map_err(|e| e.to_string())?.ok_or("Agent not found in database")?;
+
+        let agent_host_id = row.get::<u64>(0).map_err(|e| e.to_string())?;
+
+        conn.execute(sql!(update_service_agent_id), (agent_host_id, service_id))
+            .await
+            .map_err(|e| e.to_string())?;
+
+        return Ok(());
+    }
 }

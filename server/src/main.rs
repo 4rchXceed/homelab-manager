@@ -3,6 +3,10 @@ use std::{sync::Arc, time::Duration};
 use application::{
     agent::repositories::agents_repository::AgentsRepository,
     file_server::usecases::starter::FileServerStarter,
+    generators::{
+        repositories::generator_config_registry::GeneratorConfigRegistry,
+        usecases::generate::GenerateConfig,
+    },
     net::repositories::net_manager::NetworkManager,
     services::repositories::services_repository::ServicesRepository,
 };
@@ -15,6 +19,10 @@ use infrastructure::{
         services::TursoServicesDb,
     },
     file_server::rclone::file_server::RCloneFileServer,
+    generators::inmemory::{
+        generator_base_registry::InMemoryGeneratorRegistry,
+        generator_config_registry::InMemoryGeneratorConfigRegistry,
+    },
     init_app,
     logger::simple_logger::init::init_logger,
     net::rustls::network_manager::RustlsNetworkManager,
@@ -68,10 +76,24 @@ async fn main() {
     // The services db
     let services_db = Arc::new(TursoServicesDb::new(db, backups_db));
 
+    // The generators repository
+    let generator_registry = Arc::new(InMemoryGeneratorConfigRegistry::new());
+    generator_registry
+        .reload(config.generators_config.clone())
+        .await;
+
+    // The generators base repository
+    let generator_base_registry =
+        Arc::new(InMemoryGeneratorRegistry::new(generator_registry.clone()));
+
+    // Generate usecase
+    let generate_usecase = GenerateConfig::new(generator_base_registry.clone());
+
     // The services repository
     let service_repo = Arc::new(InMemoryServicesRepository::new(
         agent_repo.clone(),
         services_db,
+        generate_usecase,
     ));
 
     service_repo
@@ -124,6 +146,17 @@ async fn main() {
                     }
                     Err(e) => {
                         error!("Ping-pong failed with agent: {}", e);
+                    }
+                }
+
+                let result = service_repo.assign_to(String::from("service_id"), String::from("main")).await;
+
+                match result {
+                    Ok(_) => {
+                        info!("Service assigned to agent successfully");
+                    }
+                    Err(e) => {
+                        error!("Failed to assign service to agent: {}", e);
                     }
                 }
             }

@@ -6,6 +6,7 @@ pub mod agent;
 pub mod common;
 pub mod database;
 pub mod file_server;
+pub mod generators;
 pub mod logger;
 pub mod net;
 pub mod services;
