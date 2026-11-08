@@ -39,7 +39,12 @@ impl ConfigFileConfig {
         }
         let reload_timeout = reload_timeout.unwrap();
 
-        let generators_config_raw = yaml["generators"].as_vec().ok_or(ConfigError::ServiceConfigGeneratorsNotArray(path.to_string()))?;
+        let generators_config_raw =
+            yaml["generators"]
+                .as_vec()
+                .ok_or(ConfigError::ServiceConfigGeneratorsNotArray(
+                    path.to_string(),
+                ))?;
 
         let mut generator_configs = Vec::new();
         for generator_config_raw in generators_config_raw.iter() {

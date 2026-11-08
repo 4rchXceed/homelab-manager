@@ -9,6 +9,8 @@ pub enum ServerToAgentMsg {
         requires_sample_file: bool,
         file_path: String,
         generator_mode: GeneratorMode,
+        service: String,
+        image: Option<String>,
     },
     RunCommands {
         service: String,
@@ -19,11 +21,11 @@ pub enum ServerToAgentMsg {
 pub enum AgentToServerMsg {
     GenerateConfigResponse {
         success: bool,
-        error_message: String,
+        error_message: Option<String>,
     },
     RunCommandsResponse {
         success: bool,
-        error_message: String,
+        error_message: Option<String>,
     },
     Void,
 }

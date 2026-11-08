@@ -1,4 +1,4 @@
-use std::{sync::Arc, time::Duration};
+use std::{path::Path, sync::Arc, time::Duration};
 
 use application::file_server::repositories::file_server::FileServerProvider;
 use async_trait::async_trait;
@@ -29,15 +29,21 @@ pub struct RCloneFileServer {
 }
 
 impl RCloneFileServer {
-    pub fn new(config: &GeneralConfig) -> Self {
-        return Self {
+    pub fn new(config: &GeneralConfig) -> Result<Self, FileServerErrors> {
+        if !Path::new(&config.services_folder).exists() {
+            return Err(FileServerErrors::ServicesFolderDoesntExist(
+                config.services_folder.clone(),
+            ));
+        }
+
+        return Ok(Self {
             path: config.services_folder.clone(),
             auth: config.file_server_auth.clone(),
             port: config.net_config.file_server_port as u16,
             process: Arc::new(RwLock::new(None)),
             config: config.net_config.clone(),
             thread_handle: Arc::new(RwLock::new(None)),
-        };
+        });
     }
 
     async fn start_proxy(&self) -> Result<(), String> {

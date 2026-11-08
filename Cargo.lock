@@ -62,6 +62,7 @@ dependencies = [
  "serde",
  "serde_json",
  "simple_logger",
+ "tempdir",
  "thiserror",
  "tokio",
  "tokio-rustls",
@@ -1252,6 +1253,7 @@ version = "0.1.0"
 dependencies = [
  "application",
  "async-trait",
+ "base64 0.23.1",
  "config",
  "consts",
  "domain",

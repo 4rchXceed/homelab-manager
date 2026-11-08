@@ -29,7 +29,7 @@ impl GeneratorBaseConfig {
             .map(|(k, v)| (k.as_str().unwrap_or_default().to_string(), v.clone()))
             .collect();
 
-        let require_sample_file = yaml["requires_sample_file"].as_bool().unwrap_or(false);
+        let require_sample_file = yaml["based_on_sample"].as_bool().unwrap_or(false);
 
         let timeout = parse_time(yaml["timeout"].as_str().unwrap_or("30s"))
             .map_err(|e| ConfigError::GeneratorConfigTimeoutParseError(key.clone(), e))?;

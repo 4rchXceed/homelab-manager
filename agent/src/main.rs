@@ -9,6 +9,7 @@ mod db;
 mod errors;
 mod file_client;
 mod net;
+mod services;
 
 #[tokio::main]
 async fn main() {

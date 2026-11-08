@@ -15,9 +15,13 @@ pub struct ToServerMessage {
 #[derive(Deserialize, Debug)]
 pub enum FromServerMessageContent {
     Void,
+    GenerateConfig(Vec<String>, bool, String, bool, String, Option<String>),
+    RunCommands(Vec<String>, String),
 }
 
 #[derive(Serialize, Debug)]
 pub enum ToServerMessageContent {
     Void,
+    GenerateConfigResponse(bool, Option<String>),
+    RunCommandsResponse(bool, Option<String>),
 }

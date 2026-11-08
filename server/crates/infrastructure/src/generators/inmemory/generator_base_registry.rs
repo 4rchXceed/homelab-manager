@@ -33,17 +33,19 @@ impl GeneratorBaseRegistry for InMemoryGeneratorRegistry {
         &self,
         name: String,
     ) -> Result<(Arc<dyn GeneratorBase>, GeneratorBaseConfig), String> {
-        let config = self.configs.get_config(name.clone()).await.ok_or(format!(
-            "Generator config not found for name: {}",
-            name
-        ))?;
+        let config = self
+            .configs
+            .get_config(name.clone())
+            .await
+            .ok_or(format!("Generator config not found for name: {}", name))?;
 
         let generators = self.generators.read().await;
 
         let generator = generators
             .iter()
             .find(|g| g.get_name() == config.generator_base_name)
-            .cloned().ok_or(format!(
+            .cloned()
+            .ok_or(format!(
                 "Generator base not found for name: {}",
                 config.generator_base_name
             ))?;

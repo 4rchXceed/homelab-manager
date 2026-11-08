@@ -6,4 +6,6 @@ pub enum FileServerErrors {
     TimeoutError,
     #[error("The file server proxy is already started")]
     ProxyAlreadyStarted,
+    #[error("Services folder: {0} does not exist")]
+    ServicesFolderDoesntExist(String),
 }

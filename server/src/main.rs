@@ -19,9 +19,12 @@ use infrastructure::{
         services::TursoServicesDb,
     },
     file_server::rclone::file_server::RCloneFileServer,
-    generators::inmemory::{
-        generator_base_registry::InMemoryGeneratorRegistry,
-        generator_config_registry::InMemoryGeneratorConfigRegistry,
+    generators::{
+        bases::bash::BashGeneratorBase,
+        inmemory::{
+            generator_base_registry::InMemoryGeneratorRegistry,
+            generator_config_registry::InMemoryGeneratorConfigRegistry,
+        },
     },
     init_app,
     logger::simple_logger::init::init_logger,
@@ -85,6 +88,9 @@ async fn main() {
     // The generators base repository
     let generator_base_registry =
         Arc::new(InMemoryGeneratorRegistry::new(generator_registry.clone()));
+    generator_base_registry
+        .add(Arc::new(BashGeneratorBase::new()))
+        .await;
 
     // Generate usecase
     let generate_usecase = GenerateConfig::new(generator_base_registry.clone());
@@ -102,7 +108,11 @@ async fn main() {
         .expect("Failed to ensure services into db");
 
     // Test file server
-    let file_server = Arc::new(RCloneFileServer::new(&config.config_general));
+    let file_server = Arc::new(
+        RCloneFileServer::new(&config.config_general)
+            .map_err(|e| e.to_string())
+            .expect("Failed to create the file server"),
+    );
 
     let starter = FileServerStarter::new(file_server);
 
@@ -149,7 +159,9 @@ async fn main() {
                     }
                 }
 
-                let result = service_repo.assign_to(String::from("service_id"), String::from("main")).await;
+                let result = service_repo
+                    .assign_to(String::from("service_id"), String::from("main"))
+                    .await;
 
                 match result {
                     Ok(_) => {

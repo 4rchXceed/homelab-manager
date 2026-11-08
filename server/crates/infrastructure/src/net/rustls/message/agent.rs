@@ -18,6 +18,8 @@ impl ToAgentMessage {
                     requires_sample_file,
                     file_path,
                     generator_mode,
+                    service,
+                    image,
                 } => ToAgentMessageContent::GenerateConfig(
                     commands,
                     requires_sample_file,
@@ -26,6 +28,8 @@ impl ToAgentMessage {
                         GeneratorMode::Sandboxed => true,
                         GeneratorMode::Unsandboxed => false,
                     },
+                    service,
+                    image,
                 ),
                 ServerToAgentMsg::RunCommands { service, commands } => {
                     ToAgentMessageContent::RunCommands(commands, service)
@@ -53,7 +57,7 @@ impl FromAgentMessage {
                 }
             }
             FromAgentMessageContent::RunCommandsResponse(success, error_message) => {
-                AgentToServerMsg::GenerateConfigResponse {
+                AgentToServerMsg::RunCommandsResponse {
                     success: *success,
                     error_message: error_message.clone(),
                 }
@@ -64,14 +68,14 @@ impl FromAgentMessage {
 
 #[derive(Serialize)]
 pub enum ToAgentMessageContent {
-    GenerateConfig(Vec<String>, bool, String, bool),
+    GenerateConfig(Vec<String>, bool, String, bool, String, Option<String>),
     RunCommands(Vec<String>, String),
     Void,
 }
 
 #[derive(Deserialize)]
 pub enum FromAgentMessageContent {
-    GenerateConfigResponse(bool, String),
-    RunCommandsResponse(bool, String),
+    GenerateConfigResponse(bool, Option<String>),
+    RunCommandsResponse(bool, Option<String>),
     Void,
 }

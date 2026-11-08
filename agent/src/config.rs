@@ -22,7 +22,8 @@ pub struct Config {
     pub backup_relay_port: u16,  // Optional
     pub keepalive_max_time: u64, // Optional
     // Other (optional)
-    pub log_level: String, // Optional
+    pub log_level: String,          // Optional
+    pub sandbox_base_image: String, // Optional
 }
 
 impl Config {
@@ -149,6 +150,11 @@ impl Config {
             .unwrap_or(&"info".to_string())
             .to_string();
 
+        let sandbox_base_image = other_section
+            .get("sandbox_base_image")
+            .unwrap_or(&"debian:bookworm".to_string())
+            .to_string();
+
         return Ok(Self {
             id: id.clone(),
             api_key: api_key.clone(),
@@ -163,6 +169,7 @@ impl Config {
             backup_relay_port: backup_server_port,
             keepalive_max_time: keepalive_max_time,
             log_level: log_level,
+            sandbox_base_image: sandbox_base_image,
         });
     }
 }

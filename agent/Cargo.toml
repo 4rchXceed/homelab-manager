@@ -13,3 +13,4 @@ serde = { version = "1.0.188", features = ["derive"] }
 log = "0.4.34"
 simple_logger = { version = "5.2.0", features = ["colors", "timestamps", "stderr"] }
 which = "8.0.6"
+tempdir = "0.3.7"

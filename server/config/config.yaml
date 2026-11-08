@@ -20,11 +20,16 @@ config:
 generators:
   generator_name:
     base: "bash"
+    base_image: "python:3.12.15-slim-trixie"
+    install_dependencies:
+      - apt-get update
+      - apt-get install -y curl
     commands:
-      - command1
-      - command2
-    requires_sample_file: true
-    timeout: 10s
+      - python3 -m http.server 8000 &
+      - sleep 1
+      - curl -s http://localhost:8000
+    based_on_sample: true
+    timeout: 50s
 services:
   service_id:
     description: XYZ

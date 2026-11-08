@@ -1,10 +1,9 @@
+use application::generators::usecases::reload::ReloadService;
 use log::error;
-use std::time::Duration;
 use std::{collections::HashMap, sync::Arc};
 
 use application::generators::usecases::errors::GenerateConfigError;
 use application::generators::usecases::generate::GenerateConfig;
-use application::net::repositories::agent_connection::AgentConnection;
 use application::{
     agent::repositories::agents_repository::AgentsRepository,
     database::repositories::services_db::ServicesDb,
@@ -12,12 +11,11 @@ use application::{
 };
 use async_trait::async_trait;
 use config::service::config::ServiceConfig;
-use domain::agent::protocol::message::{AgentToServerMsg, ServerToAgentMsg};
 use domain::services::service::Service;
+use log::trace;
 use thiserror::Error;
 use tokio::sync::RwLock;
 use turso::core::alloc::Vec;
-use log::trace;
 
 #[derive(Debug, Error)]
 pub enum ServicesRepositoryError {
@@ -38,6 +36,7 @@ pub struct InMemoryServicesRepository {
     agents: Arc<dyn AgentsRepository>,
     services_db: Arc<dyn ServicesDb>,
     generate: GenerateConfig,
+    reload_service: ReloadService,
 }
 
 impl InMemoryServicesRepository {
@@ -51,51 +50,11 @@ impl InMemoryServicesRepository {
             agents: agents,
             services_db: services_db,
             generate: generate_usecase,
+            reload_service: ReloadService::new(),
         };
     }
 
-    pub async fn reload_service(
-        &self,
-        service_id: String,
-        net_agent: Arc<dyn AgentConnection>,
-        commands: Vec<String>,
-        timeout: u64,
-    ) -> Result<(), String> {
-        trace!("Reloading service {service_id} with {} commands, and a timeout of {timeout} seconds", commands.len());
-
-        let result = net_agent
-            .send_pingpong(
-                ServerToAgentMsg::RunCommands {
-                    service: service_id,
-                    commands: commands,
-                },
-                Duration::from_secs(timeout),
-            )
-            .await;
-
-        match result {
-            Ok(msg) => match msg {
-                AgentToServerMsg::RunCommandsResponse {
-                    success,
-                    error_message,
-                } => {
-                    if success {
-                        trace!("Service reloaded successfully!");
-                        Ok(())
-                    } else {
-                        Err(error_message)
-                    }
-                }
-                _ => Err(String::from("Unexpected response from agent")),
-            },
-            Err(e) => Err(e),
-        }
-    }
-
-    pub async fn regenerate(
-        &self,
-        service_id: String,
-    ) -> Result<(), ServicesRepositoryError> {
+    pub async fn regenerate(&self, service_id: String) -> Result<(), ServicesRepositoryError> {
         trace!("Regenerating service {service_id}");
 
         let services = self.services.read().await;
@@ -118,15 +77,26 @@ impl InMemoryServicesRepository {
             trace!("Regenerating config file: {}", config_file.path);
 
             for generator in &config_file.service_generators {
-                trace!("Running generator {} for config file: {}", generator.base, config_file.path);
+                trace!(
+                    "Running generator {} for config file: {}",
+                    generator.base, config_file.path
+                );
 
                 let generate_result = self
                     .generate
-                    .generate(config_file.path.clone(), generator, net_agent.clone())
+                    .generate(
+                        config_file.path.clone(),
+                        generator,
+                        net_agent.clone(),
+                        service_found.id.clone(),
+                    )
                     .await;
 
                 if let Err(e) = generate_result {
-                    trace!("Failed to generate config file: {} with error: {}", config_file.path, e);
+                    trace!(
+                        "Failed to generate config file: {} with error: {}",
+                        config_file.path, e
+                    );
 
                     // Stop the entire operation, so the user is forced to fix the issue before continuing
                     return Err(ServicesRepositoryError::FailedToGenerate(
@@ -142,6 +112,7 @@ impl InMemoryServicesRepository {
             {
                 trace!("Service requires reload...");
                 let reload_result = self
+                    .reload_service
                     .reload_service(
                         service_id.clone(),
                         net_agent.clone(),

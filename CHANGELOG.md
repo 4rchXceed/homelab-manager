@@ -290,3 +290,14 @@ Added generator's code (server-side only)
 
 TODO: Bash generator + client-side code
 
+## LAST: da879d8736f8dbec4a058a2cf61758fccbadaa1f
+(Untested / Unfinished / WIP)
+Added:
+- UserContext: context for print / input
+- A replace generator. TODO: TEST IT!
+- A userVar db handler
+- The generate config from server to agent
+
+Started (not finished) the variables system
+
++ Updated generators and fixed bugs

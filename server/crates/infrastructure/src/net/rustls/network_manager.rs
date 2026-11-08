@@ -67,7 +67,10 @@ impl NetworkManager for RustlsNetworkManager {
 
         let agent_net = Arc::new(RustTlsAgentConnection::new(tls_stream));
 
-        self.agent_repo.set_agents_net(agent_net.clone()).await.map_err(|e|format!("Failed to set agent net: {}", e))?;
+        self.agent_repo
+            .set_agents_net(agent_net.clone())
+            .await
+            .map_err(|e| format!("Failed to set agent net: {}", e))?;
 
         return Ok(agent_net);
     }
