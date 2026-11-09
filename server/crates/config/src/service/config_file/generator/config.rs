@@ -4,6 +4,8 @@ use crate::errors::ConfigError;
 
 pub type GeneratorArguments = Vec<Yaml>;
 
+pub type VariableArguments = Yaml;
+
 #[derive(Debug, Clone)]
 pub struct GeneratorConfig {
     pub generator_id: String,

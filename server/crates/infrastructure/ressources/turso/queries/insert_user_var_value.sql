@@ -1,2 +1,2 @@
-INSERT INTO user_variables (id_str, value)
+INSERT INTO user_variable (id_str, value)
 VALUES (?, ?);

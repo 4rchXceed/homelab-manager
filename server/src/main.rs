@@ -16,20 +16,25 @@ use infrastructure::{
     agent::inmemory::agent_repository::InMemoryAgentRepository,
     database::turso::{
         agents::TursoAgentsDb, backups::TursoBackupsDb, connection::TursoDbConnection,
-        services::TursoServicesDb,
+        services::TursoServicesDb, user_vars::TursoUserVarsDb,
     },
     file_server::rclone::file_server::RCloneFileServer,
     generators::{
-        bases::bash::BashGeneratorBase,
+        bases::{bash::BashGeneratorBase, replace::ReplaceFileGeneratorBase},
         inmemory::{
             generator_base_registry::InMemoryGeneratorRegistry,
             generator_config_registry::InMemoryGeneratorConfigRegistry,
         },
     },
     init_app,
+    interactions::cli::user_context::CliUserContext,
     logger::simple_logger::init::init_logger,
     net::rustls::network_manager::RustlsNetworkManager,
     services::inmemory::services_repository::InMemoryServicesRepository,
+    var_provider::{
+        inmemeory::var_provider_registry::InMemoryVarProviderRegistry,
+        types::{string::StringVarProvider, user_var::UserVarProvider},
+    },
 };
 use log::error;
 use log::info;
@@ -58,6 +63,9 @@ async fn main() {
             .expect("Failed to create db"),
     );
 
+    // The default user context
+    let user_context = Arc::new(CliUserContext::new());
+
     // The agent's db
     let agents_db = Arc::new(TursoAgentsDb::new(db.clone()));
 
@@ -77,7 +85,21 @@ async fn main() {
     let backups_db = Arc::new(TursoBackupsDb::new(db.clone()));
 
     // The services db
-    let services_db = Arc::new(TursoServicesDb::new(db, backups_db));
+    let services_db = Arc::new(TursoServicesDb::new(db.clone(), backups_db));
+
+    // The user vars db
+    let user_vars_db = Arc::new(TursoUserVarsDb::new(db.clone()));
+
+    // The variable provider registry
+    let var_provider_registry = Arc::new(InMemoryVarProviderRegistry::new());
+
+    // The "string" var provider
+    let string_var_provider = Arc::new(StringVarProvider::new());
+    var_provider_registry.add(string_var_provider).await;
+
+    // The "user_var" var provider
+    let user_var_provider = Arc::new(UserVarProvider::new(user_vars_db.clone()));
+    var_provider_registry.add(user_var_provider).await;
 
     // The generators repository
     let generator_registry = Arc::new(InMemoryGeneratorConfigRegistry::new());
@@ -88,18 +110,28 @@ async fn main() {
     // The generators base repository
     let generator_base_registry =
         Arc::new(InMemoryGeneratorRegistry::new(generator_registry.clone()));
+
+    // Adding the generators
     generator_base_registry
         .add(Arc::new(BashGeneratorBase::new()))
         .await;
 
+    generator_base_registry
+        .add(Arc::new(ReplaceFileGeneratorBase::new()))
+        .await;
+
     // Generate usecase
-    let generate_usecase = GenerateConfig::new(generator_base_registry.clone());
+    let generate_usecase = GenerateConfig::new(
+        generator_base_registry.clone(),
+        var_provider_registry.clone(),
+    );
 
     // The services repository
     let service_repo = Arc::new(InMemoryServicesRepository::new(
         agent_repo.clone(),
         services_db,
         generate_usecase,
+        user_vars_db,
     ));
 
     service_repo
@@ -160,7 +192,11 @@ async fn main() {
                 }
 
                 let result = service_repo
-                    .assign_to(String::from("service_id"), String::from("main"))
+                    .assign_to(
+                        String::from("service_id"),
+                        String::from("main"),
+                        user_context.clone(),
+                    )
                     .await;
 
                 match result {

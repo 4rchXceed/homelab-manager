@@ -2,7 +2,6 @@ use application::generators::repositories::generator_base::GeneratorBase;
 use async_trait::async_trait;
 use base64::prelude::*;
 use config::generator::config::GeneratorBaseConfig;
-use config::service::config_file::generator::config::GeneratorArguments;
 use domain::agent::protocol::message::GeneratorMode;
 
 pub struct BashGeneratorBase {}
@@ -22,7 +21,7 @@ impl GeneratorBase for BashGeneratorBase {
     async fn generate_commands(
         &self,
         config: &GeneratorBaseConfig,
-        arguments: &GeneratorArguments,
+        arguments: &Vec<String>,
         _file_path: &String,
     ) -> Result<(Vec<String>, GeneratorMode, Option<String>), String> {
         if let Some(commands) = &config.arguments.get("commands") {
@@ -32,13 +31,11 @@ impl GeneratorBase for BashGeneratorBase {
                 commands.push(String::from("export DEBIAN_FRONTEND=noninteractive"));
 
                 for (i, arg) in arguments.iter().enumerate() {
-                    if let Some(arg_str) = arg.as_str() {
-                        commands.push(format!(
-                            "ARG{}=\"$(echo {} | base64 --decode)\"",
-                            i,
-                            BASE64_STANDARD.encode(arg_str)
-                        ));
-                    }
+                    commands.push(format!(
+                        "ARG{}=\"$(echo {} | base64 --decode)\"",
+                        i,
+                        BASE64_STANDARD.encode(arg)
+                    ));
                 }
 
                 if let Some(deps_cmds) = &config.arguments.get("install_dependencies")

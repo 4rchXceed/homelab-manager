@@ -12,4 +12,8 @@ pub enum GenerateConfigError {
     UnexpectedResponse,
     #[error("Failed to generate config: {0}")]
     FailedToGenerateConfig(String),
+    #[error("Failed to process variable for service {0}: {1}")]
+    FailedToProcessUserVars(String, String),
+    #[error("Variable is missing the 'type' attribute for service: {0}")]
+    VariableMissingTypeAttribute(String),
 }

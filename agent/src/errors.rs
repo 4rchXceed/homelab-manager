@@ -34,8 +34,8 @@ pub enum NetInitError {
 
 #[derive(Debug, Error)]
 pub enum NetRunError {
-    #[error("Socket close error: {0}")]
-    SocketCloseError(std::io::Error),
+    // #[error("Socket close error: {0}")]
+    // SocketCloseError(std::io::Error),
     #[error("The socket is closed / wasn't created")]
     SocketClosedOrNotFound,
     #[error("Socket error: {0}")]

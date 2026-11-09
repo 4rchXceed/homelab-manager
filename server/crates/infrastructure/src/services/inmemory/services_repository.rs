@@ -1,18 +1,21 @@
+use application::database::repositories::user_vars_db::UserVarsDb;
 use application::generators::usecases::reload::ReloadService;
-use log::error;
-use std::{collections::HashMap, sync::Arc};
+use application::interactions::repositories::user_context::UserContext;
+use application::net::repositories::agent_connection::AgentConnection;
+use application::services::repositories::services_repository::ServicesRepository;
+use config::service::config::ServiceConfig;
+use std::collections::HashMap;
+use std::sync::Arc;
 
 use application::generators::usecases::errors::GenerateConfigError;
 use application::generators::usecases::generate::GenerateConfig;
 use application::{
     agent::repositories::agents_repository::AgentsRepository,
     database::repositories::services_db::ServicesDb,
-    services::repositories::services_repository::ServicesRepository,
 };
 use async_trait::async_trait;
-use config::service::config::ServiceConfig;
 use domain::services::service::Service;
-use log::trace;
+use log::{error, trace};
 use thiserror::Error;
 use tokio::sync::RwLock;
 use turso::core::alloc::Vec;
@@ -37,6 +40,7 @@ pub struct InMemoryServicesRepository {
     services_db: Arc<dyn ServicesDb>,
     generate: GenerateConfig,
     reload_service: ReloadService,
+    user_vars_db: Arc<dyn UserVarsDb>,
 }
 
 impl InMemoryServicesRepository {
@@ -44,6 +48,7 @@ impl InMemoryServicesRepository {
         agents: Arc<dyn AgentsRepository>,
         services_db: Arc<dyn ServicesDb>,
         generate_usecase: GenerateConfig,
+        user_vars_db: Arc<dyn UserVarsDb>,
     ) -> Self {
         return Self {
             services: Arc::new(RwLock::new(Vec::new())),
@@ -51,10 +56,15 @@ impl InMemoryServicesRepository {
             services_db: services_db,
             generate: generate_usecase,
             reload_service: ReloadService::new(),
+            user_vars_db: user_vars_db,
         };
     }
 
-    pub async fn regenerate(&self, service_id: String) -> Result<(), ServicesRepositoryError> {
+    pub async fn regenerate(
+        &self,
+        service_id: String,
+        user_context: Arc<dyn UserContext>,
+    ) -> Result<(), ServicesRepositoryError> {
         trace!("Regenerating service {service_id}");
 
         let services = self.services.read().await;
@@ -74,60 +84,81 @@ impl InMemoryServicesRepository {
         )?;
 
         for config_file in &service_found.config_files {
-            trace!("Regenerating config file: {}", config_file.path);
+            self.regenerate_one_service(
+                &service_id,
+                service_found,
+                agent_id,
+                &net_agent,
+                config_file,
+                &user_context,
+            )
+            .await?;
+        }
 
-            for generator in &config_file.service_generators {
+        return Ok(());
+    }
+
+    async fn regenerate_one_service(
+        &self,
+        service_id: &String,
+        service_found: &Service,
+        agent_id: &String,
+        net_agent: &Arc<dyn AgentConnection>,
+        config_file: &domain::services::config_file::ConfigFile,
+        user_context: &Arc<dyn UserContext>,
+    ) -> Result<(), ServicesRepositoryError> {
+        trace!("Regenerating config file: {}", config_file.path);
+        for generator in &config_file.service_generators {
+            trace!(
+                "Running generator {} for config file: {}",
+                generator.base, config_file.path
+            );
+
+            let generate_result = self
+                .generate
+                .generate(
+                    config_file.path.clone(),
+                    generator,
+                    net_agent.clone(),
+                    service_found.id.clone(),
+                    user_context.clone(),
+                )
+                .await;
+
+            if let Err(e) = generate_result {
                 trace!(
-                    "Running generator {} for config file: {}",
-                    generator.base, config_file.path
+                    "Failed to generate config file: {} with error: {}",
+                    config_file.path, e
                 );
 
-                let generate_result = self
-                    .generate
-                    .generate(
-                        config_file.path.clone(),
-                        generator,
-                        net_agent.clone(),
-                        service_found.id.clone(),
-                    )
-                    .await;
-
-                if let Err(e) = generate_result {
-                    trace!(
-                        "Failed to generate config file: {} with error: {}",
-                        config_file.path, e
-                    );
-
-                    // Stop the entire operation, so the user is forced to fix the issue before continuing
-                    return Err(ServicesRepositoryError::FailedToGenerate(
-                        service_id.clone(),
-                        agent_id.clone(),
-                        e,
-                    ));
-                }
+                // Stop the entire operation, so the user is forced to fix the issue before continuing
+                return Err(ServicesRepositoryError::FailedToGenerate(
+                    service_id.clone(),
+                    agent_id.clone(),
+                    e,
+                ));
             }
+        }
 
-            if config_file.service_generators.len() > 0
-                && config_file.commands_when_updated.len() > 0
-            {
-                trace!("Service requires reload...");
-                let reload_result = self
-                    .reload_service
-                    .reload_service(
-                        service_id.clone(),
-                        net_agent.clone(),
-                        config_file.commands_when_updated.clone(),
-                        config_file.reload_timeout,
-                    )
-                    .await;
+        if config_file.service_generators.len() > 0 && config_file.commands_when_updated.len() > 0 {
+            trace!("Service requires reload...");
 
-                if let Err(error) = reload_result {
-                    return Err(ServicesRepositoryError::FailedToReloadService(
-                        service_id.clone(),
-                        agent_id.clone(),
-                        error,
-                    ));
-                }
+            let reload_result = self
+                .reload_service
+                .reload_service(
+                    service_id.clone(),
+                    net_agent.clone(),
+                    config_file.commands_when_updated.clone(),
+                    config_file.reload_timeout,
+                )
+                .await;
+
+            if let Err(error) = reload_result {
+                return Err(ServicesRepositoryError::FailedToReloadService(
+                    service_id.clone(),
+                    agent_id.clone(),
+                    error,
+                ));
             }
         }
 
@@ -156,7 +187,12 @@ impl ServicesRepository for InMemoryServicesRepository {
         return Ok(());
     }
 
-    async fn assign_to(&self, service_id: String, agent_id: String) -> Result<(), String> {
+    async fn assign_to(
+        &self,
+        service_id: String,
+        agent_id: String,
+        user_context: Arc<dyn UserContext>,
+    ) -> Result<(), String> {
         {
             trace!("Assigning service {service_id} to agent {agent_id}");
             let mut services_write = self.services.write().await;
@@ -174,17 +210,65 @@ impl ServicesRepository for InMemoryServicesRepository {
             service.agent_host_id = Some(agent_id.clone());
         }
 
-        self.regenerate(service_id.clone())
+        self.regenerate(service_id.clone(), user_context)
             .await
             .map_err(|e| format!("Failed to regenerate service: {}", e))?;
 
-        error!("TODO: Implement stop");
+        error!("TODO: Implement service stop");
 
         return Ok(());
     }
 
     async fn reload(&self, _: String) -> Result<(), String> {
-        // TODO
+        // TO PUT AT THE END OF THE FN:
+        let services = self.services.read().await;
+
+        // Update the user vars
+        let mut real_dependency_map: HashMap<String, Vec<String>> = HashMap::new();
+
+        // Exceptionally more than 4 nested indentation levels, but it's way easier like this
+
+        trace!("Updating the dep map for user vars...");
+        // Service
+        for service in services.iter() {
+            // Config file
+            for config_file in service.config_files.iter() {
+                // Generator
+                for generator in config_file.service_generators.iter() {
+                    // Variable
+                    for var in generator.arguments.iter() {
+                        // Check the type and id
+                        if let Some(var_type) = var["user_var"].as_str()
+                            && let Some(id) = var["id"].as_str()
+                        {
+                            if var_type == "user_var" {
+                                if let Some(val) = real_dependency_map.get_mut(id) {
+                                    // Add the service to the already-here list
+                                    val.push(service.id.clone());
+                                } else {
+                                    // Create a new entry in the dependency map
+                                    real_dependency_map
+                                        .insert(id.to_string(), vec![service.id.clone()]);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Check the updates
+        for (var_id, services_dependent) in real_dependency_map.iter() {
+            trace!("Saving deps list for variable: {var_id}");
+
+            self.user_vars_db
+                .save_dependencies(var_id.clone(), services_dependent.clone())
+                .await
+                .map_err(|e| format!("Failed to save new dep map for variable {var_id}: {e}"))?;
+        }
+
+        trace!("Updated user vars deps!");
+
         return Ok(());
     }
 }

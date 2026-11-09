@@ -1,1 +1,1 @@
-SELECT id FROM user_variables WHERE id_str = ?;
+SELECT id FROM user_variable WHERE id_str = ?;

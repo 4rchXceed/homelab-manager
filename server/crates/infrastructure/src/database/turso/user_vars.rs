@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use application::database::repositories::user_vars_db::UserVarsDb;
 use async_trait::async_trait;
+use log::trace;
 use turso::Connection;
 
 use crate::sql;
@@ -63,7 +64,7 @@ impl TursoUserVarsDb {
 
 #[async_trait]
 impl UserVarsDb for TursoUserVarsDb {
-    async fn get_value(&self, var_id: String) -> Result<Option<Option<String>>, String> {
+    async fn get_value(&self, var_id: String) -> Result<Option<String>, String> {
         let conn = self
             .connection
             .create_connection()
@@ -79,13 +80,15 @@ impl UserVarsDb for TursoUserVarsDb {
         if let Some(row) = first_row {
             let value: Option<String> = row.get(0).map_err(|e| e.to_string())?;
 
-            return Ok(Some(value));
+            return Ok(value);
         } else {
             return Ok(None);
         }
     }
 
     async fn save_value(&self, var_id: String, value: String) -> Result<(), String> {
+        trace!("Updating value of var: {var_id}");
+
         let conn = self
             .connection
             .create_connection()
@@ -132,6 +135,8 @@ impl UserVarsDb for TursoUserVarsDb {
         var_id: String,
         dependencies: Vec<String>,
     ) -> Result<(), String> {
+        trace!("Saving dependencies for var: {var_id}");
+
         let conn = self
             .connection
             .create_connection()
@@ -143,36 +148,16 @@ impl UserVarsDb for TursoUserVarsDb {
             .map_err(|e| format!("Failed to get var id: {}", e))?
             .ok_or(format!("Var with id_str {} not found", var_id))?;
 
-        let old_dependencies = self
-            .get_deps(variable_id, &conn)
+        // Remove existing dependencies
+        conn.execute(sql!(rm_all_var_deps), (variable_id,))
             .await
-            .map_err(|e| format!("Failed to get old deps: {e}"))?;
+            .map_err(|e| format!("Failed to remove existing dependencies: {}", e))?;
 
-        let old_dependencies_set: std::collections::HashSet<String> = old_dependencies
-            .iter()
-            .map(|(dep, _)| dep.clone())
-            .collect();
-
-        for service_id_str in &dependencies {
-            if !old_dependencies_set.contains(service_id_str) {
-                let service_id = self
-                    .id_from_id_str(service_id_str.clone(), &conn)
-                    .await
-                    .map_err(|e| format!("Failed to get dep id: {}", e))?
-                    .ok_or(format!("Service with id_str {} not found", service_id_str))?;
-
-                conn.execute(sql!(add_var_dep), (service_id, variable_id))
-                    .await
-                    .map_err(|e| format!("Failed to add dependency: {}", e))?;
-            }
-        }
-
-        for (old_service_id_str, old_service_id) in old_dependencies {
-            if !dependencies.contains(&old_service_id_str) {
-                conn.execute(sql!(rm_var_dep), (old_service_id, variable_id))
-                    .await
-                    .map_err(|e| format!("Failed to remove dependency: {}", e))?;
-            }
+        // Insert new dependencies
+        for service_id in dependencies {
+            conn.execute(sql!(add_var_dep), (service_id, variable_id))
+                .await
+                .map_err(|e| format!("Failed to insert dependency: {}", e))?;
         }
 
         return Ok(());

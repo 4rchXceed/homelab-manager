@@ -11,6 +11,7 @@ pub mod interactions;
 pub mod logger;
 pub mod net;
 pub mod services;
+pub mod var_provider;
 
 /// Initiate the dependencies for the infrastructure layer.
 pub fn init_app() -> Result<(), String> {

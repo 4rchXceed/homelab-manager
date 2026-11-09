@@ -5,6 +5,12 @@ use std::io::{self, Write};
 
 pub struct CliUserContext {}
 
+impl CliUserContext {
+    pub fn new() -> Self {
+        return Self {};
+    }
+}
+
 #[async_trait]
 impl UserContext for CliUserContext {
     async fn print(&self, message: &str) {

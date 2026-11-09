@@ -301,3 +301,14 @@ Added:
 Started (not finished) the variables system
 
 + Updated generators and fixed bugs
+
+## LAST: e8fa7d572620f02d150d2547b1d3fd9c2296e314
+Tested / created:
+- user var var provider
+- string var provider
+
+Tested:
+- replace generator
+
+TODO:
+For now, the normal file is being replaced with the ".sample" at every generator, we need to replace it, and then run ALL generators: agent/src/services/generate.rs
