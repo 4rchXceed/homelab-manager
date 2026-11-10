@@ -1,5 +1,3 @@
-use std::path::MAIN_SEPARATOR_STR;
-
 use tempdir::TempDir;
 
 use consts::TEMP_DIR_PREFIX;
@@ -20,14 +18,4 @@ pub fn create_temp_dir() -> Result<TempDirCreation, String> {
     } else {
         return Err(String::from("Temp dir creation failed :("));
     }
-}
-
-pub fn join_path(path1: &str, path2: &str) -> String {
-    let sep = MAIN_SEPARATOR_STR;
-    let mut path = String::from(path1);
-    if !path.ends_with(sep) {
-        path.push_str(sep);
-    }
-    path.push_str(path2);
-    return path;
 }

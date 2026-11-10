@@ -49,6 +49,24 @@ impl VarProvider for UserVarProvider {
                 } else {
                     // Return the default value if it exists
                     if let Some(default_value) = default_value {
+                        let var_get_result = self
+                            .user_vars_db
+                            .get_value(var_id.to_string())
+                            .await
+                            .map_err(|e| {
+                                VariableProviderError::UserVarErrorWhileGettingValue(e).to_string()
+                            })?;
+
+                        if var_get_result.is_none() {
+                            // Save the value to the database
+                            self.user_vars_db
+                                .save_value(var_id.to_string(), default_value.clone())
+                                .await
+                                .map_err(|e| {
+                                    VariableProviderError::UserVarFailedToSaveValue(e).to_string()
+                                })?;
+                        }
+
                         return Ok(default_value);
                     } else {
                         // Ask user if no value exists

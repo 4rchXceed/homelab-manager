@@ -2298,11 +2298,15 @@ name = "server"
 version = "0.1.0"
 dependencies = [
  "application",
+ "async-trait",
  "config",
  "domain",
  "infrastructure",
  "log",
+ "tempdir",
  "tokio",
+ "utils",
+ "yaml-rust2",
 ]
 
 [[package]]

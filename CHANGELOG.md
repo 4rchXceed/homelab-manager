@@ -322,3 +322,8 @@ Now samples are re-generated only once per generation *batch*
 
 Added "--ignore-times" to rclone so updates work
 Updated a little bit the config
+
+## LAST: fcd5deac75a54c54cabfb30082c97c727bd3c7b6
+Added proper unittest and integration tests architecture + started writing unittests
+
+Fixed a bug in user var var provider default value

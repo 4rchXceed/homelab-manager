@@ -10,6 +10,8 @@ application = { path = "crates/application" }
 domain = { path = "crates/domain" }
 infrastructure = { path = "crates/infrastructure" }
 log = "0.4.34"
+tempdir = "0.3.7"
+async-trait = "0.1.92"
 # tempdir = "0.3.7"
 # yaml-rust2 = "0.12.0"
 # diesel = { version="2.3.13", "features"=["sqlite", "chrono", "r2d2"] }
@@ -26,3 +28,7 @@ log = "0.4.34"
 
 # # [features]
 # # dev=[]
+[dev-dependencies]
+yaml-rust2 = "0.12.0"
+utils = { path = "crates/utils" }
+config = { path = "crates/config" }

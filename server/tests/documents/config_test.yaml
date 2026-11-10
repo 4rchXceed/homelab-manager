@@ -1,5 +1,5 @@
 config:
-  services_folder: "../services-compose"
+  services_folder: "./services"
   database_file: "./test.db"
   net:
     server_port: 4398
@@ -7,6 +7,7 @@ config:
     backup_transfer_port: 4397
     binds:
       - 192.168.1.250
+      - 127.0.0.1
     cert_dir: "./certs"
   unix_socket_path: "/tmp/homelab-manager.sock"
   startup_timeout: 120s
@@ -15,13 +16,26 @@ config:
     username: admin
     password: pass
   backup_check_interval: 1s
+  log_level: trace
 generators:
-  name:
-    base: "bash"
+  generator_name:
+    base: bash
+    base_image: "python:3.12.15-slim-trixie"
+    install_dependencies:
+      - apt-get update
+      - apt-get install -y curl
     commands:
-      - command1
-      - command2
-    timeout: 10s
+      - python3 -m http.server 8000 &
+      - sleep 1
+      - curl -s http://localhost:8000
+    based_on_sample: true
+    timeout: 50s
+  set_password:
+    base: replace
+    string: "PASSWORD_REPLACE"
+  set_port:
+    base: replace
+    string: "PORT_REPLACE"
 services:
   service_id:
     description: XYZ
@@ -47,7 +61,18 @@ services:
               - type: user_var
                 name: "Here's a name"
                 id: nametest
-servers:
+                default_value: "Default value"
+          - name: set_password
+            args:
+              - type: user_var
+                name: "Enter the password"
+                id: password
+          - name: set_port
+            args:
+              - type: user_var
+                name: "Enter the port"
+                id: port
+agents:
   - id: main
     description: XYZ
     ip: 192.168.1.250

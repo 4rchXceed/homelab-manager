@@ -141,7 +141,7 @@ pub enum ConfigError {
     AgentStorageIdInvalid(String),
     #[error("One agent's \"storages\"'s path is missing (/agents/{0}/storages/N/path)")]
     AgentStoragePathMissing(String),
-    #[error("The agents config is missing or isn't an array (/agents")]
+    #[error("The agents config is missing or isn't an array (/agents)")]
     AgentConfigMissing,
     #[error("One agent's key is missing (/agents/N/)")]
     AgentIdMissing,
