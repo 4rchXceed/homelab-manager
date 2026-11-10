@@ -8,8 +8,14 @@ pub struct TursoDbConnection {
 
 impl TursoDbConnection {
     pub async fn new(path: String) -> Result<Self, TursoDbError> {
+        #[cfg(not(windows))] // Microslop doesn't support multiprocess_wal :(
         let db = Builder::new_local(path.as_str())
             .experimental_multiprocess_wal(true)
+            .build()
+            .await
+            .map_err(|e| TursoDbError::ConnectionError(e))?;
+        #[cfg(windows)]
+        let db = Builder::new_local(path.as_str())
             .build()
             .await
             .map_err(|e| TursoDbError::ConnectionError(e))?;

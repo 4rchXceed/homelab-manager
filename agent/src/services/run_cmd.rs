@@ -1,10 +1,14 @@
+#[cfg(not(windows))]
 use std::fs::Permissions;
+#[cfg(not(windows))]
 use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
 
 use tempdir::TempDir;
 use thiserror::Error;
-use tokio::fs::{File, set_permissions};
+use tokio::fs::File;
+#[cfg(not(windows))]
+use tokio::fs::set_permissions;
 use tokio::io::AsyncWriteExt;
 use tokio::process::Command;
 
@@ -18,6 +22,7 @@ pub enum CommandError {
     FileCreationError(String),
     #[error("Failed to write into bash file: {0}")]
     FileWriteError(String),
+    #[cfg(not(windows))]
     #[error("Failed to set file permissions: {0}")]
     SetFilePermissionsError(String),
     #[error("Service folder not found: {0}, please check the file server status")]
@@ -28,6 +33,7 @@ pub enum CommandError {
     RunningDockerError(String, i32),
     #[error("Failed to create the command: {0}")]
     CreateCommandError(String),
+    #[cfg(not(windows))]
     #[error("Could not make the path absolute: {0}")]
     CouldNotMakeAbsolutePath(String),
 }
@@ -41,18 +47,29 @@ pub async fn run_commands(
 ) -> Result<(), CommandError> {
     let script_dir = TempDir::new("homelab_mgr_agent")
         .map_err(|e| CommandError::TempDirCreationError(e.to_string()))?;
+
+    #[cfg(windows)]
+    let script_path = script_dir.path().join(match sandboxed {
+        true => "script.sh",
+        false => "script.bat",
+    });
+    #[cfg(not(windows))]
     let script_path = script_dir.path().join("script.sh");
 
     let mut file = File::create(&script_path)
         .await
         .map_err(|e| CommandError::FileCreationError(e.to_string()))?;
 
+    #[cfg(not(windows))]
     let script_content = format!("#!/bin/bash\nset -e\n{}", commands.join("\n"));
+    #[cfg(windows)]
+    let script_content = commands.join("\n");
 
     file.write_all(script_content.as_bytes())
         .await
         .map_err(|e| CommandError::FileWriteError(e.to_string()))?;
 
+    #[cfg(not(windows))]
     set_permissions(&script_path, Permissions::from_mode(0o755))
         .await
         .map_err(|e| CommandError::SetFilePermissionsError(e.to_string()))?;
@@ -78,9 +95,16 @@ pub async fn run_commands(
 
         let image = image.unwrap_or(default_image);
 
-        let absolute_folder_path = folder_path
-            .canonicalize()
-            .map_err(|e| CommandError::CouldNotMakeAbsolutePath(e.to_string()))?;
+        // let relative_folder_path = folder_path
+        //     .canonicalize()
+        //     .map_err(|e| CommandError::CouldNotMakeAbsolutePath(e.to_string()))?;
+
+        let relative_folder_path = if folder_path.starts_with("./") || folder_path.starts_with("/")
+        {
+            folder_path.to_string_lossy().to_string()
+        } else {
+            format!("./{}", folder_path.to_string_lossy().to_string())
+        };
 
         let output = Command::new("docker")
             .arg("run")
@@ -88,10 +112,7 @@ pub async fn run_commands(
             .arg("-v")
             .arg(format!("{}:/script", script_dir.path().to_string_lossy()))
             .arg("-v")
-            .arg(format!(
-                "{}:/service",
-                absolute_folder_path.to_string_lossy()
-            ))
+            .arg(format!("{}:/service", relative_folder_path))
             .arg(image)
             .arg("bash")
             .arg("/script/script.sh")
@@ -110,7 +131,14 @@ pub async fn run_commands(
             return Ok(());
         }
     } else {
-        let output = Command::new("bash")
+        #[cfg(not(windows))]
+        let mut base_command = Command::new("bash");
+        #[cfg(windows)]
+        let mut base_command = Command::new("cmd");
+        #[cfg(windows)]
+        base_command.arg("/c");
+
+        let output = base_command
             .arg(script_path)
             .current_dir(folder_path)
             .output()

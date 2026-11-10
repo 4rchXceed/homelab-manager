@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use log::info;
+use log::{info, trace};
 use tokio::process::Command;
 
 use crate::file_client::errors::RCloneCommandError;
@@ -22,11 +22,20 @@ pub async fn sync_rclone(
 
     let mut command = Command::new("rclone");
     command.arg("copy");
+    command.arg("--ignore-times");
     command.arg(":http:/");
     command.arg("--http-url");
     command.arg(format!("https://{}@{}", auth, address));
-    command.arg(path);
+    command.arg(path.clone());
+    #[cfg(not(target_os = "windows"))]
     command.env("SSL_CERT_FILE", cert_file);
+    #[cfg(target_os = "windows")]
+    command.env("RCLONE_CA_CERT", cert_file); // WHY IS WINDOWS ALREADY DOING THIS DIFFERENTLY :(
+
+    trace!(
+        "Running rclone: rclone copy --ignore-times :http:/ --http-url https://CENSORED@{} {}",
+        address, path
+    );
 
     let result = command
         .output()

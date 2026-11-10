@@ -15,15 +15,11 @@ impl ToAgentMessage {
             content: match content {
                 ServerToAgentMsg::GenerateConfig {
                     commands,
-                    requires_sample_file,
-                    file_path,
                     generator_mode,
                     service,
                     image,
                 } => ToAgentMessageContent::GenerateConfig(
                     commands,
-                    requires_sample_file,
-                    file_path,
                     match generator_mode {
                         GeneratorMode::Sandboxed => true,
                         GeneratorMode::Unsandboxed => false,
@@ -33,6 +29,9 @@ impl ToAgentMessage {
                 ),
                 ServerToAgentMsg::RunCommands { service, commands } => {
                     ToAgentMessageContent::RunCommands(commands, service)
+                }
+                ServerToAgentMsg::CopySampleFile { service, file } => {
+                    ToAgentMessageContent::CopySample(service, file)
                 }
                 ServerToAgentMsg::Void => ToAgentMessageContent::Void,
             },
@@ -62,14 +61,21 @@ impl FromAgentMessage {
                     error_message: error_message.clone(),
                 }
             }
+            FromAgentMessageContent::CopySampleResponse(success, error_message) => {
+                AgentToServerMsg::CopySampleResponse {
+                    success: *success,
+                    error_message: error_message.clone(),
+                }
+            }
         };
     }
 }
 
 #[derive(Serialize)]
 pub enum ToAgentMessageContent {
-    GenerateConfig(Vec<String>, bool, String, bool, String, Option<String>),
+    GenerateConfig(Vec<String>, bool, String, Option<String>),
     RunCommands(Vec<String>, String),
+    CopySample(String, String),
     Void,
 }
 
@@ -77,5 +83,6 @@ pub enum ToAgentMessageContent {
 pub enum FromAgentMessageContent {
     GenerateConfigResponse(bool, Option<String>),
     RunCommandsResponse(bool, Option<String>),
+    CopySampleResponse(bool, Option<String>),
     Void,
 }

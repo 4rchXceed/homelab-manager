@@ -312,3 +312,13 @@ Tested:
 
 TODO:
 For now, the normal file is being replaced with the ".sample" at every generator, we need to replace it, and then run ALL generators: agent/src/services/generate.rs
+
+## LAST: f43dc54de1818cd5632c68a8b53b4f9b16eb0a0d
+Windows support + Copy sample file once per generation batch
+New Windows support (may not maintain this over time)
+
+Created new Agent-Server comm: CopySampleFile
+Now samples are re-generated only once per generation *batch*
+
+Added "--ignore-times" to rclone so updates work
+Updated a little bit the config

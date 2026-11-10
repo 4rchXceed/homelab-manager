@@ -4,7 +4,9 @@ use crate::{
         message::{FromServerMessage, FromServerMessageContent, ToServerMessageContent},
         send_queue::SendQueue,
     },
-    services::{generate::generate_config_file, run_cmd::run_commands},
+    services::{
+        copy_sample::copy_sample_file, generate::generate_config_file, run_cmd::run_commands,
+    },
 };
 
 pub async fn handle_command(
@@ -33,24 +35,27 @@ pub async fn handle_command(
                 }
             }
         }
-        FromServerMessageContent::GenerateConfig(
-            commands,
-            will_replace_file,
-            file,
-            sandboxed,
-            service,
-            image,
-        ) => {
-            let result = generate_config_file(
-                commands,
-                will_replace_file,
-                file,
-                sandboxed,
-                service,
-                context,
-                image,
-            )
-            .await;
+        FromServerMessageContent::CopySample(service, file_name) => {
+            let result = copy_sample_file(service, file_name, context).await;
+
+            match result {
+                Ok(_) => {
+                    response
+                        .send(ToServerMessageContent::CopySampleResponse(true, None))
+                        .await
+                }
+                Err(e) => {
+                    response
+                        .send(ToServerMessageContent::CopySampleResponse(
+                            false,
+                            Some(e.to_string()),
+                        ))
+                        .await
+                }
+            }
+        }
+        FromServerMessageContent::GenerateConfig(commands, sandboxed, service, image) => {
+            let result = generate_config_file(commands, sandboxed, service, image, context).await;
 
             match result {
                 Ok(_) => {

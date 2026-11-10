@@ -35,6 +35,7 @@ impl GenerateConfig {
 
     pub async fn generate(
         &self,
+        already_copied_sample: &mut bool,
         path: String,
         config: &ServiceGenerator,
         agent: Arc<dyn AgentConnection>,
@@ -46,6 +47,37 @@ impl GenerateConfig {
             .generator_for_name(config.base.clone())
             .await
             .map_err(|e| GenerateConfigError::FailedToGetGenerator(e))?;
+
+        if !*already_copied_sample && generator_base_cfg.require_sample_file {
+            *already_copied_sample = true;
+
+            let response = agent
+                .send_pingpong(
+                    ServerToAgentMsg::CopySampleFile {
+                        service: service_name.clone(),
+                        file: path.clone(),
+                    },
+                    Duration::from_secs(1),
+                )
+                .await
+                .map_err(|e| GenerateConfigError::FailedToSendToAgent(e))?;
+
+            match response {
+                AgentToServerMsg::CopySampleResponse {
+                    success,
+                    error_message,
+                } => {
+                    if !success {
+                        return Err(GenerateConfigError::FailedToGenerateConfig(
+                            error_message.unwrap_or(String::from("Unknown error")),
+                        ));
+                    }
+                }
+                _ => {
+                    return Err(GenerateConfigError::UnexpectedResponse);
+                }
+            }
+        }
 
         let vars = self
             .process_variables(config, &service_name, user_context)
@@ -60,8 +92,6 @@ impl GenerateConfig {
             .send_pingpong(
                 ServerToAgentMsg::GenerateConfig {
                     commands: commands,
-                    requires_sample_file: generator_base_cfg.require_sample_file,
-                    file_path: path,
                     generator_mode: mode,
                     service: service_name,
                     image: image,

@@ -108,6 +108,9 @@ impl InMemoryServicesRepository {
         user_context: &Arc<dyn UserContext>,
     ) -> Result<(), ServicesRepositoryError> {
         trace!("Regenerating config file: {}", config_file.path);
+
+        let mut already_copied_sample = false;
+
         for generator in &config_file.service_generators {
             trace!(
                 "Running generator {} for config file: {}",
@@ -117,6 +120,7 @@ impl InMemoryServicesRepository {
             let generate_result = self
                 .generate
                 .generate(
+                    &mut already_copied_sample,
                     config_file.path.clone(),
                     generator,
                     net_agent.clone(),

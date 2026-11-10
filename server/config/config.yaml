@@ -33,6 +33,9 @@ generators:
   set_password:
     base: replace
     string: "PASSWORD_REPLACE"
+  set_port:
+    base: replace
+    string: "PORT_REPLACE"
 services:
   service_id:
     description: XYZ
@@ -64,6 +67,11 @@ services:
               - type: user_var
                 name: "Enter the password"
                 id: password
+          - name: set_port
+            args:
+              - type: user_var
+                name: "Enter the port"
+                id: port
 agents:
   - id: main
     description: XYZ
