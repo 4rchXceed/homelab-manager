@@ -4,7 +4,10 @@ use application::{
     agent::repositories::agents_repository::AgentsRepository,
     file_server::usecases::starter::FileServerStarter,
     generators::{
-        repositories::generator_config_registry::GeneratorConfigRegistry,
+        repositories::{
+            generator_bases_registry::GeneratorBaseRegistry,
+            generator_config_registry::GeneratorConfigRegistry,
+        },
         usecases::generate::GenerateConfig,
     },
     net::repositories::net_manager::NetworkManager,

@@ -19,17 +19,11 @@ impl InMemoryGeneratorRegistry {
             configs: configs,
         };
     }
-
-    pub async fn add(&self, generator_base: Arc<dyn GeneratorBase>) {
-        let mut generators = self.generators.write().await;
-
-        generators.push(generator_base);
-    }
 }
 
 #[async_trait]
 impl GeneratorBaseRegistry for InMemoryGeneratorRegistry {
-    async fn generator_for_name(
+    async fn get_generator(
         &self,
         name: String,
     ) -> Result<(Arc<dyn GeneratorBase>, GeneratorBaseConfig), String> {
@@ -51,5 +45,11 @@ impl GeneratorBaseRegistry for InMemoryGeneratorRegistry {
             ))?;
 
         return Ok((generator, config));
+    }
+
+    async fn add(&self, generator_base: Arc<dyn GeneratorBase>) {
+        let mut generators = self.generators.write().await;
+
+        generators.push(generator_base);
     }
 }

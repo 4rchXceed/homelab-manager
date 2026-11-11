@@ -1,4 +1,8 @@
 mod common;
+mod test_bash_generator;
+mod test_generator_base_registry;
+mod test_generator_registry;
+mod test_replace_generator;
 mod test_services_repository;
 mod test_string_var_provider;
 mod test_user_var_var_provider;

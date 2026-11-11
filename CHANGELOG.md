@@ -327,3 +327,10 @@ Updated a little bit the config
 Added proper unittest and integration tests architecture + started writing unittests
 
 Fixed a bug in user var var provider default value
+
+## LAST: 1a0222c08cd1c08b1b3684cf2e7e6cbc6538f7ea
+- Added Unit Tests for:
+  - Bash Generator
+  - Generator Base Registry
+  - Generator Registry
+  - Replace Generator

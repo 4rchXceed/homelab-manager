@@ -17,6 +17,7 @@ config:
     password: pass
   backup_check_interval: 1s
   log_level: trace
+
 generators:
   generator_name:
     base: bash
@@ -36,6 +37,7 @@ generators:
   set_port:
     base: replace
     string: "PORT_REPLACE"
+
 services:
   service_id:
     description: XYZ
@@ -72,6 +74,7 @@ services:
               - type: user_var
                 name: "Enter the port"
                 id: port
+
 agents:
   - id: main
     description: XYZ

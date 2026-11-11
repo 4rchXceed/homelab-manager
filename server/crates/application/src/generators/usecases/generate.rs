@@ -44,7 +44,7 @@ impl GenerateConfig {
     ) -> Result<(), GenerateConfigError> {
         let (generator, generator_base_cfg) = self
             .generator_registry
-            .generator_for_name(config.base.clone())
+            .get_generator(config.base.clone())
             .await
             .map_err(|e| GenerateConfigError::FailedToGetGenerator(e))?;
 

@@ -7,8 +7,10 @@ use crate::generators::repositories::generator_base::GeneratorBase;
 
 #[async_trait]
 pub trait GeneratorBaseRegistry: Send + Sync {
-    async fn generator_for_name(
+    async fn get_generator(
         &self,
         name: String,
     ) -> Result<(Arc<dyn GeneratorBase>, GeneratorBaseConfig), String>;
+
+    async fn add(&self, generator_base: Arc<dyn GeneratorBase>);
 }

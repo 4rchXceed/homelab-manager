@@ -7,7 +7,7 @@ use config::generator::config::GeneratorBaseConfig;
 use tokio::sync::RwLock;
 
 pub struct InMemoryGeneratorConfigRegistry {
-    pub configs: Arc<RwLock<HashMap<String, GeneratorBaseConfig>>>,
+    configs: Arc<RwLock<HashMap<String, GeneratorBaseConfig>>>,
 }
 
 impl InMemoryGeneratorConfigRegistry {
@@ -15,6 +15,12 @@ impl InMemoryGeneratorConfigRegistry {
         return Self {
             configs: Arc::new(RwLock::new(HashMap::new())),
         };
+    }
+
+    pub async fn get_configs_testonly(&self) -> HashMap<String, GeneratorBaseConfig> {
+        let configs_lock = self.configs.read().await;
+
+        return configs_lock.clone();
     }
 }
 

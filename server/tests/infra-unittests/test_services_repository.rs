@@ -3,7 +3,10 @@ use std::sync::Arc;
 use application::{
     agent::repositories::agents_repository::AgentsRepository,
     generators::{
-        repositories::generator_config_registry::GeneratorConfigRegistry,
+        repositories::{
+            generator_bases_registry::GeneratorBaseRegistry,
+            generator_config_registry::GeneratorConfigRegistry,
+        },
         usecases::generate::GenerateConfig,
     },
     services::repositories::services_repository::ServicesRepository,
