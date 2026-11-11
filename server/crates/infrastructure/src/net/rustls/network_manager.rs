@@ -60,7 +60,8 @@ impl NetworkManager for RustlsNetworkManager {
     async fn accept_new_auth_agent(&self) -> Result<Arc<dyn AgentConnection>, String> {
         let mut tls_stream = self.accept_new().await?;
 
-        self.agent_authenticator
+        let agent = self
+            .agent_authenticator
             .authenticate(&mut tls_stream)
             .await
             .map_err(|e| e.to_string())?;
@@ -68,7 +69,7 @@ impl NetworkManager for RustlsNetworkManager {
         let agent_net = Arc::new(RustTlsAgentConnection::new(tls_stream));
 
         self.agent_repo
-            .set_agents_net(agent_net.clone())
+            .set_agents_net(agent.id, agent_net.clone())
             .await
             .map_err(|e| format!("Failed to set agent net: {}", e))?;
 

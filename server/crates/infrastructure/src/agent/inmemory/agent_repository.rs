@@ -53,10 +53,19 @@ impl AgentsRepository for InMemoryAgentRepository {
         return Ok(());
     }
 
-    async fn set_agents_net(&self, net_agent: Arc<dyn AgentConnection>) -> Result<(), String> {
-        for agent in self.agents.write().await.iter_mut() {
-            agent.net_agent = Some(net_agent.clone());
-        }
+    async fn set_agents_net(
+        &self,
+        agent_id: String,
+        net_agent: Arc<dyn AgentConnection>,
+    ) -> Result<(), String> {
+        let mut agents = self.agents.write().await;
+
+        let agent = agents
+            .iter_mut()
+            .find(|a| a.id == agent_id)
+            .ok_or(format!("Agent: {agent_id} not found!"))?;
+
+        agent.net_agent = Some(net_agent.clone());
 
         return Ok(());
     }

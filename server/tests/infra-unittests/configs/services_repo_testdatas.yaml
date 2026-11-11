@@ -1,0 +1,36 @@
+config:
+  services_folder: "./services"
+  database_file: "./test.db"
+  net:
+    server_port: 4398
+    file_server_port: 4399
+    backup_transfer_port: 4397
+    binds:
+      - 192.168.1.250
+      - 127.0.0.1
+    cert_dir: "./certs"
+  unix_socket_path: "/tmp/homelab-manager.sock"
+  startup_timeout: 120s
+  keepalive_interval: 5s
+  file_server_auth:
+    username: admin
+    password: pass
+  backup_check_interval: 1s
+  log_level: trace
+generators:
+  test_generator:
+    base: test
+    based_on_sample: false
+services:
+  test_service:
+    config_files:
+      - path: nonexistent_file
+        generators:
+          - name: test_generator
+            args:
+              - type: string
+                value: TestArgOk
+agents:
+  - id: test-agent
+    ip: 192.168.1.250
+    api_key: super-secret-api-key

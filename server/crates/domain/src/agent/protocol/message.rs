@@ -1,8 +1,10 @@
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum GeneratorMode {
     Sandboxed,
     Unsandboxed,
 }
 
+#[derive(Debug, Clone)]
 pub enum ServerToAgentMsg {
     GenerateConfig {
         commands: Vec<String>,
@@ -20,6 +22,8 @@ pub enum ServerToAgentMsg {
     },
     Void,
 }
+
+#[derive(Debug, Clone)]
 pub enum AgentToServerMsg {
     GenerateConfigResponse {
         success: bool,

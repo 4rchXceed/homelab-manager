@@ -7,10 +7,12 @@ use application::{
 use infrastructure::{
     database::turso::user_vars::TursoUserVarsDb, var_provider::types::user_var::UserVarProvider,
 };
+use tempdir::TempDir;
+use yaml_rust2::Yaml;
 
 use crate::{
-    generate_context::{PanicContext, TestContext},
-    generate_db::{generate_db, load_yaml},
+    common::generate_context::{PanicContext, TestContext},
+    common::generate_db::{generate_db, load_yaml},
 };
 
 const YAML_OK: &str = "
@@ -28,15 +30,8 @@ const YAML_ERR: &str = "
 id: id_error
 ";
 
-#[tokio::test]
-async fn test_success() {
-    let (db, _tempdir) = generate_db().await;
-
-    let test_context = TestContext::new(String::from("TestVal"));
-    let test_context = Arc::new(test_context);
-
-    let panic_context = PanicContext::new();
-    let panic_context = Arc::new(panic_context);
+async fn setup(yaml: &str) -> (TempDir, UserVarProvider, Yaml, Arc<dyn UserVarsDb>) {
+    let (db, tempdir) = generate_db().await;
 
     let conn = Arc::new(db);
 
@@ -44,7 +39,20 @@ async fn test_success() {
 
     let user_vars = UserVarProvider::new(user_vars_db.clone());
 
-    let args = load_yaml(YAML_OK);
+    let args = load_yaml(yaml);
+
+    return (tempdir, user_vars, args, user_vars_db);
+}
+
+#[tokio::test]
+async fn test_success() {
+    let test_context = TestContext::new(String::from("TestVal"));
+    let test_context = Arc::new(test_context);
+
+    let panic_context = PanicContext::new();
+    let panic_context = Arc::new(panic_context);
+
+    let (_tempdir, user_vars, args, user_vars_db) = setup(YAML_OK).await;
 
     let result = user_vars
         .process(
@@ -83,18 +91,10 @@ async fn test_success() {
 
 #[tokio::test]
 async fn test_missing_field() {
-    let (db, _tempdir) = generate_db().await;
-
     let test_context = TestContext::new(String::from("TestVal"));
     let test_context = Arc::new(test_context);
 
-    let conn = Arc::new(db);
-
-    let user_vars_db = Arc::new(TursoUserVarsDb::new(conn));
-
-    let user_vars = UserVarProvider::new(user_vars_db.clone());
-
-    let args = load_yaml(YAML_ERR);
+    let (_tempdir, user_vars, args, _user_vars_db) = setup(YAML_ERR).await;
 
     let result = user_vars
         .process(
@@ -111,18 +111,10 @@ async fn test_missing_field() {
 
 #[tokio::test]
 async fn test_default_value() {
-    let (db, _tempdir) = generate_db().await;
-
     let test_context = TestContext::new(String::from("ErrorVal"));
     let test_context = Arc::new(test_context);
 
-    let conn = Arc::new(db);
-
-    let user_vars_db = Arc::new(TursoUserVarsDb::new(conn));
-
-    let user_vars = UserVarProvider::new(user_vars_db.clone());
-
-    let args = load_yaml(YAML_DEFAULT);
+    let (_tempdir, user_vars, args, user_vars_db) = setup(YAML_DEFAULT).await;
 
     let result = user_vars
         .process(

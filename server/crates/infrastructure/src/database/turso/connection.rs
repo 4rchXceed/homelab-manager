@@ -1,4 +1,5 @@
 use turso::{Builder, Connection, Database};
+use turso::{IntoParams, Rows};
 
 use crate::{database::turso::error::TursoDbError, sql};
 
@@ -66,5 +67,26 @@ impl TursoDbConnection {
             .map_err(|e| TursoDbError::ConnectionError(e))?;
 
         return Ok(conn);
+    }
+
+    pub async fn execute(&self, sql: &str, params: impl IntoParams) -> Result<(), TursoDbError> {
+        let conn = self.create_connection()?;
+
+        conn.execute(sql, params)
+            .await
+            .map_err(|e| TursoDbError::ExecuteError(e))?;
+
+        return Ok(());
+    }
+
+    pub async fn fetch(&self, sql: &str, params: impl IntoParams) -> Result<Rows, TursoDbError> {
+        let conn = self.create_connection()?;
+
+        let rows = conn
+            .query(sql, params)
+            .await
+            .map_err(|e| TursoDbError::FetchError(e))?;
+
+        return Ok(rows);
     }
 }

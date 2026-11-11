@@ -6,7 +6,7 @@ use infrastructure::var_provider::{
 };
 
 #[tokio::test]
-pub async fn test_integration() {
+pub async fn test_var_provider_registry() {
     let var_provider_registry = InMemoryVarProviderRegistry::new();
 
     var_provider_registry
